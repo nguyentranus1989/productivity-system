@@ -1,0 +1,65 @@
+    <!-- Admin Login Overlay -->
+    <div id="adminLoginOverlay" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+    ">
+        <div style="
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 400px;
+        ">
+            <h2 style="margin-bottom: 30px; color: #333; text-align: center;">Admin Login</h2>
+            <form id="adminLoginForm">
+                <div class="mb-3">
+                    <label for="adminUsername" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="adminUsername" required>
+                </div>
+                <div class="mb-3">
+                    <label for="adminPassword" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="adminPassword" required>
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="rememberAdmin">
+                    <label class="form-check-label" for="rememberAdmin">
+                        Remember me for 4 hours
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary w-100" id="adminLoginBtn">
+                    <span id="loginText">Login</span>
+                    <span id="loginSpinner" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i> Logging in...
+                    </span>
+                </button>
+                <div id="loginError" class="alert alert-danger mt-3" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Logout Button -->
+    <button id="adminLogoutBtn" style="
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        display: none;
+        font-weight: 500;
+    " onclick="logoutAdmin()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </button>

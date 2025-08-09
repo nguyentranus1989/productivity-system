@@ -1,0 +1,86 @@
+<script>
+// Simple admin authentication that works
+window.adminAuth = {
+    token: localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken'),
+    
+    init: function() {
+        if (!this.token) {
+            this.showLogin();
+        } else {
+            this.verifyToken();
+        }
+    },
+    
+    showLogin: function() {
+        document.getElementById('adminLoginOverlay').style.display = 'flex';
+        document.querySelectorAll('.admin-header, .container-fluid, .nav-tabs, .tab-content').forEach(el => {
+            if(el) el.style.display = 'none';
+        });
+    },
+    
+    hideLogin: function() {
+        document.getElementById('adminLoginOverlay').style.display = 'none';
+        document.querySelectorAll('.admin-header, .container-fluid, .nav-tabs, .tab-content').forEach(el => {
+            if(el) el.style.display = '';
+        });
+        const logoutBtn = document.getElementById('adminLogoutBtn');
+        if(logoutBtn) logoutBtn.style.display = 'block';
+    },
+    
+    verifyToken: function() {
+        fetch('/api/admin/verify', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({token: this.token})
+        }).then(r => r.json()).then(data => {
+            if(data.success) {
+                this.hideLogin();
+            } else {
+                localStorage.removeItem('adminToken');
+                sessionStorage.removeItem('adminToken');
+                this.token = null;
+                this.showLogin();
+            }
+        }).catch(() => {
+            this.hideLogin(); // Show content even if verify fails
+        });
+    }
+};
+
+window.doAdminLogin = function() {
+    const username = document.getElementById('adminUsername').value;
+    const password = document.getElementById('adminPassword').value;
+    
+    fetch('/api/admin/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password})
+    }).then(r => r.json()).then(data => {
+        if(data.success) {
+            localStorage.setItem('adminToken', data.token);
+            sessionStorage.setItem('adminToken', data.token);
+            window.adminAuth.token = data.token;
+            window.adminAuth.hideLogin();
+        } else {
+            alert('Login failed: ' + (data.message || 'Invalid credentials'));
+        }
+    }).catch(err => {
+        console.error(err);
+        alert('Connection error');
+    });
+};
+
+window.logoutAdmin = function() {
+    if(confirm('Logout?')) {
+        localStorage.removeItem('adminToken');
+        sessionStorage.removeItem('adminToken');
+        window.adminAuth.token = null;
+        window.adminAuth.showLogin();
+    }
+};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    window.adminAuth.init();
+});
+</script>

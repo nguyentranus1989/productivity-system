@@ -1,0 +1,182 @@
+"""Idle period detection and management"""
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+import logging
+
+from database.db_manager import get_db
+from models import RoleConfig
+
+logger = logging.getLogger(__name__)
+
+class IdleDetector:
+    """Detect and manage idle periods for employees"""
+    
+    def __init__(self):
+        self.db = get_db()
+    
+    def check_real_time_idle(self, employee_id: int) -> Optional[Dict]:
+        """Check if an employee is currently idle"""
+        # Get employee's role configuration
+        employee = self.db.execute_one(
+            """
+            SELECT e.*, rc.* 
+            FROM employees e
+            JOIN role_configs rc ON e.role_id = rc.id
+            WHERE e.id = %s AND e.is_active = TRUE
+            """,
+            (employee_id,)
+        )
+        
+        if not employee:
+            return None
+        
+        # Get current clock status
+        current_clock = self.db.execute_one(
+            """
+            SELECT * FROM clock_times
+            WHERE employee_id = %s 
+            AND clock_out IS NULL
+            ORDER BY clock_in DESC
+            LIMIT 1
+            """,
+            (employee_id,)
+        )
+        
+        if not current_clock:
+            return None  # Not clocked in
+        
+        # Get last activity
+        last_activity = self.db.execute_one(
+            """
+            SELECT * FROM activity_logs
+            WHERE employee_id = %s
+            AND DATE(window_start) = CURDATE()
+            ORDER BY window_end DESC
+            LIMIT 1
+            """,
+            (employee_id,)
+        )
+        
+        if not last_activity:
+            # No activity since clock in
+            clock_in_time = current_clock['clock_in']
+            idle_minutes = (datetime.now() - clock_in_time).total_seconds() / 60
+            
+            if idle_minutes > employee['idle_threshold_minutes']:
+                return {
+                    'employee_id': employee_id,
+                    'employee_name': employee['name'],
+                    'role': employee['role_name'],
+                    'idle_since': clock_in_time,
+                    'idle_minutes': int(idle_minutes),
+                    'threshold': employee['idle_threshold_minutes'],
+                    'status': 'idle_since_clock_in'
+                }
+        else:
+            # Check time since last activity
+            last_activity_time = last_activity['window_end']
+            idle_minutes = (datetime.now() - last_activity_time).total_seconds() / 60
+            
+            if idle_minutes > employee['idle_threshold_minutes']:
+                # Check if already recorded
+                existing = self.db.execute_one(
+                    """
+                    SELECT * FROM idle_periods
+                    WHERE employee_id = %s
+                    AND start_time = %s
+                    AND end_time IS NULL
+                    """,
+                    (employee_id, last_activity_time)
+                )
+                
+                if not existing:
+                    # Record new idle period
+                    self.db.execute_update(
+                        """
+                        INSERT INTO idle_periods (employee_id, start_time, duration_minutes)
+                        VALUES (%s, %s, %s)
+                        """,
+                        (employee_id, last_activity_time, int(idle_minutes))
+                    )
+                    
+                    # Create alert
+                    self._create_idle_alert(employee, idle_minutes)
+                
+                return {
+                    'employee_id': employee_id,
+                    'employee_name': employee['name'],
+                    'role': employee['role_name'],
+                    'idle_since': last_activity_time,
+                    'idle_minutes': int(idle_minutes),
+                    'threshold': employee['idle_threshold_minutes'],
+                    'status': 'idle_after_activity'
+                }
+        
+        return None
+    
+    def _create_idle_alert(self, employee: Dict, idle_minutes: int):
+        """Create an alert for idle period"""
+        message = (
+            f"{employee['name']} has been idle for {int(idle_minutes)} minutes "
+            f"(threshold: {employee['idle_threshold_minutes']} minutes)"
+        )
+        
+        severity = 'warning'
+        if idle_minutes > employee['idle_threshold_minutes'] * 2:
+            severity = 'critical'
+        
+        self.db.execute_update(
+            """
+            INSERT INTO alerts (employee_id, alert_type, severity, message)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (employee['id'], 'idle_detected', severity, message)
+        )
+    
+    def check_all_employees_idle(self) -> List[Dict]:
+        """Check all currently clocked-in employees for idle status"""
+        # Get all employees currently clocked in
+        clocked_in = self.db.execute_query(
+            """
+            SELECT DISTINCT e.id
+            FROM employees e
+            JOIN clock_times ct ON e.id = ct.employee_id
+            WHERE e.is_active = TRUE
+            AND ct.clock_out IS NULL
+            AND DATE(ct.clock_in) = CURDATE()
+            """
+        )
+        
+        idle_employees = []
+        for employee in clocked_in:
+            idle_status = self.check_real_time_idle(employee['id'])
+            if idle_status:
+                idle_employees.append(idle_status)
+        
+        return idle_employees
+    
+    def get_idle_summary(self, date: datetime.date) -> Dict:
+        """Get summary of idle periods for a date"""
+        summary = self.db.execute_query(
+            """
+            SELECT 
+                e.name,
+                rc.role_name,
+                COUNT(*) as idle_count,
+                SUM(ip.duration_minutes) as total_idle_minutes,
+                AVG(ip.duration_minutes) as avg_idle_minutes
+            FROM idle_periods ip
+            JOIN employees e ON ip.employee_id = e.id
+            JOIN role_configs rc ON e.role_id = rc.id
+            WHERE DATE(ip.start_time) = %s
+            GROUP BY e.id, e.name, rc.role_name
+            ORDER BY total_idle_minutes DESC
+            """,
+            (date,)
+        )
+        
+        return {
+            'date': date,
+            'total_employees_with_idle': len(summary),
+            'employees': summary
+        }

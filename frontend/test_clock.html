@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clock Test</title>
+    <script src="dashboard-api.js"></script>
+</head>
+<body>
+    <h1>Time Display Test</h1>
+    <div id="clock"></div>
+    <script>
+        const api = new ProductivityAPI();
+        
+        function updateClock() {
+            const now = api.getCurrentCentralTime();
+            const utcNow = new Date();
+            
+            document.getElementById('clock').innerHTML = `
+                <p><strong>Browser Local Time:</strong> ${new Date().toString()}</p>
+                <p><strong>UTC Time:</strong> ${utcNow.toUTCString()}</p>
+                <p><strong>Central Time (from API):</strong> ${now.toString()}</p>
+                <p><strong>Central Time Formatted:</strong> ${now.toLocaleString('en-US', {
+                    timeZone: 'America/Chicago',
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                })}</p>
+                <hr>
+                <p>Expected: Wednesday, August 6, 2025 at 8:30 PM (approximately)</p>
+            `;
+        }
+        
+        updateClock();
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>

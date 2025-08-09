@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Final Dashboard Test</title>
+    <script src="dashboard-api.js"></script>
+</head>
+<body>
+    <h1>Dashboard Date Test</h1>
+    <div id="test"></div>
+    <script>
+        const api = new ProductivityAPI();
+        let dashboardData = {};
+        
+        // Initialize with today's date
+        const today = api.getCentralDate();
+        dashboardData.startDate = today;
+        dashboardData.endDate = today;
+        
+        const output = document.getElementById('test');
+        output.innerHTML = `
+            <p><strong>Central Date:</strong> ${today}</p>
+            <p><strong>Dashboard Start Date:</strong> ${dashboardData.startDate}</p>
+            <p><strong>Current Central Time:</strong> ${api.getCurrentCentralTime()}</p>
+        `;
+        
+        // Test API call with correct date
+        fetch('/api/dashboard/leaderboard?date=' + today, {
+            headers: {'X-API-Key': 'dev-api-key-123'}
+        })
+        .then(r => r.json())
+        .then(data => {
+            output.innerHTML += `
+                <p><strong>API Test (Leaderboard):</strong></p>
+                <ul>
+                    ${data.slice(0, 3).map(e => `<li>${e.name}: ${e.items_today} items</li>`).join('')}
+                </ul>
+            `;
+        })
+        .catch(err => {
+            output.innerHTML += `<p style="color:red">API Error: ${err}</p>`;
+        });
+    </script>
+</body>
+</html>
