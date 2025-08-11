@@ -1,4 +1,7 @@
 # Save as fix_all_mappings.py
+from dotenv import load_dotenv
+load_dotenv()
+
 import mysql.connector
 from database.db_manager import DatabaseManager
 

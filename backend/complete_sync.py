@@ -1,4 +1,7 @@
 # Create complete_sync.py with ALL working employees
+from dotenv import load_dotenv
+load_dotenv()
+
 import mysql.connector
 import requests
 from datetime import datetime

@@ -1,4 +1,10 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
+from dotenv import load_dotenv
+load_dotenv()
+
 #!/usr/bin/env python3
 """
 PodFactory Sync - Updated to store times in UTC
