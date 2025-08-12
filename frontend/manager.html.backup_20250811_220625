@@ -1054,6 +1054,17 @@
     </div>
 
     <!-- Cost Analysis Section -->
+
+    <!-- Intelligent Scheduling Section -->
+    <div id="scheduling" class="section-content">
+        <div style="width: 100%; height: calc(100vh - 100px); background: white; border-radius: 15px; padding: 10px;">
+            <iframe 
+                src="/intelligent-schedule.html" 
+                style="width: 100%; height: 100%; border: none; border-radius: 10px;"
+                title="Intelligent Scheduling System">
+            </iframe>
+        </div>
+    </div>
     <div id="cost-section" class="section-content">
         <!-- Cost Overview Cards -->
         <div class="metrics-grid" style="margin-bottom: 30px;">
@@ -1211,15 +1222,6 @@
     </div>
     <!-- Analytics Section (placeholder) -->
     <div id="analytics-section" class="section-content">
-
-    <!-- Intelligent Scheduling Section -->
-    <div id="scheduling-section" class="section-content">
-        <iframe 
-            src="/intelligent-schedule.html" 
-            style="width: 100%; height: calc(100vh - 100px); border: none; border-radius: 10px;"
-            title="Intelligent Scheduling System">
-        </iframe>
-    </div>
         <div style="text-align: center; padding: 100px 20px;">
             <i class="fas fa-chart-bar" style="font-size: 4em; color: #667eea; margin-bottom: 20px;"></i>
             <h2 style="color: #e0e0e0; margin-bottom: 10px;">Analytics Dashboard</h2>
@@ -2756,7 +2758,7 @@
             console.log('Showing section:', sectionName);
             
             // Hide all sections
-            const sections = ['dashboard-section', 'cost-section', 'bottleneck-section', 'scheduling-section', 'analytics-section'];
+            const sections = ['dashboard-section', 'cost-section', 'bottleneck-section'];
             sections.forEach(id => {
                 const section = document.getElementById(id);
                 if (section) {

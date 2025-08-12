@@ -23,6 +23,7 @@ from api.activities import activity_bp
 from api.cache import cache_bp
 from api.flags import flags_bp
 from api.trends import trends_bp
+from api.schedule import schedule_bp
 from api.idle import idle_bp
 from api.gamification import gamification_bp
 from api.team_metrics import team_metrics_bp
@@ -142,6 +143,7 @@ def register_blueprints(app):
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
     app.register_blueprint(employee_auth_bp)
     app.register_blueprint(admin_auth_bp)
+    app.register_blueprint(schedule_bp)
     app.logger.info("All blueprints registered successfully")
 
 def register_error_handlers(app):
@@ -239,6 +241,9 @@ def connecteam_status():
         'clock_id': CONNECTEAM_CONFIG.get('CLOCK_ID')
     })
 
+
+# Intelligent Schedule API
+
 def shutdown_schedulers():
     """Shutdown all schedulers gracefully"""
     global productivity_scheduler, background_scheduler
@@ -260,3 +265,12 @@ if __name__ == '__main__':
     except Exception as e:
         app.logger.error(f"Error running app: {e}")
         shutdown_schedulers()
+# Intelligent Schedule API
+
+
+# Scheduling insights endpoint
+@app.route('/api/scheduling/insights', methods=['GET'])
+def scheduling_insights():
+    from api.scheduling_insights import get_scheduling_insights
+    return get_scheduling_insights()
+
