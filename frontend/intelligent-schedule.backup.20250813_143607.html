@@ -469,29 +469,6 @@
                 page-break-inside: avoid;
             }
         }
-/* Remove button styles */
-.remove-btn {
-    background: #ff4444;
-    color: white;
-    border: none;
-    border-radius: 3px;
-    padding: 2px 6px;
-    margin-left: 10px;
-    cursor: pointer;
-    font-size: 12px;
-    float: right;
-}
-
-.remove-btn:hover {
-    background: #cc0000;
-}
-
-.employee-entry {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 2px 0;
-}
     </style>
 </head>
 <body>
@@ -692,35 +669,6 @@
         // Load schedule data from API
         // Load schedule data from API
         async function loadScheduleData() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             try {
                 // Fetch real predictions
                 const predResponse = await fetch("/api/schedule/predictions/weekly");
@@ -780,35 +728,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 
         // Update header statistics
         function updateHeaderStats(data) {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             if (!data || !data.predictions || !Array.isArray(data.predictions)) { console.log("No valid predictions data"); return; }
             const totalOrders = data.predictions.reduce((sum, p) => sum + p.predicted_orders, 0);
             const peakDay = data.predictions.reduce((max, p) => 
@@ -840,35 +759,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 
         // Update calendar view with schedule
         function updateCalendarView(data) {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             if (!data || !data.performance) { console.log("No performance data for calendar view"); return; }
             const heatPressStaff = data.performance.filter(p => p.station === 'In Production').slice(0, 6);
             const pickingStaff = data.performance.filter(p => p.station === 'Picking').slice(0, 5);
@@ -918,7 +808,7 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
                 calendarHTML += `
                     <tr>
                         <td>
-                            <strong>${emp.name}</strong><button onclick="if(confirm('Remove '+this.previousElementSibling.textContent+'?')){this.parentElement.parentElement.remove();}" class="remove-btn-edit" style="background:#ff4444;color:white;border:none;padding:2px 8px;margin-left:10px;cursor:pointer;float:right;border-radius:3px;display:none;">×</button>
+                            <strong>${emp.name}</strong>
                             <span class="performance-indicator">#${idx + 1} Heat Press</span>
                         </td>
                         <td class="time-slot ${idx < 2 ? 'early' : 'normal'}">${idx < 2 ? '5:00 AM' : '6:00 AM'}</td>
@@ -936,7 +826,7 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
                 calendarHTML += `
                     <tr>
                         <td>
-                            <strong>${emp.name}</strong><button onclick="if(confirm('Remove '+this.previousElementSibling.textContent+'?')){this.parentElement.parentElement.remove();}" class="remove-btn-edit" style="background:#ff4444;color:white;border:none;padding:2px 8px;margin-left:10px;cursor:pointer;float:right;border-radius:3px;display:none;">×</button>
+                            <strong>${emp.name}</strong>
                             <span class="performance-indicator">#${idx + 1} Picking</span>
                         </td>
                         <td class="time-slot early">5:30 AM</td>
@@ -954,7 +844,7 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
                 calendarHTML += `
                     <tr>
                         <td>
-                            <strong>${emp.name}</strong><button onclick="if(confirm('Remove '+this.previousElementSibling.textContent+'?')){this.parentElement.parentElement.remove();}" class="remove-btn-edit" style="background:#ff4444;color:white;border:none;padding:2px 8px;margin-left:10px;cursor:pointer;float:right;border-radius:3px;display:none;">×</button>
+                            <strong>${emp.name}</strong>
                             <span class="performance-indicator">#${idx + 1} QC/Pack</span>
                         </td>
                         <td class="time-slot late">12:00 PM</td>
@@ -973,35 +863,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 
         // Update predictions table
         function updatePredictionsTable(predictions) {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             let tableHTML = '';
             if (!predictions || !Array.isArray(predictions)) { console.log("No predictions for table"); return; }
             predictions.forEach(pred => {
@@ -1024,35 +885,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 
         // Update performance rankings
         function updatePerformanceRankings(performance) {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             if (!performance || !Array.isArray(performance)) { console.log("No performance data for rankings"); return; }
             const stations = ['In Production', 'Picking', 'QC Passed', 'Film Matching', 'Labeling'];
             let html = '';
@@ -1078,35 +910,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
         }
         // Update station performance analysis
         function updateStationPerformance(performance) {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             if (!performance || !Array.isArray(performance)) { console.log("No station performance data"); return; }
             const stations = {};
             performance.forEach(p => {
@@ -1139,35 +942,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 
         // Tab switching
         function showTab(tabName) {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
             });
@@ -1186,35 +960,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 
         // Load live monitor data
         async function loadLiveMonitor() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             try {
                 const response = await fetch(`${API_BASE}/api/dashboard/activities/recent?limit=5`, {
                     headers: { 'X-API-Key': API_KEY }
@@ -1240,68 +985,10 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 
         // Utility functions
         function updateTime() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             document.getElementById('generatedTime').textContent = new Date().toLocaleString();
         }
 
         function getWeekDates() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             const today = new Date();
             const monday = new Date(today);
             monday.setDate(today.getDate() - today.getDay() + 1);
@@ -1312,137 +999,21 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
         }
 
         function refreshData() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             loadScheduleData();
             alert('Data refreshed successfully!');
         }
 
         function approveSchedule() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             if (confirm('Are you sure you want to approve this schedule?')) {
                 alert('Schedule approved and sent to all employees!');
             }
         }
 
         function editSchedule() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             toggleEditMode();
         }
 
         function requestChanges() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             const changes = prompt('What changes would you like to request?');
             if (changes) {
                 alert('Change request submitted: ' + changes);
@@ -1451,35 +1022,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 
         // Fallback data if API fails
         function loadFallbackData() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             console.log("Using fallback data");
             
             // Create fallback data structure with real prediction values
@@ -1539,35 +1081,6 @@ document.addEventListener("DOMContentLoaded", function() {
 let editMode = false;
 
 function toggleEditMode() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
     editMode = !editMode;
     const status = document.getElementById("editStatus");
     
@@ -1581,40 +1094,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 }
 
 function enableEditing() {
-    // Show remove buttons
-    const removeButtons = document.querySelectorAll(".remove-btn-edit");
-    removeButtons.forEach(btn => {
-        btn.style.display = "inline-block";
-    });
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
     // First, fetch employee list
     fetchEmployeeList();
     
@@ -1644,40 +1123,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 }
 
 function disableEditing() {
-    // Hide remove buttons
-    const removeButtons = document.querySelectorAll(".remove-btn-edit");
-    removeButtons.forEach(btn => {
-        btn.style.display = "none";
-    });
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
     const timeCells = document.querySelectorAll(".time-slot, td.early, td.normal, td.late");
     timeCells.forEach(cell => {
         cell.style.cursor = "default";
@@ -1686,35 +1131,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
     });
 }
 function cleanupDropdowns() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
     document.querySelectorAll("select").forEach(select => {
         const parent = select.parentElement;
         const text = select.options[0] ? select.options[0].text : "";
@@ -1728,35 +1144,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 }
 
 function saveSchedule() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
     const scheduleData = [];
     const rows = document.querySelectorAll(".schedule-table tbody tr");
     
@@ -1808,35 +1195,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 let employeeList = [];
 
 function fetchEmployeeList() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
     fetch("/api/schedule/employees", {
         headers: {
             "X-API-Key": "dev-api-key-123"
@@ -1853,35 +1211,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 }
 
 function makeEmployeeEditable(element) {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
     const original = element.innerText;
     const select = document.createElement("select");
     select.style.cssText = "padding:5px;font-weight:bold;border:2px solid #667eea;border-radius:5px;";
@@ -1935,35 +1264,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 }
 
 function makeTimeEditable(cell) {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
     const original = cell.innerText.trim();
     
     const select = document.createElement("select");
@@ -2033,35 +1333,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 }
 
 function resetSchedule() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
     if (confirm("Reset all changes? This will reload the original schedule.")) {
         location.reload();
     }
@@ -2087,35 +1358,6 @@ window.addEventListener('DOMContentLoaded', function() {
         let scheduledEmployeeIds = new Set();
 
         async function loadAllEmployees() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             const response = await fetch("/api/schedule/employees/all");
             const data = await response.json();
             if (data.success) {
@@ -2125,35 +1367,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
         }
 
         function updateEmployeeDropdown() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             const select = document.getElementById("quickAddEmployee");
             if (!select) return;
             scheduledEmployeeIds.clear();
@@ -2171,35 +1384,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 
         window.quickAddEmployee = quickAddEmployee;
         function quickAddEmployee() {
-
-// Remove employee from schedule
-function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
-    if (!confirm("Remove this employee from " + day + " at " + timeSlot + "?")) {
-        return;
-    }
-    
-    // Find the cell
-    const cellId = "cell-" + day + "-" + timeSlot.replace(/[: ]/g, "");
-    const cell = document.getElementById(cellId);
-    
-    // Remove from data structure if exists
-    if (window.scheduleData && window.scheduleData[day]) {
-        const index = window.scheduleData[day].findIndex(s => s.time === timeSlot && s.employeeId === employeeId);
-        if (index > -1) {
-            window.scheduleData[day].splice(index, 1);
-        }
-    }
-    
-    // Update display
-    updateScheduleDisplay();
-    
-    // Show notification
-    const notification = document.createElement("div");
-    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:15px;border-radius:5px;z-index:10000;";
-    notification.textContent = "Employee removed successfully";
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
-}
             const empId = document.getElementById("quickAddEmployee").value;
             if (!empId) return alert("Please select an employee");
             
@@ -2229,9 +1413,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
         }
 
         setTimeout(loadAllEmployees, 1000);
-});
-</script>
-<script>
 });
 </script>
 </body>

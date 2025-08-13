@@ -918,7 +918,7 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
                 calendarHTML += `
                     <tr>
                         <td>
-                            <strong>${emp.name}</strong><button onclick="if(confirm('Remove '+this.previousElementSibling.textContent+'?')){this.parentElement.parentElement.remove();}" class="remove-btn-edit" style="background:#ff4444;color:white;border:none;padding:2px 8px;margin-left:10px;cursor:pointer;float:right;border-radius:3px;display:none;">×</button>
+                            <strong>${emp.name}</strong>
                             <span class="performance-indicator">#${idx + 1} Heat Press</span>
                         </td>
                         <td class="time-slot ${idx < 2 ? 'early' : 'normal'}">${idx < 2 ? '5:00 AM' : '6:00 AM'}</td>
@@ -936,7 +936,7 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
                 calendarHTML += `
                     <tr>
                         <td>
-                            <strong>${emp.name}</strong><button onclick="if(confirm('Remove '+this.previousElementSibling.textContent+'?')){this.parentElement.parentElement.remove();}" class="remove-btn-edit" style="background:#ff4444;color:white;border:none;padding:2px 8px;margin-left:10px;cursor:pointer;float:right;border-radius:3px;display:none;">×</button>
+                            <strong>${emp.name}</strong>
                             <span class="performance-indicator">#${idx + 1} Picking</span>
                         </td>
                         <td class="time-slot early">5:30 AM</td>
@@ -954,7 +954,7 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
                 calendarHTML += `
                     <tr>
                         <td>
-                            <strong>${emp.name}</strong><button onclick="if(confirm('Remove '+this.previousElementSibling.textContent+'?')){this.parentElement.parentElement.remove();}" class="remove-btn-edit" style="background:#ff4444;color:white;border:none;padding:2px 8px;margin-left:10px;cursor:pointer;float:right;border-radius:3px;display:none;">×</button>
+                            <strong>${emp.name}</strong>
                             <span class="performance-indicator">#${idx + 1} QC/Pack</span>
                         </td>
                         <td class="time-slot late">12:00 PM</td>
@@ -1581,11 +1581,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 }
 
 function enableEditing() {
-    // Show remove buttons
-    const removeButtons = document.querySelectorAll(".remove-btn-edit");
-    removeButtons.forEach(btn => {
-        btn.style.display = "inline-block";
-    });
 
 // Remove employee from schedule
 function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
@@ -1644,11 +1639,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 }
 
 function disableEditing() {
-    // Hide remove buttons
-    const removeButtons = document.querySelectorAll(".remove-btn-edit");
-    removeButtons.forEach(btn => {
-        btn.style.display = "none";
-    });
 
 // Remove employee from schedule
 function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
@@ -2229,9 +2219,6 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
         }
 
         setTimeout(loadAllEmployees, 1000);
-});
-</script>
-<script>
 });
 </script>
 </body>
