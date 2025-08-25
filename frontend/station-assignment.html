@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Station Assignment</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f0f0f0; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        h1 { color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+        .station { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .station h3 { color: #667eea; margin-top: 0; }
+        .employee { background: white; padding: 8px; margin: 5px 0; border-radius: 3px; display: flex; justify-content: space-between; }
+        .btn { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .btn:hover { background: #5568d3; }
+        .performance { background: #4CAF50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏭 Station Assignment Dashboard</h1>
+        
+        <div style="margin: 20px 0;">
+            <button class="btn" onclick="loadData()">🔄 Load Employee Performance</button>
+            <button class="btn" onclick="saveAssignments()">💾 Save Assignments</button>
+            <button class="btn" onclick="window.location.href='intelligent-schedule.html'">📅 Go to Schedule</button>
+        </div>
+        
+        <div id="stations"></div>
+    </div>
+    
+    <script>
+        async function loadData() {
+            try {
+                const response = await fetch('http://134.199.194.237:5000/api/station-performance');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayStations(data.data);
+                } else {
+                    console.error('Error:', data.error);
+                    useSampleData();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                useSampleData();
+            }
+        }
+        
+        function displayStations(data) {
+            const container = document.getElementById('stations');
+            const stationNames = ['Heat Press', 'QC', 'Picking', 'Labeling', 'Film Matching'];
+            
+            let html = '';
+            stationNames.forEach(station => {
+                const employees = data[station] || [];
+                html += '<div class="station">';
+                html += '<h3>' + station + ' (Select employees)</h3>';
+                employees.forEach(emp => {
+                    html += '<div class="employee">';
+                    html += '<label><input type="checkbox" value="' + emp.employee_id + '" data-station="' + station + '" data-name="' + emp.employee_name + '"> ';
+                    html += emp.employee_name + '</label>';
+                    html += '<div><span class="performance">' + emp.performance_score + '%</span> ';
+                    html += emp.avg_items_per_hour + ' items/hr</div>';
+                    html += '</div>';
+                });
+                if (employees.length === 0) {
+                    html += '<div class="employee">No performance data available</div>';
+                }
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }
+        
+        function useSampleData() {
+            const sampleData = {
+                'Heat Press': [
+                    {employee_id: 1, employee_name: 'Sample Employee 1', performance_score: 85, avg_items_per_hour: 75},
+                    {employee_id: 2, employee_name: 'Sample Employee 2', performance_score: 90, avg_items_per_hour: 80}
+                ],
+                'QC': [
+                    {employee_id: 3, employee_name: 'Sample Employee 3', performance_score: 88, avg_items_per_hour: 100}
+                ],
+                'Picking': [
+                    {employee_id: 4, employee_name: 'Sample Employee 4', performance_score: 92, avg_items_per_hour: 120}
+                ]
+            };
+            displayStations(sampleData);
+            alert('Using sample data - API connection failed');
+        }
+        
+        async function saveAssignments() {
+            const assignments = [];
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+            
+            checkboxes.forEach(cb => {
+                assignments.push({
+                    station: cb.dataset.station,
+                    employee_id: cb.value,
+                    employee_name: cb.dataset.name,
+                    date: new Date().toISOString().split('T')[0],
+                    week_start: getMonday().toISOString().split('T')[0],
+                    shift_time: '8:00 AM'
+                });
+            });
+            
+            if (assignments.length === 0) {
+                alert('Please select at least one employee');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://134.199.194.237:5000/api/save-station-assignments', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        week_start: getMonday().toISOString().split('T')[0],
+                        assignments: assignments
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('Assignments saved successfully!');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error saving assignments');
+            }
+        }
+        
+        function getMonday() {
+            const d = new Date();
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            return new Date(d.setDate(diff));
+        }
+        
+        // Load data on page load
+        window.onload = function() {
+            loadData();
+        };
+    </script>
+</body>
+</html>

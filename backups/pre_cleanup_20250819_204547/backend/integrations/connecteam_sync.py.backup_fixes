@@ -403,6 +403,7 @@ class ConnecteamSync:
             if "Duplicate" in str(e):
                 return True
             raise e
+        
     def cleanup_todays_duplicates(self) -> int:
         """Clean up any duplicate clock records for today before syncing"""
         today = self.get_central_date()
@@ -416,12 +417,30 @@ class ConnecteamSync:
         AND DATE(DATE_SUB(ct1.clock_in, INTERVAL 5 HOUR)) = %s
         """
         
-        rows_deleted = self.db.execute_query(cleanup_query, (today,))
-        
-        if rows_deleted > 0:
-            logger.warning(f"Cleaned up {rows_deleted} duplicate clock records for {today}")
-        
-        return rows_deleted
+        try:
+            # Use the database connection directly
+            connection = self.db.connection if hasattr(self.db, 'connection') else self.db.get_connection()
+            cursor = connection.cursor()
+            
+            # Execute the delete query
+            cursor.execute(cleanup_query, (today,))
+            
+            # Get the number of rows deleted
+            rows_deleted = cursor.rowcount
+            
+            # Commit the transaction
+            connection.commit()
+            cursor.close()
+            
+            if rows_deleted > 0:
+                logger.warning(f"Cleaned up {rows_deleted} duplicate clock records for {today}")
+            
+            return rows_deleted
+            
+        except Exception as e:
+            logger.error(f"Error cleaning up duplicates: {e}")
+            return 0
+
     def acquire_sync_lock(self) -> bool:
         """Acquire a lock to prevent concurrent syncs"""
         try:

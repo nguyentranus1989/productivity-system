@@ -1,0 +1,464 @@
+"""Scheduler configuration and job management"""
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
+from datetime import datetime, date, timedelta
+import logging
+import pytz
+
+from calculations.productivity_calculator_new import ProductivityCalculatorFixed as ProductivityCalculator
+from calculations.idle_detector import IdleDetector
+from calculations.activity_processor import ActivityProcessor
+from database.db_manager import get_db
+
+logger = logging.getLogger(__name__)
+
+class ProductivityScheduler:
+    """Manage scheduled jobs for productivity tracking"""
+    
+    def __init__(self, timezone='America/Chicago'):
+        self.timezone = timezone
+        self.tz = pytz.timezone(timezone)
+        self.scheduler = BackgroundScheduler(timezone=self.tz)
+        self.calculator = ProductivityCalculator()
+        self.idle_detector = IdleDetector()
+        self.activity_processor = ActivityProcessor()
+        self.db = get_db()
+        self._setup_jobs()
+    
+    def get_central_date(self):
+        """Get current date in Central Time"""
+        return datetime.now(self.tz).date()
+    
+    def get_central_datetime(self):
+        """Get current datetime in Central Time"""
+        return datetime.now(self.tz)
+    
+    def _setup_jobs(self):
+        """Configure all scheduled jobs"""
+        
+        # Job 1: Process activities every 10 minutes
+        self.scheduler.add_job(
+            func=self.process_recent_activities,
+            trigger=IntervalTrigger(minutes=10),
+            id='process_activities',
+            name='Process Recent Activities',
+            replace_existing=True,
+            misfire_grace_time=300  # 5 minute grace period
+        )
+        
+        # Job 2: Check for idle employees every 5 minutes
+        self.scheduler.add_job(
+            func=self.check_idle_employees,
+            trigger=IntervalTrigger(minutes=5),
+            id='check_idle',
+            name='Check Idle Employees',
+            replace_existing=True,
+            misfire_grace_time=120
+        )
+        
+        # Job 3: Daily score finalization at end of day (6:00 PM Central)
+        self.scheduler.add_job(
+            func=self.finalize_daily_scores,
+            trigger=CronTrigger(hour=18, minute=0, timezone=self.tz),
+            id='finalize_daily',
+            name='Finalize Daily Scores',
+            replace_existing=True,
+            misfire_grace_time=3600  # 1 hour grace period
+        )
+        
+        # Job 4: Generate daily reports (6:30 PM Central)
+        self.scheduler.add_job(
+            func=self.generate_daily_reports,
+            trigger=CronTrigger(hour=18, minute=30, timezone=self.tz),
+            id='daily_reports',
+            name='Generate Daily Reports',
+            replace_existing=True,
+            misfire_grace_time=3600
+        )
+        
+        # Job 5: Real-time score updates every 2 minutes
+        self.scheduler.add_job(
+            func=self.update_real_time_scores,
+            trigger=IntervalTrigger(minutes=5),
+            id='realtime_updates',
+            name='Update Real-time Scores',
+            replace_existing=True,
+            misfire_grace_time=60,
+            max_instances=1  # Prevent overlapping runs
+        )
+        
+        # Job 6: Daily data reset at midnight
+        self.scheduler.add_job(
+            func=self.reset_daily_data,
+            trigger=CronTrigger(hour=0, minute=0, second=5, timezone=self.tz),
+            id='daily_reset',
+            name='Daily Data Reset',
+            replace_existing=True
+        )
+        
+        logger.info(f"Scheduled jobs configured for {self.timezone}")
+    
+    def start(self):
+        """Start the scheduler"""
+        self.scheduler.start()
+        current_time = self.get_central_datetime()
+        logger.info(f"Productivity scheduler started at {current_time.strftime('%Y-%m-%d %I:%M:%S %p')} {self.timezone}")
+        
+        # Log all scheduled jobs
+        jobs = self.scheduler.get_jobs()
+        logger.info(f"Active scheduled jobs ({len(jobs)}):")
+        for job in jobs:
+            next_run = job.next_run_time
+            if next_run:
+                next_run_local = next_run.astimezone(self.tz)
+                logger.info(f"  - {job.name}: Next run at {next_run_local.strftime('%Y-%m-%d %I:%M:%S %p')}")
+            else:
+                logger.info(f"  - {job.name}: Not scheduled")
+    
+    def stop(self):
+        """Stop the scheduler"""
+        logger.info("Shutting down productivity scheduler...")
+        self.scheduler.shutdown(wait=True)
+        logger.info("Productivity scheduler stopped")
+    
+    def shutdown(self):
+        """Alias for stop() for compatibility"""
+        self.stop()
+    
+    def process_recent_activities(self):
+        """Process activities from the last 10 minutes"""
+        try:
+            current_time = self.get_central_datetime()
+            logger.info(f"Starting 10-minute activity processing at {current_time.strftime('%I:%M:%S %p')}")
+            
+            # Get activities from the last 15 minutes (with 5 min buffer)
+            cutoff_time = current_time - timedelta(minutes=15)
+            
+            # Convert to UTC for database query
+            cutoff_utc = cutoff_time.astimezone(pytz.UTC)
+            
+            unprocessed = self.db.execute_query(
+                """
+                SELECT DISTINCT 
+                    employee_id, 
+                    DATE(CONVERT_TZ(window_start, '+00:00', 'America/Chicago')) as activity_date
+                FROM activity_logs
+                WHERE created_at >= %s
+                AND employee_id NOT IN (
+                    SELECT employee_id 
+                    FROM daily_scores 
+                    WHERE score_date = DATE(CONVERT_TZ(window_start, '+00:00', 'America/Chicago'))
+                    AND updated_at >= %s
+                )
+                """,
+                (cutoff_utc, cutoff_utc)
+            )
+            
+            processed_count = 0
+            for record in unprocessed:
+                try:
+                    result = self.calculator.process_employee_day(
+                        record['employee_id'], 
+                        record['activity_date']
+                    )
+                    if result:
+                        processed_count += 1
+                except Exception as e:
+                    logger.error(f"Error processing employee {record['employee_id']}: {e}")
+            
+            logger.info(f"Processed {processed_count} employee updates")
+            
+        except Exception as e:
+            logger.error(f"Error in process_recent_activities: {e}")
+    
+    def check_idle_employees(self):
+        """Check for currently idle employees"""
+        try:
+            current_time = self.get_central_datetime()
+            logger.info(f"Checking for idle employees at {current_time.strftime('%I:%M:%S %p')}")
+            
+            # Only check during business hours (6 AM - 10 PM Central)
+            hour = current_time.hour
+            if hour < 6 or hour >= 22:
+                logger.info("Outside business hours, skipping idle check")
+                return
+            
+            idle_employees = self.idle_detector.check_all_employees_idle()
+            
+            if idle_employees:
+                logger.warning(f"Found {len(idle_employees)} idle employees")
+                
+                # Create alerts for severely idle employees (2x threshold)
+                for idle_emp in idle_employees:
+                    if idle_emp['idle_minutes'] > idle_emp['threshold'] * 2:
+                        self._create_severe_idle_alert(idle_emp)
+            else:
+                logger.info("No idle employees detected")
+                
+        except Exception as e:
+            logger.error(f"Error in check_idle_employees: {e}")
+    
+    def update_real_time_scores(self):
+        """Update real-time scores for active employees"""
+        try:
+            current_time = self.get_central_datetime()
+            today = self.get_central_date()
+            
+            logger.debug(f"Updating real-time scores at {current_time.strftime('%I:%M:%S %p')}")
+            
+            # Get all employees with activities today
+            active_employees = self.db.execute_query(
+                """
+                SELECT DISTINCT e.id, e.name
+                FROM employees e
+                JOIN activity_logs a ON e.id = a.employee_id
+                WHERE DATE(CONVERT_TZ(a.window_start, '+00:00', 'America/Chicago')) = %s
+                AND e.is_active = TRUE
+                """,
+                (today,)
+            )
+            
+            updated = 0
+            for emp in active_employees:
+                try:
+                    self.calculator.process_employee_day(emp['id'], today)
+                    updated += 1
+                except Exception as e:
+                    logger.error(f"Error updating {emp['name']}: {e}")
+            
+            if updated > 0:
+                logger.info(f"Updated real-time scores for {updated} employees")
+            
+        except Exception as e:
+            logger.error(f"Error in update_real_time_scores: {e}")
+    
+    def finalize_daily_scores(self):
+        """Finalize daily scores at end of day"""
+        try:
+            today = self.get_central_date()
+            current_time = self.get_central_datetime()
+            
+            logger.info(f"Finalizing daily scores for {today} at {current_time.strftime('%I:%M:%S %p')}")
+            
+            # Process all active employees for today
+            results = self.calculator.process_all_employees_for_date(today)
+            
+            # Mark scores as finalized
+            finalized = self.db.execute_update(
+                """
+                UPDATE daily_scores
+                SET is_finalized = TRUE
+                WHERE score_date = %s
+                AND is_finalized = FALSE
+                """,
+                (today,)
+            )
+            
+            logger.info(f"Finalized {finalized} daily scores for {today}")
+            
+            # Create end-of-day summary
+            self._create_daily_summary(today, results)
+            
+            # Update employee streaks
+            self._update_streaks(today)
+            
+        except Exception as e:
+            logger.error(f"Error in finalize_daily_scores: {e}")
+    
+    def generate_daily_reports(self):
+        """Generate and send daily reports"""
+        try:
+            today = self.get_central_date()
+            current_time = self.get_central_datetime()
+            
+            logger.info(f"Generating daily reports for {today} at {current_time.strftime('%I:%M:%S %p')}")
+            
+            # Get daily summary
+            summary = self.db.execute_one(
+                """
+                SELECT 
+                    COUNT(DISTINCT employee_id) as total_employees,
+                    SUM(items_processed) as total_items,
+                    AVG(efficiency_rate) as avg_efficiency,
+                    SUM(points_earned) as total_points,
+                    MIN(items_processed) as min_items,
+                    MAX(items_processed) as max_items
+                FROM daily_scores
+                WHERE score_date = %s
+                AND is_finalized = TRUE
+                """,
+                (today,)
+            )
+            
+            # Get top performers
+            top_performers = self.db.execute_query(
+                """
+                SELECT e.name, ds.points_earned, ds.items_processed, ds.efficiency_rate
+                FROM daily_scores ds
+                JOIN employees e ON e.id = ds.employee_id
+                WHERE ds.score_date = %s
+                ORDER BY ds.points_earned DESC
+                LIMIT 5
+                """,
+                (today,)
+            )
+            
+            # Log the summary
+            logger.info(f"=== Daily Summary for {today} ===")
+            logger.info(f"Total Employees: {summary['total_employees']}")
+            logger.info(f"Total Items: {summary['total_items']:,}")
+            logger.info(f"Average Efficiency: {summary['avg_efficiency']*100:.1f}%")
+            logger.info(f"Total Points: {summary['total_points']:,.0f}")
+            logger.info(f"Items Range: {summary['min_items']} - {summary['max_items']}")
+            
+            logger.info("Top 5 Performers:")
+            for i, performer in enumerate(top_performers, 1):
+                logger.info(f"  {i}. {performer['name']}: {performer['points_earned']:.0f} points ({performer['items_processed']} items)")
+            
+            # Here you would add code to send email reports, save to file, etc.
+            
+        except Exception as e:
+            logger.error(f"Error in generate_daily_reports: {e}")
+    
+    def reset_daily_data(self):
+        """Reset daily data at midnight"""
+        try:
+            yesterday = self.get_central_date() - timedelta(days=1)
+            today = self.get_central_date()
+            current_time = self.get_central_datetime()
+            
+            logger.info(f"Running daily reset at {current_time.strftime('%Y-%m-%d %I:%M:%S %p')}")
+            
+            # Archive yesterday's unfinalized scores
+            archived = self.db.execute_update(
+                """
+                UPDATE daily_scores
+                SET is_finalized = TRUE, 
+                    notes = CONCAT(COALESCE(notes, ''), ' Auto-finalized at midnight')
+                WHERE score_date = %s
+                AND is_finalized = FALSE
+                """,
+                (yesterday,)
+            )
+            
+            if archived > 0:
+                logger.info(f"Auto-finalized {archived} scores from {yesterday}")
+            
+            # Reset any temporary flags or counters
+            # Add your reset logic here
+            
+            logger.info(f"Daily reset completed. Ready for {today}")
+            
+        except Exception as e:
+            logger.error(f"Error in reset_daily_data: {e}")
+    
+    def _update_streaks(self, date_to_check):
+        """Update employee streaks based on daily scores"""
+        try:
+            # Update streaks for employees who worked today
+            self.db.execute_update(
+                """
+                UPDATE employees e
+                JOIN daily_scores ds ON e.id = ds.employee_id
+                SET e.current_streak = 
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1 FROM daily_scores ds2
+                            WHERE ds2.employee_id = e.id
+                            AND ds2.score_date = DATE_SUB(%s, INTERVAL 1 DAY)
+                            AND ds2.points_earned > 0
+                        ) THEN e.current_streak + 1
+                        ELSE 1
+                    END
+                WHERE ds.score_date = %s
+                AND ds.points_earned > 0
+                """,
+                (date_to_check, date_to_check)
+            )
+            
+            # Reset streaks for employees who didn't work today
+            self.db.execute_update(
+                """
+                UPDATE employees e
+                SET e.current_streak = 0
+                WHERE e.is_active = TRUE
+                AND NOT EXISTS (
+                    SELECT 1 FROM daily_scores ds
+                    WHERE ds.employee_id = e.id
+                    AND ds.score_date = %s
+                    AND ds.points_earned > 0
+                )
+                """,
+                (date_to_check,)
+            )
+            
+        except Exception as e:
+            logger.error(f"Error updating streaks: {e}")
+    
+    def _create_severe_idle_alert(self, idle_info):
+        """Create alert for severely idle employee"""
+        current_time = self.get_central_datetime()
+        
+        message = (
+            f"URGENT: {idle_info['employee_name']} has been idle for "
+            f"{idle_info['idle_minutes']} minutes (threshold: {idle_info['threshold']} min) "
+            f"as of {current_time.strftime('%I:%M %p')}"
+        )
+        
+        self.db.execute_update(
+            """
+            INSERT INTO alerts (employee_id, alert_type, severity, message, created_at)
+            VALUES (%s, 'idle_detected', 'critical', %s, %s)
+            ON DUPLICATE KEY UPDATE
+                message = VALUES(message),
+                created_at = VALUES(created_at)
+            """,
+            (idle_info['employee_id'], message, current_time)
+        )
+    
+    def _create_daily_summary(self, summary_date, results):
+        """Create daily summary record"""
+        logger.info(f"Daily summary for {summary_date}:")
+        logger.info(f"  - Total employees: {results['total_employees']}")
+        logger.info(f"  - Processed: {results['processed']}")
+        logger.info(f"  - Errors: {results['errors']}")
+    
+    def get_job_status(self):
+        """Get status of all scheduled jobs"""
+        jobs = self.scheduler.get_jobs()
+        status = []
+        
+        for job in jobs:
+            next_run = job.next_run_time
+            if next_run:
+                # Convert to Central Time for display
+                next_run_central = next_run.astimezone(self.tz)
+                next_run_str = next_run_central.strftime('%Y-%m-%d %I:%M:%S %p %Z')
+            else:
+                next_run_str = 'Not scheduled'
+            
+            status.append({
+                'id': job.id,
+                'name': job.name,
+                'next_run': next_run_str,
+                'pending': job.pending,
+                'active': job.next_run_time is not None
+            })
+        
+        return status
+    
+    def trigger_job(self, job_id):
+        """Manually trigger a specific job"""
+        try:
+            job = self.scheduler.get_job(job_id)
+            if job:
+                job.modify(next_run_time=datetime.now(self.tz))
+                logger.info(f"Manually triggered job: {job_id}")
+                return True
+            else:
+                logger.error(f"Job not found: {job_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Error triggering job {job_id}: {e}")
+            return False

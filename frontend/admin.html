@@ -190,14 +190,6 @@
     </style>
 </head>
 <body>
-    <!-- Admin Login Overlay -->
-    <div id="adminLoginOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a1a; display: flex; justify-content: center; align-items: center; z-index: 10000;">
-        <div style="background: white; padding: 40px; border-radius: 10px; width: 90%; max-width: 400px;">
-            <h2 style="margin-bottom: 30px; color: #333; text-align: center;">Admin Login</h2>
-            <div class="mb-3">
-                <label class="form-label">Username</label>
-                <input type="text" class="form-control" id="adminUsername" value="admin">
-            </div>
             <div class="mb-3">
                 <label class="form-label">Password</label>
                 <input type="password" class="form-control" id="adminPassword">
@@ -613,38 +605,7 @@
         });
     </script>
 <script>
-function doAdminLogin() {
-    fetch("/api/admin/login", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            username: document.getElementById("adminUsername").value,
-            password: document.getElementById("adminPassword").value
-        })
-    }).then(r => r.json()).then(data => {
-        if(data.success) {
-            localStorage.setItem("adminToken", data.token);
-            document.getElementById("adminLoginOverlay").style.display = "none";
-            document.getElementById("adminLogoutBtn").style.display = "block";
-        } else {
-            alert("Login failed: " + (data.message || "Invalid credentials"));
-        }
-    }).catch(err => alert("Error: " + err));
-}
-function doAdminLogout() {
-    localStorage.removeItem("adminToken");
-    location.reload();
-}
-window.addEventListener("DOMContentLoaded", function() {
-    const token = localStorage.getItem("adminToken");
-    if(token) {
-        document.getElementById("adminLoginOverlay").style.display = "none";
-        document.getElementById("adminLogoutBtn").style.display = "block";
-    } else {
-        document.getElementById("adminLoginOverlay").style.display = "flex";
-        document.getElementById("adminLogoutBtn").style.display = "none";
-    }
-});
 </script>
+<script src="/js/auth-check.js"></script>
 </body>
 </html>

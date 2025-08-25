@@ -1,0 +1,2633 @@
+import os
+# backend/api/dashboard.py
+
+from flask import Blueprint, jsonify, request
+
+# Simple in-memory cache
+import time
+_endpoint_cache = {}
+
+def cached_endpoint(ttl_seconds=10):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            from flask import request
+            cache_key = f"{func.__name__}:{request.full_path}"
+            
+            if cache_key in _endpoint_cache:
+                data, timestamp = _endpoint_cache[cache_key]
+                if time.time() - timestamp < ttl_seconds:
+                    print(f"CACHE HIT: {func.__name__}", flush=True)
+                    return data
+            
+            print(f"CACHE MISS: {func.__name__}", flush=True)
+            result = func(*args, **kwargs)
+            _endpoint_cache[cache_key] = (result, time.time())
+            return result
+        wrapper.__name__ = func.__name__
+        return wrapper
+    return decorator
+
+
+# Simple in-memory cache
+import time
+_endpoint_cache = {}
+
+def cached_endpoint(ttl_seconds=10):
+    """Simple cache decorator"""
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            from flask import request
+            cache_key = f"{func.__name__}:{request.full_path}"
+            
+            # Check cache
+            if cache_key in _endpoint_cache:
+                data, timestamp = _endpoint_cache[cache_key]
+                if time.time() - timestamp < ttl_seconds:
+                    print(f"CACHE HIT: {func.__name__}", flush=True)
+                    return data
+            
+            print(f"CACHE MISS: {func.__name__} - fetching from DB...", flush=True)
+            result = func(*args, **kwargs)
+            _endpoint_cache[cache_key] = (result, time.time())
+            
+            # Clean old entries
+            if len(_endpoint_cache) > 50:
+                _endpoint_cache.clear()
+            
+            return result
+        wrapper.__name__ = func.__name__
+        return wrapper
+    return decorator
+
+from datetime import datetime, timedelta
+import mysql.connector
+from functools import wraps
+import pytz
+import logging
+
+from dotenv import load_dotenv
+load_dotenv()
+
+# Create logger
+logger = logging.getLogger(__name__)
+
+ACTION_TO_DEPARTMENT_MAP = {
+    'In Production': 'Heat Press',
+    'Picking': 'Picking',
+    'Labeling': 'Labeling',
+    'Film Matching': 'Packing',
+    'QC Passed': 'Packing'
+}
+
+PODFACTORY_ROLE_TO_CONFIG_ID = {
+    'Heat Pressing': 1,
+    'Packing and Shipping': 2,
+    'Picker': 3,
+    'Labeler': 4,
+    'Film Matching': 5
+}
+
+# Map PodFactory actions to role_configs.id
+ACTION_TO_ROLE_ID = {
+    'In Production': 1,      # Heat Pressing
+    'QC Passed': 2,          # Packing and Shipping  
+    'Picking': 3,            # Picker
+    'Labeling': 4,           # Labeler
+    'Film Matching': 5       # Film Matching
+}
+
+dashboard_bp = Blueprint('dashboard', __name__)
+
+# Database connection configuration
+DB_CONFIG = {
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'port': int(os.getenv('DB_PORT', 3306)),
+    'user': os.getenv('DB_USER', 'root'),
+    'password': os.getenv('DB_PASSWORD', ''),
+    'database': os.getenv('DB_NAME', 'productivity_tracker')
+}
+
+def get_central_date():
+    """Get current date in Central Time"""
+    central = pytz.timezone('America/Chicago')
+    return datetime.now(central).date()
+
+def get_central_datetime():
+    """Get current datetime in Central Time"""
+    central = pytz.timezone('America/Chicago')
+    return datetime.now(central)
+
+# Database connection function
+def get_db_connection():
+    """Create and return a database connection"""
+    return mysql.connector.connect(**DB_CONFIG)
+
+# API key decorator
+def require_api_key(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'dev-api-key-123':
+            return jsonify({'error': 'Invalid API key'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Department Statistics
+@dashboard_bp.route('/departments/stats', methods=['GET'])
+@require_api_key
+@cached_endpoint(ttl_seconds=15)
+def get_department_stats():
+    
+    """Get performance statistics by department based on actual activities"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Use dynamic date
+        date = request.args.get('date', get_central_date().strftime('%Y-%m-%d'))
+        
+        # Get department stats aggregated from activities
+        query = """
+        SELECT 
+            COALESCE(al.department, 'Unknown') as department_name,
+            COUNT(DISTINCT al.employee_id) as employee_count,
+            COALESCE(SUM(al.items_count), 0) as total_items,
+            COALESCE(ROUND(AVG(
+                CASE 
+                    WHEN ct.clock_minutes > 0 THEN al.items_count / ct.clock_minutes * 60
+                    ELSE 0 
+                END
+            ), 1), 0) as avg_items_per_minute,
+            COALESCE(ROUND(AVG(
+                CASE 
+                    WHEN ct.clock_minutes > 0 THEN (al.items_count / ct.clock_minutes) * 100
+                    ELSE 0 
+                END
+            ), 1), 0) as avg_efficiency
+        FROM activity_logs al
+        LEFT JOIN (
+            SELECT 
+                employee_id,
+                SUM(total_minutes) as clock_minutes
+            FROM clock_times
+            WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = %s
+            GROUP BY employee_id
+        ) ct ON ct.employee_id = al.employee_id
+        WHERE DATE(al.window_start) = %s
+        AND al.source = 'podfactory'
+        GROUP BY al.department
+        HAVING total_items > 0
+        """
+        
+        cursor.execute(query, (date, date))
+        departments = cursor.fetchall()
+        
+        # Create a dict to check existing departments
+        existing_depts = {d['department_name']: d for d in departments}
+        
+        # Add standard departments if missing
+        standard_depts = ['Picking', 'Packing', 'Heat Press', 'Labeling']
+        
+        for dept_name in standard_depts:
+            if dept_name not in existing_depts:
+                departments.append({
+                    'department_name': dept_name,
+                    'employee_count': 0,
+                    'total_items': 0,
+                    'avg_items_per_minute': 0,
+                    'avg_efficiency': 0
+                })
+        
+        # Add performance vs target
+        for dept in departments:
+            # Department-specific targets
+            targets = {
+                'Picking': 20.0,
+                'Packing': 16.0,
+                'Heat Press': 6.0,  # Lower because individual items
+                'Labeling': 20.0,
+                'Unknown': 15.0
+            }
+            
+            dept_name = dept['department_name']
+            target_rate = targets.get(dept_name, 15.0)
+            avg_rate = float(dept.get('avg_items_per_minute', 0) or 0)
+            
+            dept['vs_target'] = round(((avg_rate / target_rate) - 1) * 100, 1) if target_rate > 0 else 0
+            dept['efficiency'] = round(float(dept.get('avg_efficiency', 0) or 0), 1)
+            dept['avg_rate'] = round(avg_rate, 1)
+            dept['name'] = dept_name
+            dept['total_items'] = int(dept.get('total_items', 0))
+            dept['employee_count'] = int(dept.get('employee_count', 0))
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(departments)
+        
+    except Exception as e:
+        import traceback
+        print(f"Error in department stats: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
+# Replace the get_leaderboard function in dashboard.py with this updated version:
+
+@dashboard_bp.route('/leaderboard', methods=['GET'])
+@require_api_key
+@cached_endpoint(ttl_seconds=10)
+def get_leaderboard():
+    
+    """Get employee leaderboard with comprehensive data"""
+    date = request.args.get('date', get_central_date().strftime('%Y-%m-%d'))
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Fixed query with activity type aggregation instead of role aggregation
+        query = """
+        WITH activity_aggregates AS (
+            -- Aggregate items by employee and activity type
+            SELECT 
+                al.employee_id,
+                al.activity_type,
+                SUM(al.items_count) as total_items
+            FROM activity_logs al
+            WHERE DATE(al.window_start) = %s
+            AND al.source = 'podfactory'
+            GROUP BY al.employee_id, al.activity_type
+            HAVING total_items > 0
+        )
+        SELECT 
+            e.id,
+            e.name,
+            COALESCE(ds.items_processed, 0) as items_today,
+            COALESCE(ds.points_earned, 0) as score,
+            e.current_streak as streak,
+            ct.total_minutes,
+            ct.is_clocked_in,
+            -- Activity breakdown for display
+            (
+                SELECT GROUP_CONCAT(
+                    CONCAT(
+                        CASE 
+                            WHEN activity_type = 'Picking' THEN '🎯 '
+                            WHEN activity_type = 'Labeling' THEN '🏷️ '
+                            WHEN activity_type = 'Film Matching' THEN '🎬 '
+                            WHEN activity_type = 'In Production' THEN '🔥 '
+                            WHEN activity_type = 'QC Passed' THEN '📦 '
+                            ELSE ''
+                        END,
+                        CASE 
+                            WHEN activity_type = 'QC Passed' THEN 'Shipping'
+                            WHEN activity_type = 'In Production' THEN 'Heat Pressing'
+                            ELSE activity_type
+                        END,
+                        ': ',
+                        total_items
+                    )
+                    ORDER BY 
+                        CASE activity_type
+                            WHEN 'Picking' THEN 1
+                            WHEN 'Labeling' THEN 2
+                            WHEN 'Film Matching' THEN 3
+                            WHEN 'In Production' THEN 4
+                            WHEN 'QC Passed' THEN 5
+                            ELSE 6
+                        END
+                    SEPARATOR ' - '
+                )
+                FROM activity_aggregates aa
+                WHERE aa.employee_id = e.id
+            ) as activity_breakdown,
+            -- Get primary role based on most items
+            (
+                SELECT rc.role_name
+                FROM activity_logs al2
+                JOIN role_configs rc ON rc.id = al2.role_id
+                WHERE al2.employee_id = e.id
+                AND DATE(al2.window_start) = %s
+                GROUP BY al2.role_id, rc.role_name
+                ORDER BY SUM(al2.items_count) DESC
+                LIMIT 1
+            ) as primary_department
+        FROM employees e
+        LEFT JOIN daily_scores ds ON ds.employee_id = e.id AND ds.score_date = %s
+        LEFT JOIN (
+            -- Clock times calculated independently
+            SELECT 
+                employee_id,
+                SUM(total_minutes) as total_minutes,
+                MAX(CASE WHEN clock_out IS NULL THEN 1 ELSE 0 END) as is_clocked_in
+            FROM clock_times
+            WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = %s
+            GROUP BY employee_id
+        ) ct ON ct.employee_id = e.id
+        WHERE e.is_active = 1
+        AND (ct.employee_id IS NOT NULL OR ds.items_processed > 0)
+        ORDER BY COALESCE(ds.points_earned, 0) DESC
+        """
+        
+        cursor.execute(query, (date, date, date, date))
+        leaderboard = cursor.fetchall()
+        
+        # Process and format the data
+        for idx, emp in enumerate(leaderboard):
+            emp['rank'] = idx + 1
+            emp['score'] = round(float(emp['score'] or 0), 2)
+            emp['items_today'] = int(emp['items_today'] or 0)
+            emp['department'] = emp['primary_department'] or 'No Activity'
+            
+            # Format time worked properly
+            total_mins = int(emp.get('total_minutes', 0) or 0)
+            
+            # Cap at 12 hours if needed
+            # Removed cap: if total_mins > 720:
+            #     total_mins = 720
+            
+            hours = total_mins // 60
+            minutes = total_mins % 60
+            emp['time_worked'] = f"{hours}:{minutes:02d}"
+            
+            # Calculate items per minute correctly
+            if total_mins > 0:
+                emp['items_per_minute'] = round(emp['items_today'] / total_mins, 1)
+                emp['items_per_hour'] = round((emp['items_today'] / total_mins) * 60, 1)
+            else:
+                emp['items_per_minute'] = 0
+                emp['items_per_hour'] = 0
+                
+            # Set the activity breakdown for display
+            emp['activity_display'] = emp['activity_breakdown'] or 'No activities'
+            
+            # Calculate progress bar (daily goal based on hours worked)
+            hours_worked = total_mins / 60 if total_mins > 0 else 0
+            daily_goal = hours_worked * 50 if hours_worked > 0 else 400
+            emp['progress'] = min(100, (emp['items_today'] / daily_goal) * 100) if daily_goal > 0 else 0
+            
+            # Department icon
+            dept_icons = {
+                'Picker': '🎯',
+                'Packing and Shipping': '📦',
+                'Heat Pressing': '🔥',
+                'Labeler': '🏷️',
+                'Film Matching': '🎬',
+                'No Activity': '💤'
+            }
+            emp['department_icon'] = dept_icons.get(emp['department'], '📋')
+            
+            # Clock status
+            emp['clock_status'] = '🟢' if emp['is_clocked_in'] else '🔴'
+            emp['status_text'] = 'Active' if emp['is_clocked_in'] else 'Off'
+            
+            # Badges based on performance
+            if emp['score'] >= 200:
+                emp['badge'] = '🔥 Top Performer!'
+            elif emp['score'] >= 100:
+                emp['badge'] = '⭐ Star Player'
+            elif emp['streak'] and emp['streak'] >= 5:
+                emp['badge'] = f"🔥 {emp['streak']}-day streak!"
+            elif emp['items_per_minute'] and emp['items_per_minute'] >= 1:
+                emp['badge'] = "⚡ Speed Demon"
+            else:
+                emp['badge'] = "🌟 Team Player"
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(leaderboard)
+        
+    except Exception as e:
+        import traceback
+        print(f"Error in leaderboard: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+    
+# Add this new endpoint for date range analytics
+@dashboard_bp.route('/analytics/date-range', methods=['GET'])
+@require_api_key
+def get_date_range_stats():
+    """Get aggregated statistics for a date range"""
+    try:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if not start_date or not end_date:
+            return jsonify({'error': 'Both start_date and end_date are required'}), 400
+        
+        # Parse dates
+        start = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        if start > end:
+            return jsonify({'error': 'start_date must be before end_date'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get aggregated employee data - FIXED: removed e.department
+        query = """
+            SELECT 
+                e.id,
+                e.name,
+                COUNT(DISTINCT ds.score_date) as days_worked,
+                COALESCE(SUM(ds.items_processed), 0) as total_items,
+                COALESCE(SUM(ds.points_earned), 0) as total_points,
+                COALESCE(AVG(CASE WHEN ds.items_processed > 0 THEN ds.items_processed END), 0) as avg_daily_items,
+                COALESCE(MAX(ds.items_processed), 0) as best_day_items,
+                COALESCE(MIN(CASE WHEN ds.items_processed > 0 THEN ds.items_processed END), 0) as worst_day_items,
+                -- Get most common department from activity logs
+                (
+                    SELECT al.department 
+                    FROM activity_logs al 
+                    WHERE al.employee_id = e.id 
+                    AND DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
+                    GROUP BY al.department 
+                    ORDER BY COUNT(*) DESC 
+                    LIMIT 1
+                ) as department
+            FROM employees e
+            LEFT JOIN daily_scores ds ON ds.employee_id = e.id 
+                AND ds.score_date BETWEEN %s AND %s
+            WHERE e.is_active = 1
+            GROUP BY e.id, e.name
+            ORDER BY total_points DESC
+        """
+        
+        cursor.execute(query, (start, end, start, end))
+        results = cursor.fetchall()
+        
+        # Format results
+        leaderboard = []
+        for row in results:
+            try:
+                # Safe consistency calculation
+                best = float(row['best_day_items'] or 0)
+                worst = float(row['worst_day_items'] or 0)
+                avg = float(row['avg_daily_items'] or 0)
+                total_items = int(row['total_items'] or 0)
+                
+                # Only include employees who have worked
+                if total_items > 0:
+                    if avg > 0 and best > worst:
+                        # Calculate consistency (100% = perfectly consistent)
+                        variance = best - worst
+                        consistency = max(0, min(100, 100 - (variance / avg * 50)))
+                    else:
+                        consistency = 100 if total_items > 0 else 0
+                    
+                    leaderboard.append({
+                        'id': row['id'],
+                        'name': row['name'],
+                        'department': row['department'] or 'Unknown',
+                        'days_worked': int(row['days_worked'] or 0),
+                        'total_items': total_items,
+                        'total_points': round(float(row['total_points'] or 0), 1),
+                        'avg_daily_items': round(avg, 1),
+                        'best_day': int(best),
+                        'worst_day': int(worst),
+                        'consistency': round(consistency, 1)
+                    })
+            except Exception as e:
+                logger.error(f"Error processing employee {row.get('name', 'Unknown')}: {str(e)}")
+                continue
+        
+        # Get department summary
+        dept_query = """
+            SELECT 
+                COALESCE(al.department, 'Unknown') as department,
+                COUNT(DISTINCT DATE(al.window_start)) as active_days,
+                COUNT(DISTINCT al.employee_id) as unique_employees,
+                COALESCE(SUM(al.items_count), 0) as total_items,
+                COALESCE(AVG(al.items_count), 0) as avg_items_per_activity
+            FROM activity_logs al
+            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
+                AND al.source = 'podfactory'
+            GROUP BY al.department
+            HAVING total_items > 0
+        """
+        
+        cursor.execute(dept_query, (start, end))
+        dept_results = cursor.fetchall()
+        
+        # Format department results
+        departments = []
+        for dept in dept_results:
+            try:
+                departments.append({
+                    'department': dept['department'],
+                    'active_days': int(dept['active_days'] or 0),
+                    'unique_employees': int(dept['unique_employees'] or 0),
+                    'total_items': int(dept['total_items'] or 0),
+                    'avg_items_per_activity': round(float(dept['avg_items_per_activity'] or 0), 1)
+                })
+            except Exception as e:
+                logger.error(f"Error processing department {dept.get('department', 'Unknown')}: {str(e)}")
+                continue
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'date_range': {
+                'start': start_date,
+                'end': end_date,
+                'days': (end - start).days + 1
+            },
+            'leaderboard': leaderboard,
+            'department_summary': departments,
+            'total_employees': len(leaderboard),
+            'generated_at': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        import traceback
+        logger.error(f"Error getting date range stats: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': 'Failed to get date range statistics', 'details': str(e)}), 500
+    
+# Add this new endpoint to dashboard.py after line 830 (after get_active_alerts)
+@dashboard_bp.route('/clock-times/today', methods=['GET'])
+@require_api_key
+def get_today_clock_times():
+    """Get all clock in/out times for today"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get all clock times for today
+        cursor.execute("""
+            SELECT 
+                ct.id,
+                e.name as employee_name,
+                ct.clock_in,
+                ct.clock_out,
+                CASE WHEN ct.clock_out IS NULL THEN 1 ELSE 0 END as is_clocked_in,
+                TIMESTAMPDIFF(MINUTE, ct.clock_in, IFNULL(ct.clock_out, NOW())) as total_minutes
+            FROM clock_times ct
+            JOIN employees e ON e.id = ct.employee_id
+            WHERE DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            ORDER BY ct.clock_in DESC
+        """)
+        
+        clock_times = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        return jsonify(clock_times)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@dashboard_bp.route('/server-time', methods=['GET'])
+@require_api_key
+def get_server_time():
+    """Get current server time in various timezones"""
+    utc_now = datetime.utcnow()
+    central = pytz.timezone('America/Chicago')
+    central_now = utc_now.replace(tzinfo=pytz.UTC).astimezone(central)
+    
+    return jsonify({
+        'utc': utc_now.isoformat(),
+        'central': central_now.isoformat(),
+        'central_date': central_now.date().isoformat(),
+        'central_time': central_now.strftime('%I:%M:%S %p'),
+        'day_of_week': central_now.strftime('%A')
+    })
+
+# Enhanced Live Leaderboard
+@dashboard_bp.route('/leaderboard/live', methods=['GET'])
+@require_api_key
+def get_live_leaderboard():
+    """Enhanced leaderboard with position changes and badges"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get current rankings with position changes
+        cursor.execute("""
+            WITH current_ranks AS (
+                SELECT 
+                    e.id,
+                    e.name,
+                    ds.items_processed,
+                    ds.points_earned,
+                    ROUND(ct.hours_worked, 1) as hours_worked,
+                    e.current_streak,
+                    ROW_NUMBER() OVER (ORDER BY ds.points_earned DESC) as current_rank,
+                    LAG(ds.points_earned, 1) OVER (ORDER BY ds.points_earned DESC) as prev_points,
+                    -- Calculate items per minute based on clock time
+                    CASE 
+                        WHEN ct.clock_minutes > 0 THEN ROUND(ds.items_processed / ct.clock_minutes * 60, 1)
+                        ELSE 0
+                    END as items_per_minute
+                FROM daily_scores ds
+                JOIN employees e ON e.id = ds.employee_id
+                LEFT JOIN (
+                    SELECT 
+                        employee_id,
+                        -- Calculate actual worked time without duplicates
+                        ROUND(
+                            TIMESTAMPDIFF(MINUTE, 
+                                MIN(clock_in), 
+                                COALESCE(MAX(clock_out), NOW())
+                            ) / 60.0, 
+                            1
+                        ) as hours_worked,
+                        TIMESTAMPDIFF(MINUTE, 
+                            MIN(clock_in), 
+                            COALESCE(MAX(clock_out), NOW())
+                        ) as clock_minutes
+                    FROM clock_times
+                    WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+                    GROUP BY employee_id
+                ) ct ON ct.employee_id = e.id
+                WHERE ds.score_date = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+                AND ds.points_earned > 0
+            ),
+            yesterday_ranks AS (
+                SELECT 
+                    employee_id,
+                    ROW_NUMBER() OVER (ORDER BY points_earned DESC) as yesterday_rank
+                FROM daily_scores
+                WHERE score_date = DATE_SUB(DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago')), INTERVAL 1 DAY)
+            )
+            SELECT 
+                cr.*,
+                COALESCE(yr.yesterday_rank, 999) as yesterday_rank,
+                CASE 
+                    WHEN yr.yesterday_rank IS NULL THEN 'new'
+                    WHEN cr.current_rank < yr.yesterday_rank THEN 'up'
+                    WHEN cr.current_rank > yr.yesterday_rank THEN 'down'
+                    ELSE 'same'
+                END as movement,
+                ABS(COALESCE(yr.yesterday_rank, cr.current_rank) - cr.current_rank) as positions_moved
+            FROM current_ranks cr
+            LEFT JOIN yesterday_ranks yr ON yr.employee_id = cr.id
+            ORDER BY cr.current_rank
+            LIMIT 10
+        """)
+        
+        leaderboard = cursor.fetchall()
+        
+        # Add badges and enhancements
+        for emp in leaderboard:
+            # Rank display
+            if emp['current_rank'] == 1:
+                emp['rank_display'] = "🥇"
+                emp['badge'] = "👑 Champion"
+            elif emp['current_rank'] == 2:
+                emp['rank_display'] = "🥈"
+                emp['badge'] = "⚡ Lightning Fast"
+            elif emp['current_rank'] == 3:
+                emp['rank_display'] = "🥉"
+                emp['badge'] = "🌟 Rising Star"
+            else:
+                emp['rank_display'] = f"#{emp['current_rank']}"
+                
+                # Dynamic badges
+                if emp['current_streak'] and emp['current_streak'] >= 5:
+                    emp['badge'] = f"🔥 {emp['current_streak']}-day streak!"
+                elif emp['movement'] == 'up':
+                    emp['badge'] = f"📈 Up {emp['positions_moved']} spots!"
+                elif emp['items_processed'] >= 500:
+                    emp['badge'] = "💪 Powerhouse"
+                elif emp['hours_worked'] and emp['items_per_minute'] and emp['items_per_minute'] > 20:
+                    emp['badge'] = "⚡ Speed Demon"
+                else:
+                    emp['badge'] = "💯 Team Player"
+            
+            # Movement indicator
+            if emp['movement'] == 'up':
+                emp['movement_icon'] = f"↑{emp['positions_moved']}"
+                emp['movement_color'] = "green"
+            elif emp['movement'] == 'down':
+                emp['movement_icon'] = f"↓{emp['positions_moved']}"
+                emp['movement_color'] = "red"
+            elif emp['movement'] == 'new':
+                emp['movement_icon'] = "NEW"
+                emp['movement_color'] = "blue"
+            else:
+                emp['movement_icon'] = "-"
+                emp['movement_color'] = "gray"
+            
+            # Progress to next milestone
+            milestones = [100, 250, 500, 750, 1000, 1500, 2000]
+            current_points = float(emp['points_earned'])
+            next_milestone = next((m for m in milestones if m > current_points), milestones[-1])
+            emp['next_milestone'] = next_milestone
+            emp['milestone_progress'] = min(100, (current_points / next_milestone) * 100)
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(leaderboard)
+        
+    except Exception as e:
+        import traceback
+        print(f"Error in live leaderboard: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
+# Streak Leaders
+@dashboard_bp.route('/analytics/streak-leaders', methods=['GET'])
+@require_api_key
+def get_streak_leaders():
+    """Get top employees by current streak"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get top 5 employees with longest streaks
+        cursor.execute("""
+            SELECT 
+                e.id,
+                e.name,
+                e.current_streak as streak_days,
+                ds.items_processed as items_today,
+                ds.points_earned as points_today,
+                -- Get most recent department
+                (
+                    SELECT al.department 
+                    FROM activity_logs al 
+                    WHERE al.employee_id = e.id 
+                    AND DATE(al.window_start) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+                    ORDER BY al.window_start DESC 
+                    LIMIT 1
+                ) as department
+            FROM employees e
+            LEFT JOIN daily_scores ds ON ds.employee_id = e.id 
+                AND ds.score_date = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            WHERE e.is_active = 1
+            AND e.current_streak > 0
+            ORDER BY e.current_streak DESC, ds.points_earned DESC
+            LIMIT 5
+        """)
+        
+        streak_leaders = cursor.fetchall()
+        
+        # Format the response
+        leaders = []
+        for leader in streak_leaders:
+            leaders.append({
+                'id': leader['id'],
+                'name': leader['name'],
+                'streak_days': leader['streak_days'] or 0,
+                'items_today': leader['items_today'] or 0,
+                'points_today': float(leader['points_today'] or 0),
+                'department': leader['department'] or 'Unknown'
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(leaders)
+        
+    except Exception as e:
+        import traceback
+        print(f"Error getting streak leaders: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify([])
+
+# Achievement Ticker
+@dashboard_bp.route('/analytics/achievement-ticker', methods=['GET'])
+@require_api_key
+def get_achievement_ticker():
+    """Get achievements and milestones for the ticker"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        achievements = []
+        
+        # 1. Top performer of the day
+        cursor.execute("""
+            SELECT 
+                e.name,
+                ds.points_earned,
+                ds.items_processed
+            FROM daily_scores ds
+            JOIN employees e ON e.id = ds.employee_id
+            WHERE ds.score_date = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            ORDER BY ds.points_earned DESC
+            LIMIT 1
+        """)
+        
+        top_performer = cursor.fetchone()
+        if top_performer:
+            achievements.append(f"🏆 {top_performer['name']} earned {int(top_performer['points_earned'])} points today!")
+        
+        # 2. High speed achievements
+        cursor.execute("""
+            SELECT 
+                e.name,
+                ROUND(ds.items_processed / GREATEST(ct.clock_minutes, 1) * 60, 0) as items_per_hour
+            FROM daily_scores ds
+            JOIN employees e ON e.id = ds.employee_id
+            LEFT JOIN (
+                SELECT 
+                    employee_id,
+                    TIMESTAMPDIFF(MINUTE, MIN(clock_in), COALESCE(MAX(clock_out), NOW())) as clock_minutes
+                FROM clock_times
+                WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+                GROUP BY employee_id
+            ) ct ON ct.employee_id = e.id
+            WHERE ds.score_date = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            AND ct.clock_minutes > 30
+            HAVING items_per_hour >= 50
+            ORDER BY items_per_hour DESC
+            LIMIT 3
+        """)
+        
+        speed_demons = cursor.fetchall()
+        for emp in speed_demons:
+            achievements.append(f"⚡ {emp['name']} hit {int(emp['items_per_hour'])} items/hour!")
+        
+        # 3. REMOVED DEPARTMENT TOTALS - They were misleading
+        
+        # 4. Active streaks
+        cursor.execute("""
+            SELECT 
+                e.name,
+                e.current_streak
+            FROM employees e
+            WHERE e.is_active = 1
+            AND e.current_streak >= 3
+            ORDER BY e.current_streak DESC
+            LIMIT 3
+        """)
+        
+        streakers = cursor.fetchall()
+        for emp in streakers:
+            achievements.append(f"🔥 {emp['name']} on a {emp['current_streak']}-day streak!")
+        
+        # 5. Team total - CHANGED TO QC PASSED ONLY
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(al.items_count), 0) as qc_passed_total
+            FROM activity_logs al
+            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            AND al.activity_type = 'QC Passed'
+            AND al.source = 'podfactory'
+        """)
+        
+        team_stats = cursor.fetchone()
+        if team_stats and team_stats['qc_passed_total'] > 0:
+            achievements.append(f"📊 Team total: {int(team_stats['qc_passed_total'])} items QC passed today!")
+        
+        # 6. Recent milestones
+        cursor.execute("""
+            SELECT 
+                e.name,
+                ds.items_processed
+            FROM daily_scores ds
+            JOIN employees e ON e.id = ds.employee_id
+            WHERE ds.score_date = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            AND (
+                ds.items_processed >= 500 
+                OR ds.items_processed = 100 
+                OR ds.items_processed = 250
+            )
+            ORDER BY ds.updated_at DESC
+            LIMIT 2
+        """)
+        
+        milestones = cursor.fetchall()
+        for emp in milestones:
+            if emp['items_processed'] >= 500:
+                achievements.append(f"🌟 {emp['name']} crushed 500+ items today!")
+            elif emp['items_processed'] >= 250:
+                achievements.append(f"💪 {emp['name']} hit 250 items!")
+            else:
+                achievements.append(f"🎉 {emp['name']} reached 100 items!")
+        
+        cursor.close()
+        conn.close()
+        
+        # Ensure we have some content
+        if not achievements:
+            achievements = [
+                "💪 Keep pushing team!",
+                "🏆 Every item counts!",
+                "🌟 You're doing amazing!"
+            ]
+        
+        return jsonify(achievements)
+        
+    except Exception as e:
+        import traceback
+        print(f"Error getting achievement ticker: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify([
+            "💪 Keep pushing team!",
+            "🏆 Every item counts!",
+            "🌟 You're doing amazing!"
+        ])
+# Hourly Heatmap
+@dashboard_bp.route('/analytics/hourly-heatmap', methods=['GET'])
+@require_api_key
+def get_hourly_heatmap():
+    """Get hourly productivity heatmap data"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT 
+                HOUR(al.window_start) as hour,
+                COUNT(DISTINCT al.employee_id) as active_employees,
+                SUM(al.items_count) as items_processed,
+                ROUND(SUM(al.items_count * rc.multiplier), 1) as points_earned
+            FROM activity_logs al
+            JOIN role_configs rc ON rc.id = al.role_id
+            WHERE DATE(al.window_start) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            AND al.source = 'podfactory'
+            GROUP BY HOUR(al.window_start)
+            ORDER BY hour
+        """)
+        
+        hourly_data = cursor.fetchall()
+        
+        # Fill in missing hours
+        heatmap = []
+        for hour in range(6, 18):  # 6 AM to 5 PM
+            data = next((h for h in hourly_data if h['hour'] == hour), None)
+            if data:
+                intensity = min(100, (data['points_earned'] / 500) * 100)  # Scale to 100
+                heatmap.append({
+                    'hour': f"{hour}:00",
+                    'employees': data['active_employees'],
+                    'items': data['items_processed'],
+                    'points': data['points_earned'],
+                    'intensity': intensity
+                })
+            else:
+                heatmap.append({
+                    'hour': f"{hour}:00",
+                    'employees': 0,
+                    'items': 0,
+                    'points': 0,
+                    'intensity': 0
+                })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(heatmap)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Gamification Achievements
+@dashboard_bp.route('/gamification/achievements', methods=['GET'])
+@require_api_key  
+def get_achievements():
+    """Get achievement progress for gamification"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Daily achievements
+        cursor.execute("""
+            SELECT 
+                COUNT(CASE WHEN ds.points_earned >= 100 THEN 1 END) as century_club,
+                COUNT(CASE WHEN ds.points_earned >= 250 THEN 1 END) as quarter_master,
+                COUNT(CASE WHEN ds.points_earned >= 500 THEN 1 END) as half_hero,
+                COUNT(CASE WHEN ds.points_earned >= 1000 THEN 1 END) as thousand_thunder,
+                MAX(ds.points_earned) as top_score,
+                SUM(ds.points_earned) as total_team_points
+            FROM daily_scores ds
+            WHERE ds.score_date = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+        """)
+        
+        achievements = cursor.fetchone()
+        
+        # Add percentages and goals
+        total_employees = 33  # Adjust based on your active employees
+        
+        achievements_list = [
+            {
+                'name': 'Century Club',
+                'description': '100+ points in a day',
+                'count': achievements['century_club'] or 0,
+                'percentage': ((achievements['century_club'] or 0) / total_employees) * 100,
+                'icon': '💯'
+            },
+            {
+                'name': 'Quarter Master',
+                'description': '250+ points in a day',
+                'count': achievements['quarter_master'] or 0,
+                'percentage': ((achievements['quarter_master'] or 0) / total_employees) * 100,
+                'icon': '🎯'
+            },
+            {
+                'name': 'Half Hero',
+                'description': '500+ points in a day',
+                'count': achievements['half_hero'] or 0,
+                'percentage': ((achievements['half_hero'] or 0) / total_employees) * 100,
+                'icon': '🦸'
+            },
+            {
+                'name': 'Thousand Thunder',
+                'description': '1000+ points in a day',
+                'count': achievements['thousand_thunder'] or 0,
+                'percentage': ((achievements['thousand_thunder'] or 0) / total_employees) * 100,
+                'icon': '⚡'
+            }
+        ]
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'achievements': achievements_list,
+            'top_score': float(achievements['top_score'] or 0),
+            'total_team_points': float(achievements['total_team_points'] or 0),
+            'team_goal': 10000,  # Adjust based on your targets
+            'team_progress': (float(achievements['total_team_points'] or 0) / 10000) * 100
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Department Battle
+@dashboard_bp.route('/departments/battle', methods=['GET'])
+@require_api_key
+def get_department_battle():
+    """Get department vs department competition data"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT 
+                al.department,
+                COUNT(DISTINCT al.employee_id) as employees,
+                SUM(al.items_count) as items,
+                ROUND(SUM(al.items_count * rc.multiplier), 1) as points,
+                ROUND(AVG(al.items_count * rc.multiplier), 1) as avg_points_per_activity
+            FROM activity_logs al
+            JOIN role_configs rc ON rc.id = al.role_id
+            WHERE DATE(al.window_start) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            AND al.source = 'podfactory'
+            GROUP BY al.department
+            ORDER BY points DESC
+        """)
+        
+        departments = cursor.fetchall()
+        
+        # Add battle rankings and comparisons
+        for i, dept in enumerate(departments):
+            dept['rank'] = i + 1
+            dept['icon'] = {
+                'Heat Press': '🔥',
+                'Packing': '📦',
+                'Picking': '🎯',
+                'Labeling': '🏷️'
+            }.get(dept['department'], '📋')
+            
+            if i == 0:
+                dept['status'] = 'Leading'
+                dept['status_color'] = 'gold'
+            elif i == 1:
+                dept['status'] = 'Chasing'
+                dept['status_color'] = 'silver'
+                dept['behind_by'] = float(departments[0]['points'] - dept['points'])
+            else:
+                dept['status'] = 'Fighting'
+                dept['status_color'] = 'bronze'
+                dept['behind_by'] = float(departments[0]['points'] - dept['points'])
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(departments)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Recent Activities
+@dashboard_bp.route('/activities/recent', methods=['GET'])
+@require_api_key
+def get_recent_activities():
+    
+    """Get recent system activities for the activity feed"""
+    limit = request.args.get('limit', 10, type=int)
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        query = """
+        SELECT 
+            'clock_in' as type,
+            CONCAT(e.name, ' clocked in at ', DATE_FORMAT(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago'), '%h:%i %p')) as description,
+            ct.clock_in as timestamp,
+            e.name as employee_name,
+            DATE_FORMAT(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago'), '%h:%i %p') as time_str
+        FROM clock_times ct
+        JOIN employees e ON e.id = ct.employee_id
+        WHERE DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+        
+        UNION ALL
+        
+        SELECT 
+            'clock_out' as type,
+            CONCAT(e.name, ' clocked out at ', DATE_FORMAT(CONVERT_TZ(ct.clock_out, '+00:00', 'America/Chicago'), '%h:%i %p')) as description,
+            ct.clock_out as timestamp,
+            e.name as employee_name,
+            DATE_FORMAT(CONVERT_TZ(ct.clock_out, '+00:00', 'America/Chicago'), '%h:%i %p') as time_str
+        FROM clock_times ct
+        JOIN employees e ON e.id = ct.employee_id
+        WHERE ct.clock_out IS NOT NULL 
+        AND DATE(CONVERT_TZ(ct.clock_out, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+        
+        ORDER BY timestamp DESC
+        LIMIT %s
+        """
+        
+        cursor.execute(query, (limit,))
+        activities = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(activities)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+# Active Alerts
+@dashboard_bp.route('/alerts/active', methods=['GET'])
+@require_api_key
+def get_active_alerts():
+    """Get active system alerts"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        alerts = []
+        
+        # Check for employees with low productivity
+        cursor.execute("""
+            SELECT 
+                e.name,
+                ds.points_earned,
+                ds.items_processed
+            FROM employees e
+            JOIN daily_scores ds ON ds.employee_id = e.id
+            WHERE ds.score_date = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            AND ds.points_earned < 50
+            AND ds.points_earned > 0
+            ORDER BY ds.points_earned ASC
+            LIMIT 3
+        """)
+        
+        low_performers = cursor.fetchall()
+        for emp in low_performers:
+            alerts.append({
+                'id': len(alerts) + 1,
+                'type': 'low_performance',
+                'title': 'Performance Alert',
+                'message': f"{emp['name']} has only {emp['points_earned']:.1f} points today",
+                'severity': 'warning'
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(alerts[:5])
+        
+    except Exception as e:
+        return jsonify([])
+
+# Hourly Analytics
+@dashboard_bp.route('/analytics/hourly', methods=['GET'])
+@require_api_key
+def get_hourly_productivity():
+    """Get hourly productivity data for charts"""
+    date = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT 
+                HOUR(al.window_start) as hour,
+                COUNT(DISTINCT al.employee_id) as active_employees,
+                SUM(al.items_count) as items_processed,
+                ROUND(SUM(al.items_count * rc.multiplier), 1) as points_earned
+            FROM activity_logs al
+            JOIN role_configs rc ON rc.id = al.role_id
+            WHERE DATE(al.window_start) = %s
+            AND al.source = 'podfactory'
+            GROUP BY HOUR(al.window_start)
+            ORDER BY hour
+        """, (date,))
+        
+        hourly_raw = cursor.fetchall()
+        
+        # Convert to hourly format
+        hourly_data = []
+        hours = ['6 AM', '7 AM', '8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM']
+        
+        for i, hour_label in enumerate(hours):
+            hour_num = i + 6  # 6 AM = 6, 7 AM = 7, etc.
+            data = next((h for h in hourly_raw if h['hour'] == hour_num), None)
+            
+            if data:
+                hourly_data.append({
+                    'hour': hour_label,
+                    'items_processed': data['items_processed'],
+                    'active_employees': data['active_employees'],
+                    'points': data['points_earned']
+                })
+            else:
+                hourly_data.append({
+                    'hour': hour_label,
+                    'items_processed': 0,
+                    'active_employees': 0,
+                    'points': 0
+                })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(hourly_data)
+        
+    except Exception as e:
+        return jsonify([])
+
+@dashboard_bp.route('/analytics/team-metrics', methods=['GET'])
+@dashboard_bp.route('/analytics/team-metrics', methods=['GET'])
+@require_api_key
+def get_team_metrics():
+    """Get overall team metrics"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get metrics with correct calculations
+        cursor.execute("""
+            SELECT 
+                -- Count total employees who worked today (clocked in at any point)
+                COUNT(DISTINCT ct.employee_id) as total_employees_today,
+                -- Count currently clocked in
+                COUNT(DISTINCT CASE WHEN ct.clock_out IS NULL THEN ct.employee_id END) as active_employees,
+                -- Calculate total hours worked
+                COALESCE(ROUND(SUM(TIMESTAMPDIFF(MINUTE, ct.clock_in, COALESCE(ct.clock_out, NOW()))) / 60.0, 1), 0) as total_hours_worked
+            FROM clock_times ct
+            WHERE DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+        """)
+        
+        metrics = cursor.fetchone()
+        
+        # Get QC Passed items separately with timezone handling
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(al.items_count), 0) as items_today
+            FROM activity_logs al 
+            WHERE DATE(al.window_start) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            AND al.activity_type = 'QC Passed'
+            AND al.source = 'podfactory'
+        """)
+        
+        qc_result = cursor.fetchone()
+        metrics['items_today'] = int(qc_result['items_today'] or 0)
+        metrics['items_finished'] = metrics['items_today']  # Add this for shop floor
+        
+        # Get total points with timezone handling
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(al.items_count * rc.multiplier), 0) as points_today
+            FROM activity_logs al
+            JOIN role_configs rc ON rc.id = al.role_id
+            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            AND al.source = 'podfactory'
+        """)
+        
+        points_result = cursor.fetchone()
+        metrics['points_today'] = float(points_result['points_today'] or 0)
+        
+        # Calculate overall efficiency
+        total_hours = float(metrics['total_hours_worked'] or 0)
+        if total_hours > 0:
+            expected_items = total_hours * 60  # Assuming 60 items/hour target
+            actual_items = float(metrics['items_today'] or 0)
+            overall_efficiency = round((actual_items / expected_items) * 100, 1) if expected_items > 0 else 0
+        else:
+            overall_efficiency = 0
+            
+        # Get yesterday's data for comparison with timezone handling
+        cursor.execute("""
+            SELECT COALESCE(SUM(al.items_count), 0) as yesterday_items
+            FROM activity_logs al
+            WHERE DATE(al.window_start) = DATE_SUB(DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago')), INTERVAL 1 DAY)
+            AND al.activity_type = 'QC Passed'
+            AND al.source = 'podfactory'
+        """)
+        
+        yesterday = cursor.fetchone()
+        yesterday_items = float(yesterday['yesterday_items'] or 0)
+        today_items = float(metrics['items_today'] or 0)
+        
+        if yesterday_items > 0:
+            vs_yesterday = ((today_items - yesterday_items) / yesterday_items) * 100
+        else:
+            vs_yesterday = 0 if today_items == 0 else 100
+        
+        # Get top department for shop floor
+        cursor.execute("""
+            SELECT 
+                al.department,
+                ROUND(SUM(al.items_count * rc.multiplier), 1) as dept_points
+            FROM activity_logs al
+            JOIN role_configs rc ON rc.id = al.role_id
+            WHERE DATE(al.window_start) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            AND al.source = 'podfactory'
+            GROUP BY al.department
+            ORDER BY dept_points DESC
+            LIMIT 1
+        """)
+        
+        top_dept = cursor.fetchone()
+        
+        result = {
+            'active_employees': metrics['active_employees'] or 0,
+            'total_employees': metrics['total_employees_today'] or 0,  # Make sure this matches
+            'total_employees_today': metrics['total_employees_today'] or 0,
+            'items_today': metrics['items_today'] or 0,
+            'items_finished': metrics['items_finished'] or 0,  # For shop floor
+            'points_today': round(metrics['points_today'] or 0, 1),
+            'total_hours_worked': metrics['total_hours_worked'] or 0,
+            'overall_efficiency': overall_efficiency,
+            'average_items_per_hour': round(metrics['items_today'] / max(metrics['total_hours_worked'], 1), 1),
+            'daily_goal': 5000,
+            'vs_yesterday': round(vs_yesterday, 1),
+            'top_department': top_dept['department'] if top_dept else 'None',
+            'top_department_points': round(top_dept['dept_points'], 1) if top_dept else 0
+        }
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        import traceback
+        print(f"Error in team metrics: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            'active_employees': 0,
+            'total_employees': 0,
+            'total_employees_today': 0,
+            'items_today': 0,
+            'items_finished': 0,
+            'points_today': 0,
+            'total_hours_worked': 0,
+            'overall_efficiency': 0,
+            'average_items_per_hour': 0,
+            'daily_goal': 5000,
+            'vs_yesterday': 0,
+            'top_department': 'None',
+            'top_department_points': 0
+        })
+    
+# Employee Stats
+@dashboard_bp.route('/employees/<int:employee_id>/stats', methods=['GET'])
+@require_api_key
+def get_employee_stats(employee_id):
+    """Get detailed stats for a specific employee"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT 
+                e.id,
+                e.name,
+                e.current_streak as streak_days,
+                COALESCE(ds.items_processed, 0) as items_today,
+                COALESCE(ds.points_earned, 0) as points_today,
+                CASE 
+                    WHEN ct.clock_minutes > 0 THEN 
+                        ROUND(COALESCE(ds.items_processed, 0) / ct.clock_minutes * 60, 1)
+                    ELSE 0
+                END as items_per_hour
+            FROM employees e
+            LEFT JOIN daily_scores ds ON ds.employee_id = e.id 
+                AND ds.score_date = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            LEFT JOIN (
+                SELECT employee_id, 
+                       MIN(clock_in) as clock_in, 
+                       MAX(clock_out) as clock_out,
+                       TIMESTAMPDIFF(MINUTE, MIN(clock_in), COALESCE(MAX(clock_out), NOW())) as clock_minutes
+                FROM clock_times
+                WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+                GROUP BY employee_id
+            ) ct ON ct.employee_id = e.id
+            WHERE e.id = %s
+        """, (employee_id,))
+        
+        employee = cursor.fetchone()
+        
+        if not employee:
+            return jsonify({'error': 'Employee not found'}), 404
+        
+        # Get rank
+        cursor.execute("""
+            SELECT COUNT(*) + 1 as rank
+            FROM daily_scores
+            WHERE score_date = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            AND points_earned > (
+                SELECT points_earned 
+                FROM daily_scores 
+                WHERE employee_id = %s 
+                AND score_date = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+            )
+        """, (employee_id,))
+        
+        rank_data = cursor.fetchone()
+        
+        stats = {
+            'id': employee['id'],
+            'name': employee['name'],
+            'streak_days': employee['streak_days'] or 0,
+            'items_today': employee['items_today'],
+            'points_today': round(employee['points_today'], 1),
+            'items_per_hour': round(employee['items_per_hour'], 1),
+            'rank': rank_data['rank'] if rank_data else 999
+        }
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(stats)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Employees List
+@dashboard_bp.route('/employees', methods=['GET'])
+@require_api_key
+def get_employees():
+    """Get all active employees"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT 
+                e.id,
+                e.name,
+                e.name as full_name
+            FROM employees e
+            WHERE e.is_active = 1
+            ORDER BY e.name
+        """)
+        
+        employees = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(employees)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Single Employee
+@dashboard_bp.route('/employees/<int:employee_id>', methods=['GET'])
+@require_api_key
+def get_employee(employee_id):
+    """Get specific employee details"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT 
+                e.id,
+                e.name,
+                e.name as full_name,
+                e.current_streak
+            FROM employees e
+            WHERE e.id = %s
+        """, (employee_id,))
+        
+        employee = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        if employee:
+            name_parts = employee['name'].split(' ', 1)
+            employee['first_name'] = name_parts[0]
+            employee['last_name'] = name_parts[1] if len(name_parts) > 1 else ''
+            return jsonify(employee)
+        else:
+            return jsonify({'error': 'Employee not found'}), 404
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Employee Activities
+@dashboard_bp.route('/activities', methods=['GET'])
+@require_api_key
+def get_employee_activities():
+    """Get activities for employee portal"""
+    employee_id = request.args.get('employee_id', type=int)
+    limit = request.args.get('limit', 10, type=int)
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        if employee_id:
+            cursor.execute("""
+                SELECT 
+                    al.activity_type as type,
+                    CONCAT(al.items_count, ' items - ', al.activity_type) as description,
+                    al.window_start as timestamp
+                FROM activity_logs al
+                WHERE al.employee_id = %s
+                AND DATE(al.window_start) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+                ORDER BY al.window_start DESC
+                LIMIT %s
+            """, (employee_id, limit))
+            
+            activities = cursor.fetchall()
+        else:
+            activities = []
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(activities)
+        
+    except Exception as e:
+        return jsonify([])
+
+# Record Activity from PodFactory
+@dashboard_bp.route('/activities/activity', methods=['POST'])
+@require_api_key
+def record_activity():
+    """Record activity from PodFactory with duplicate checking"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['employee_id', 'quantity']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Extract metadata
+        metadata = data.get('metadata', {})
+        podfactory_id = str(metadata.get('podfactory_id', ''))
+        user_role = metadata.get('user_role', '')
+        action = metadata.get('action', 'item_scan')
+        
+        # Get role_id from user_role
+        role_id = metadata.get('role_id') or ACTION_TO_ROLE_ID.get(action, 3)
+        
+        # Check if this PodFactory activity already exists
+        if podfactory_id:
+            cursor.execute("""
+                SELECT id FROM activity_logs 
+                WHERE reference_id = %s AND source = 'podfactory'
+                LIMIT 1
+            """, (podfactory_id,))
+            
+            if cursor.fetchone():
+                cursor.close()
+                conn.close()
+                return jsonify({
+                    'success': True,
+                    'message': 'Activity already processed',
+                    'status': 'duplicate'
+                }), 200
+        
+        # Get timestamp
+        timestamp = data.get('timestamp', datetime.now())
+        if isinstance(timestamp, str):
+            timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        
+        # Generate unique report_id
+        report_id = f"PF_{podfactory_id or datetime.now().strftime('%Y%m%d%H%M%S%f')}_{data['employee_id']}"
+        
+        # Calculate window times
+        window_start = timestamp
+
+        # Always calculate duration_minutes
+        window_end_str = data.get('window_end')
+        if window_end_str:
+            # Use the actual window_end from PodFactory
+            window_end = datetime.fromisoformat(window_end_str.replace('Z', '+00:00'))
+            # Calculate duration from actual window times
+            duration_minutes = int((window_end - window_start).total_seconds() / 60)
+        else:
+            # Fallback to duration from metadata or default
+            duration_minutes = metadata.get('duration_minutes', 10)
+            window_end = window_start + timedelta(minutes=duration_minutes)
+        
+        # Get department from action
+        department = ACTION_TO_DEPARTMENT_MAP.get(action, data.get('department', 'Unknown'))
+        # ADD THIS SECTION - Convert to naive UTC datetime for MySQL
+        if window_start and window_start.tzinfo:
+        # If timezone-aware, convert to UTC and remove timezone info
+            window_start = window_start.astimezone(pytz.UTC).replace(tzinfo=None)
+            
+        if window_end and window_end.tzinfo:
+        # If timezone-aware, convert to UTC and remove timezone info
+            window_end = window_end.astimezone(pytz.UTC).replace(tzinfo=None)
+        # Insert activity
+        cursor.execute("""
+            INSERT INTO activity_logs 
+            (report_id, employee_id, activity_type, scan_type, role_id, 
+             items_count, window_start, window_end, department, 
+             source, reference_id, duration_minutes)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            report_id,
+            data['employee_id'],
+            action,
+            data.get('scan_type', 'item_scan'),
+            role_id,
+            data['quantity'],
+            window_start,
+            window_end,
+            department,
+            metadata.get('source', 'podfactory'),
+            podfactory_id,
+            duration_minutes
+        ))
+        
+        activity_id = cursor.lastrowid
+        
+        # Calculate points using role multiplier
+        cursor.execute("""
+            SELECT multiplier FROM role_configs WHERE id = %s
+        """, (role_id,))
+        
+        multiplier_row = cursor.fetchone()
+        multiplier = float(multiplier_row[0]) if multiplier_row else 1.0
+        points = data['quantity'] * multiplier
+        
+        # Update daily scores
+        score_date = window_start.date()
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'activity_id': activity_id,
+            'points_earned': round(points, 2),
+            'message': f'Activity recorded: {data["quantity"]} items = {points:.1f} points',
+            'status': 'created'
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        print(f"Error recording activity: {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({'error': error_msg}), 500
+
+@dashboard_bp.route('/activities/bulk', methods=['POST'])
+@require_api_key
+def record_activities_bulk():
+    """Record multiple activities from PodFactory in bulk"""
+    try:
+        activities = request.get_json()
+        
+        if not isinstance(activities, list):
+            return jsonify({'error': 'Expected a list of activities'}), 400
+        
+        if not activities:
+            return jsonify({'success': True, 'message': 'No activities to process'}), 200
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Track results
+        created_count = 0
+        duplicate_count = 0
+        error_count = 0
+        total_points = 0
+        
+        # Collect all podfactory IDs to check for duplicates
+        podfactory_ids = []
+        for activity in activities:
+            metadata = activity.get('metadata', {})
+            pf_id = str(metadata.get('podfactory_id', ''))
+            if pf_id:
+                podfactory_ids.append(pf_id)
+        
+        # Check existing activities in one query
+        existing_ids = set()
+        if podfactory_ids:
+            placeholders = ','.join(['%s'] * len(podfactory_ids))
+            cursor.execute(f"""
+                SELECT reference_id 
+                FROM activity_logs 
+                WHERE reference_id IN ({placeholders}) 
+                AND source = 'podfactory'
+            """, podfactory_ids)
+            existing_ids = {row[0] for row in cursor.fetchall()}
+        
+        # Prepare batch inserts
+        activity_values = []
+        score_updates = {}  # employee_id -> (date, items, points)
+        
+        for activity in activities:
+            try:
+                # Validate required fields
+                if 'employee_id' not in activity or 'quantity' not in activity:
+                    error_count += 1
+                    continue
+                
+                # Extract metadata
+                metadata = activity.get('metadata', {})
+                podfactory_id = str(metadata.get('podfactory_id', ''))
+                
+                # Skip if duplicate
+                if podfactory_id and podfactory_id in existing_ids:
+                    duplicate_count += 1
+                    continue
+                
+                # Get data
+                user_role = metadata.get('user_role', '')
+                action = metadata.get('action', 'item_scan')
+                role_id = metadata.get('role_id') or ACTION_TO_ROLE_ID.get(action, 3)
+                
+                # Get timestamp
+                timestamp = activity.get('timestamp', datetime.now())
+                if isinstance(timestamp, str):
+                    timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                
+                # Generate unique report_id
+                report_id = f"PF_{podfactory_id or datetime.now().strftime('%Y%m%d%H%M%S%f')}_{activity['employee_id']}"
+                
+                # Calculate window times
+                window_start = timestamp
+                duration_minutes = metadata.get('duration_minutes', 10)
+                window_end = window_start + timedelta(minutes=duration_minutes)
+                # ADD THIS - Convert to naive UTC datetime for MySQL
+                if window_start and window_start.tzinfo:
+                    window_start = window_start.astimezone(pytz.UTC).replace(tzinfo=None)
+                    
+                if window_end and window_end.tzinfo:
+                    window_end = window_end.astimezone(pytz.UTC).replace(tzinfo=None)
+                
+                # Get department
+                department = ACTION_TO_DEPARTMENT_MAP.get(action, activity.get('department', 'Unknown'))
+                
+                # Add to batch
+                activity_values.append((
+                    report_id,
+                    activity['employee_id'],
+                    action,
+                    activity.get('scan_type', 'item_scan'),
+                    role_id,
+                    activity['quantity'],
+                    window_start,
+                    window_end,
+                    department,
+                    metadata.get('source', 'podfactory'),
+                    podfactory_id,
+                    duration_minutes
+                ))
+                
+                # Calculate points
+                cursor.execute("SELECT multiplier FROM role_configs WHERE id = %s", (role_id,))
+                multiplier_row = cursor.fetchone()
+                multiplier = float(multiplier_row[0]) if multiplier_row else 1.0
+                points = activity['quantity'] * multiplier
+                
+                # Track for daily scores update
+                score_date = window_start.date()
+                emp_id = activity['employee_id']
+                
+                if emp_id not in score_updates:
+                    score_updates[emp_id] = {}
+                if score_date not in score_updates[emp_id]:
+                    score_updates[emp_id][score_date] = {'items': 0, 'points': 0}
+                
+                score_updates[emp_id][score_date]['items'] += activity['quantity']
+                score_updates[emp_id][score_date]['points'] += points
+                
+                created_count += 1
+                total_points += points
+                
+            except Exception as e:
+                error_count += 1
+                logger.error(f"Error processing activity: {str(e)}")
+                continue
+        
+        # Bulk insert activities
+        if activity_values:
+            cursor.executemany("""
+                INSERT INTO activity_logs 
+                (report_id, employee_id, activity_type, scan_type, role_id, 
+                 items_count, window_start, window_end, department, 
+                 source, reference_id, duration_minutes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, activity_values)
+              
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'created': created_count,
+            'duplicates': duplicate_count,
+            'errors': error_count,
+            'total_points': round(total_points, 2),
+            'message': f'Processed {len(activities)} activities: {created_count} created, {duplicate_count} duplicates, {error_count} errors'
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        logger.error(f"Error in bulk activity recording: {error_msg}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': error_msg}), 500
+
+# Add these endpoints to your dashboard.py file after the existing endpoints
+
+# Bottleneck Detection System
+@dashboard_bp.route('/bottleneck/current', methods=['GET'])
+@require_api_key
+def get_current_bottleneck():
+    """Get real-time bottleneck detection data"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get current date/time in Central
+        central_now = get_central_datetime()
+        current_date = central_now.date()
+        
+        # Define the workflow sequence
+        workflow_sequence = [
+            ('Picking', 'Labeling'),
+            ('Labeling', 'Film Matching'),
+            ('Film Matching', 'In Production'),  # In Production = Heat Press
+            ('In Production', 'QC Passed')  # QC Passed = Shipping
+        ]
+        
+        # Get flow rates for last 30 minutes - FIXED to use UTC
+        flow_query = """
+        SELECT 
+            al.activity_type,
+            COUNT(DISTINCT al.employee_id) as workers,
+            COALESCE(SUM(al.items_count), 0) as items_last_30min,
+            COUNT(*) as activity_count,
+            MIN(al.window_start) as earliest_activity,
+            MAX(al.window_end) as last_activity,
+            TIMESTAMPDIFF(MINUTE, MAX(al.window_end), UTC_TIMESTAMP()) as minutes_since_last
+        FROM activity_logs al
+        WHERE al.window_start >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 30 MINUTE)
+            AND al.source = 'podfactory'
+        GROUP BY al.activity_type
+        """
+
+        # Execute without date parameter
+        cursor.execute(flow_query)
+        flow_data = cursor.fetchall()
+
+        # Add debug logging
+        print(f"\nBottleneck Detection Debug at {datetime.now()}:")
+        print(f"Found {len(flow_data)} active stations in last 30 minutes")
+        
+        # Define display names mapping EARLY (before any usage)
+        display_names = {
+            'Picking': 'Picking',
+            'Labeling': 'Labeling', 
+            'Film Matching': 'Film Matching',
+            'In Production': 'Heat Press',
+            'QC Passed': 'Shipping'
+        }
+
+        # Define station names order
+        station_names = ['Picking', 'Labeling', 'Film Matching', 'In Production', 'QC Passed']
+        
+        for row in flow_data:
+            print(f"  {row['activity_type']}: {row['items_last_30min']} items, last activity {row['minutes_since_last']} mins ago")
+        if not flow_data:
+            print("WARNING: No activity data found for bottleneck analysis")
+        
+        # Create a dict for easy lookup and calculate hourly rates
+        flow_dict = {}
+        for row in flow_data:
+            # Calculate items per hour (double the 30-minute count)
+            items_per_hour = int(row.get('items_last_30min', 0) * 2)
+            
+            flow_dict[row['activity_type']] = {
+                'activity_type': row['activity_type'],
+                'workers': row['workers'],
+                'items_last_30min': row['items_last_30min'],
+                'items_per_hour': items_per_hour,
+                'last_activity': row['last_activity'],
+                'minutes_since_last': row.get('minutes_since_last')
+            }
+
+        
+        # Calculate queue buildup and bottlenecks
+        stations = []
+        bottlenecks = []
+        
+        for i, activity in enumerate(station_names):
+            # Get the actual data
+            station_data = flow_dict.get(activity, {
+                'activity_type': activity,
+                'workers': 0,
+                'items_last_30min': 0,
+                'items_per_hour': 0,
+                'last_activity': None,
+                'minutes_since_last': None
+            })
+            
+            # Get today's total for this station (for context)
+            cursor.execute("""
+                SELECT COALESCE(SUM(items_count), 0) as total_today
+                FROM activity_logs
+                WHERE activity_type = %s
+                AND DATE(window_start) = %s
+                AND source = 'podfactory'
+            """, (activity, current_date))
+            today_total = cursor.fetchone()['total_today']
+            
+            # Calculate input rate (from previous station)
+            if i > 0:
+                prev_station = station_names[i-1]
+                prev_data = flow_dict.get(prev_station, {})
+                input_rate = int(prev_data.get('items_per_hour', 0))
+            else:
+                input_rate = 0
+            
+            # Output rate is this station's rate
+            output_rate = int(station_data.get('items_per_hour', 0))
+            workers = int(station_data.get('workers', 0))
+            minutes_since_last = station_data.get('minutes_since_last')
+            
+            # Queue growth rate
+            queue_growth = input_rate - output_rate if i > 0 else 0
+            
+            # Estimate queue size
+            estimated_queue = max(0, queue_growth * 0.5)  # Half hour of growth
+            
+            # SMART STATUS DETERMINATION
+            # Check current hour (for time-based context)
+            current_hour = central_now.hour
+            
+            # Determine status based on multiple factors
+            if workers == 0:  # No workers at station
+                if minutes_since_last is None:
+                    # Never had activity today
+                    if current_hour < 10:
+                        status = 'not_started'
+                        status_level = 'idle'
+                    else:
+                        status = 'idle'
+                        status_level = 'idle'
+                elif minutes_since_last > 60:
+                    # No activity for over an hour
+                    if today_total > 100:  # Had significant activity earlier
+                        # Check if downstream stations are still active
+                        downstream_active = False
+                        if i < len(station_names) - 1:
+                            for j in range(i + 1, len(station_names)):
+                                downstream_data = flow_dict.get(station_names[j], {})
+                                if downstream_data.get('workers', 0) > 0:
+                                    downstream_active = True
+                                    break
+                        
+                        if downstream_active:
+                            status = 'complete'
+                            status_level = 'complete'
+                        else:
+                            status = 'idle'
+                            status_level = 'idle'
+                    else:
+                        status = 'idle'
+                        status_level = 'idle'
+                elif minutes_since_last <= 30:
+                    # Recent activity but no workers now
+                    status = 'recently_stopped'
+                    status_level = 'warning'
+                else:
+                    status = 'idle'
+                    status_level = 'idle'
+            
+            elif workers > 0:  # Workers present at station
+                if output_rate == 0:
+                    # Workers present but no production
+                    if minutes_since_last and minutes_since_last < 10:
+                        # Just started, give them time
+                        status = 'warming_up'
+                        status_level = 'normal'
+                    else:
+                        # This is a real problem - workers but no output
+                        status = 'critical'
+                        status_level = 'critical'
+                elif queue_growth > 50:
+                    # Major bottleneck
+                    status = 'bottleneck'
+                    status_level = 'critical'
+                elif queue_growth > 20:
+                    # Minor bottleneck
+                    status = 'slow'
+                    status_level = 'warning'
+                elif output_rate < 10 and workers >= 3:
+                    # Too many workers for low output
+                    status = 'inefficient'
+                    status_level = 'warning'
+                else:
+                    # Everything flowing well
+                    status = 'flowing'
+                    status_level = 'good'
+            
+            # Special case for first station (Picking)
+            if activity == 'Picking' and status == 'idle' and today_total > 500:
+                status = 'complete'
+                status_level = 'complete'
+            
+            # Build station info
+            station_info = {
+                'name': display_names.get(activity, activity),
+                'activity_type': activity,
+                'workers': workers,
+                'input_rate': input_rate,
+                'output_rate': output_rate,
+                'items_per_hour': output_rate,
+                'queue_growth': queue_growth,
+                'estimated_queue': int(estimated_queue),
+                'status': status,
+                'status_level': status_level,
+                'last_activity': station_data.get('last_activity'),
+                'minutes_since_last': minutes_since_last,
+                'today_total': today_total  # Add this for frontend display
+            }
+            
+            stations.append(station_info)
+            
+            # Only track bottlenecks for actual problems (not idle/complete stations)
+            if status_level in ['critical', 'warning'] and workers > 0 and status != 'warming_up':
+                bottlenecks.append({
+                    'station': display_names.get(activity, activity),
+                    'severity': status_level,
+                    'queue_growth': queue_growth,
+                    'workers': workers,
+                    'status': status
+                })
+        
+        # Find the PRIMARY bottleneck (worst queue growth)
+        primary_bottleneck = None
+        if bottlenecks:
+            primary_bottleneck = max(bottlenecks, key=lambda x: x['queue_growth'])
+        
+        # FIXED: Get available workers who can help - using separate queries to avoid GROUP BY issues
+        # First get all clocked-in employees
+        clocked_in_query = """
+        SELECT DISTINCT e.id, e.name
+        FROM employees e
+        INNER JOIN clock_times ct ON ct.employee_id = e.id
+        WHERE DATE(ct.clock_in) = %s 
+            AND ct.clock_out IS NULL
+            AND e.is_active = 1
+        """
+        
+        cursor.execute(clocked_in_query, (current_date,))
+        clocked_in_workers = cursor.fetchall()
+        
+        available_workers = []
+        
+        # For each worker, get their current activity and skills
+        for worker in clocked_in_workers:
+            # Get current activity (last 30 min)
+            current_activity_query = """
+            SELECT al.activity_type 
+            FROM activity_logs al
+            WHERE al.employee_id = %s 
+                AND al.window_start >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+                AND DATE(al.window_start) = %s
+            ORDER BY al.window_start DESC 
+            LIMIT 1
+            """
+            cursor.execute(current_activity_query, (worker['id'], current_date))
+            current_result = cursor.fetchone()
+            current_activity = current_result['activity_type'] if current_result else None
+            
+            # Get skills (activities done in past 7 days)
+            skills_query = """
+            SELECT DISTINCT al.activity_type
+            FROM activity_logs al
+            WHERE al.employee_id = %s
+                AND al.window_start >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                AND al.source = 'podfactory'
+            """
+            cursor.execute(skills_query, (worker['id'],))
+            skills = [row['activity_type'] for row in cursor.fetchall()]
+            
+            # Get performance scores for each skill
+            skill_performance = {}
+            if skills:
+                performance_query = """
+                SELECT 
+                    al.activity_type,
+                    ROUND(AVG(al.items_count), 0) as avg_items
+                FROM activity_logs al
+                WHERE al.employee_id = %s
+                    AND al.window_start >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                    AND al.source = 'podfactory'
+                    AND al.activity_type IN (%s)
+                GROUP BY al.activity_type
+                """ % (
+                    '%s',
+                    ','.join(['%s'] * len(skills))
+                )
+                
+                cursor.execute(performance_query, (worker['id'], *skills))
+                for row in cursor.fetchall():
+                    skill_performance[row['activity_type']] = int(row['avg_items'])
+            
+            # Check if worker can help with bottleneck
+            can_help = False
+            if primary_bottleneck:
+                # Find the activity type that corresponds to the bottleneck station
+                bottleneck_activity = None
+                for activity, display in display_names.items():
+                    if display == primary_bottleneck['station']:
+                        bottleneck_activity = activity
+                        break
+                
+                can_help = bottleneck_activity in skills if bottleneck_activity else False
+            
+            available_workers.append({
+                'id': worker['id'],
+                'name': worker['name'],
+                'current_station': display_names.get(current_activity, current_activity or 'Unknown'),
+                'current_activity': current_activity,
+                'skills': skills,
+                'skill_performance': skill_performance,
+                'can_help_bottleneck': can_help
+            })
+        
+        # Generate recommendations
+        recommendations = []
+        if primary_bottleneck:
+            # Find workers who can help
+            helpers = [w for w in available_workers if w['can_help_bottleneck']]
+            
+            if helpers:
+                # Sort by performance in the bottleneck activity
+                activity_key = None
+                for k, v in display_names.items():
+                    if v == primary_bottleneck['station']:
+                        activity_key = k
+                        break
+
+                if activity_key:
+                    helpers.sort(key=lambda x: x['skill_performance'].get(activity_key, 0), reverse=True)
+                
+                # Recommend top 2-3 workers
+                for helper in helpers[:3]:
+                    if helper['current_station'] != primary_bottleneck['station']:
+                        recommendations.append({
+                            'action': 'reassign',
+                            'worker': helper['name'],
+                            'from': helper['current_station'],
+                            'to': primary_bottleneck['station'],
+                            'impact': 'high',
+                            'reason': f"Can help clear {primary_bottleneck['station']} bottleneck"
+                        })
+        
+        # Calculate predictions
+        predictions = []
+        for station in stations:
+            if station['queue_growth'] > 0:
+                # Time to critical (queue > 300 items)
+                if station['estimated_queue'] < 300:
+                    hours_to_critical = (300 - station['estimated_queue']) / station['queue_growth'] if station['queue_growth'] > 0 else 999
+                    if hours_to_critical < 2:
+                        predictions.append({
+                            'station': station['name'],
+                            'warning': f"Queue will exceed 300 items in {hours_to_critical:.1f} hours",
+                            'severity': 'high' if hours_to_critical < 0.5 else 'medium'
+                        })
+            elif station['queue_growth'] < -10 and station['name'] != 'Picking':
+                # Station clearing too fast - might starve
+                hours_to_empty = station['estimated_queue'] / abs(station['queue_growth']) if station['queue_growth'] < 0 else 999
+                if hours_to_empty < 1:
+                    predictions.append({
+                        'station': station['name'],
+                        'warning': f"Will run out of work in {hours_to_empty:.1f} hours",
+                        'severity': 'medium'
+                    })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'timestamp': central_now.isoformat(),
+            'stations': stations,
+            'primary_bottleneck': primary_bottleneck,
+            'available_workers': available_workers,
+            'recommendations': recommendations,
+            'predictions': predictions,
+            'summary': {
+                'total_workers_active': len(available_workers),
+                'total_items_flowing': sum(s['output_rate'] for s in stations),
+                'bottleneck_count': len(bottlenecks)
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        logger.error(f"Error in bottleneck detection: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+    
+@dashboard_bp.route('/bottleneck/history', methods=['GET'])
+@require_api_key
+def get_bottleneck_history():
+    """Get historical bottleneck patterns"""
+    try:
+        hours = request.args.get('hours', 24, type=int)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get hourly bottleneck data
+        query = """
+        SELECT 
+            DATE_FORMAT(al.window_start, '%Y-%m-%d %H:00') as hour,
+            al.activity_type,
+            COUNT(DISTINCT al.employee_id) as workers,
+            SUM(al.items_count) as items_processed,
+            ROUND(AVG(al.items_count / TIMESTAMPDIFF(MINUTE, al.window_start, al.window_end) * 60), 1) as avg_rate
+        FROM activity_logs al
+        WHERE al.window_start >= DATE_SUB(NOW(), INTERVAL %s HOUR)
+            AND al.source = 'podfactory'
+        GROUP BY hour, al.activity_type
+        ORDER BY hour DESC, al.activity_type
+        """
+        
+        cursor.execute(query, (hours,))
+        history = cursor.fetchall()
+        
+        # Process into hourly summaries
+        hourly_data = {}
+        for row in history:
+            hour = row['hour']
+            if hour not in hourly_data:
+                hourly_data[hour] = {
+                    'hour': hour,
+                    'stations': {},
+                    'bottlenecks': []
+                }
+            
+            hourly_data[hour]['stations'][row['activity_type']] = {
+                'workers': row['workers'],
+                'items': row['items_processed'],
+                'rate': float(row['avg_rate'])
+            }
+        
+        # Identify historical bottlenecks
+        workflow = ['Picking', 'Labeling', 'Film Matching', 'In Production', 'QC Passed']
+        
+        for hour_key, data in hourly_data.items():
+            for i in range(1, len(workflow)):
+                prev_station = workflow[i-1]
+                curr_station = workflow[i]
+                
+                if prev_station in data['stations'] and curr_station in data['stations']:
+                    prev_rate = data['stations'][prev_station]['rate']
+                    curr_rate = data['stations'][curr_station]['rate']
+                    
+                    if prev_rate > curr_rate * 1.2:  # 20% slower = bottleneck
+                        data['bottlenecks'].append({
+                            'station': curr_station,
+                            'backup_rate': prev_rate - curr_rate
+                        })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'hours_analyzed': hours,
+            'hourly_data': list(hourly_data.values())
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting bottleneck history: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@dashboard_bp.route('/bottleneck/reassign', methods=['POST'])
+@require_api_key
+def reassign_worker():
+    """Record a worker reassignment (for tracking purposes)"""
+    try:
+        data = request.get_json()
+        
+        # In a real system, this would:
+        # 1. Send notification to worker
+        # 2. Update station assignments
+        # 3. Log the reassignment
+        
+        # For now, just return success
+        return jsonify({
+            'success': True,
+            'message': f"Reassignment recorded: {data['worker_name']} to {data['to_station']}",
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@dashboard_bp.route('/bottleneck/test', methods=['GET'])
+@require_api_key
+def test_bottleneck():
+    """Test endpoint for bottleneck detection"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Test 1: Check today's activities
+        cursor.execute("""
+            SELECT 
+                activity_type,
+                COUNT(*) as count,
+                SUM(items_count) as total_items
+            FROM activity_logs 
+            WHERE DATE(CONVERT_TZ(window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+                AND source = 'podfactory'
+            GROUP BY activity_type
+        """)
+        activities = cursor.fetchall()
+        
+        # Test 2: Check active workers
+        cursor.execute("""
+            SELECT COUNT(*) as active_workers
+            FROM clock_times
+            WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
+                AND clock_out IS NULL
+        """)
+        workers = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "status": "ok",
+            "activities_by_type": activities,
+            "active_workers": workers['active_workers'],
+            "test_date": get_central_date().strftime('%Y-%m-%d')
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+@dashboard_bp.route('/cost-analysis', methods=['GET'])
+@cached_endpoint(ttl_seconds=30)
+def get_cost_analysis():
+    
+    """Get comprehensive cost analysis data with support for date ranges"""
+    try:
+        from datetime import datetime
+        from database.db_manager import DatabaseManager
+        db_manager = DatabaseManager()
+        
+        # Support both old 'date' param and new 'start_date'/'end_date' params
+        if 'date' in request.args:
+            # Old single date format (for backward compatibility)
+            start_date = request.args.get('date')
+            end_date = start_date
+        else:
+            # New date range format
+            start_date = request.args.get('start_date', datetime.now().strftime('%Y-%m-%d'))
+            end_date = request.args.get('end_date', start_date)
+        
+        # ADD THIS LINE - Define is_date_range variable
+        is_date_range = (start_date != end_date)
+        
+        # Log for debugging
+        logger.info(f"Cost analysis for: {start_date} to {end_date} (is_range: {is_date_range})")
+               
+        # Get employee costs for the date range
+        employee_costs_query = """
+        WITH employee_hours AS (
+            -- Get actual clocked hours for the date range
+            SELECT 
+                e.id,
+                e.name,
+                ep.pay_rate,
+                ep.pay_type,
+                CASE 
+                    WHEN ep.pay_type = 'salary' THEN ROUND(COALESCE(ep.pay_rate, 13.00 * 8 * 22) / 22 / 8, 2)
+                    ELSE ep.pay_rate 
+                END as hourly_rate,
+                SUM(COALESCE(ct.total_minutes, TIMESTAMPDIFF(MINUTE, ct.clock_in, COALESCE(ct.clock_out, NOW()))) / 60.0) as clocked_hours,
+                COUNT(DISTINCT DATE(ct.clock_in)) as days_worked,
+                MIN(ct.clock_in) as first_clock_in
+            FROM employees e
+            LEFT JOIN employee_payrates ep ON e.id = ep.employee_id
+            INNER JOIN clock_times ct ON e.id = ct.employee_id 
+                AND DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
+            WHERE e.is_active = 1
+            GROUP BY e.id, e.name, ep.pay_rate, ep.pay_type
+        ),
+        employee_activities AS (
+            -- Use corrected active hours from daily_scores
+            SELECT 
+                ds.employee_id,
+                SUM(ds.active_minutes) / 60.0 as active_hours,
+                SUM(ds.items_processed) as items_processed,
+                COUNT(DISTINCT ds.score_date) as active_days
+            FROM daily_scores ds
+            WHERE ds.score_date BETWEEN %s AND %s
+            GROUP BY ds.employee_id
+        )
+        SELECT 
+            eh.id,
+            eh.name,
+            eh.pay_rate,
+            eh.pay_type,
+            eh.hourly_rate,
+            eh.days_worked,
+            ROUND(eh.clocked_hours, 2) as clocked_hours,
+            ROUND(LEAST(eh.clocked_hours, COALESCE(ea.active_hours, 0)), 2) as active_hours,
+            ROUND(GREATEST(0, eh.clocked_hours - LEAST(eh.clocked_hours, COALESCE(ea.active_hours, 0))), 2) as non_active_hours,
+            ROUND(LEAST(100, COALESCE(ea.active_hours, 0) / NULLIF(eh.clocked_hours, 0) * 100), 1) as utilization_rate,
+            ROUND(
+                CASE 
+                    WHEN eh.pay_type = 'salary' THEN (eh.pay_rate / 22) * eh.days_worked
+                    ELSE eh.clocked_hours * COALESCE(eh.hourly_rate, 13.00)
+                END, 2
+            ) as total_cost,
+            ROUND(LEAST(eh.clocked_hours, COALESCE(ea.active_hours, 0)) * COALESCE(eh.hourly_rate, 13.00), 2) as active_cost,
+            ROUND(GREATEST(0, eh.clocked_hours - LEAST(eh.clocked_hours, COALESCE(ea.active_hours, 0))) * COALESCE(eh.hourly_rate, 13.00), 2) as non_active_cost,
+            COALESCE(ea.items_processed, 0) as items_processed,
+            COALESCE(ea.active_days, 0) as active_days
+        FROM employee_hours eh
+        LEFT JOIN employee_activities ea ON eh.id = ea.employee_id
+        ORDER BY eh.name
+        """
+
+        employee_costs = db_manager.execute_query(
+            employee_costs_query, 
+            (start_date, end_date, start_date, end_date)
+        )
+        
+        # Calculate additional metrics for each employee
+        for emp in employee_costs:
+            try:
+                total_cost = float(emp.get('total_cost', 0) or 0)
+                active_cost = float(emp.get('active_cost', 0) or 0)
+                items_processed = float(emp.get('items_processed', 0) or 0)
+                utilization = float(emp.get('utilization_rate', 0) or 0)
+                days_worked = int(emp.get('days_worked', 1) or 1)
+                
+                # Cost per item
+                emp['cost_per_item'] = round(total_cost / items_processed, 3) if items_processed > 0 else 0
+                emp['cost_per_item_true'] = emp['cost_per_item']
+                emp['cost_per_item_active'] = round(active_cost / items_processed, 3) if items_processed > 0 else 0
+                
+                # Daily averages for date ranges
+                if is_date_range:
+                    emp['avg_daily_cost'] = round(total_cost / days_worked, 2) if days_worked > 0 else 0
+                    emp['avg_daily_items'] = round(items_processed / days_worked, 0) if days_worked > 0 else 0
+                    emp['avg_daily_hours'] = round(float(emp.get('clocked_hours', 0)) / days_worked, 1) if days_worked > 0 else 0
+                
+                # Efficiency
+                emp['efficiency'] = round((items_processed / total_cost if total_cost != 0 else 0), 1) if total_cost > 0 else 0
+                
+                # Status based on utilization
+                if utilization >= 70:
+                    emp['status'] = 'EFFICIENT'
+                    emp['status_color'] = '#10b981'
+                elif utilization >= 50:
+                    emp['status'] = 'NORMAL'
+                    emp['status_color'] = '#3b82f6'
+                elif utilization >= 30:
+                    emp['status'] = 'WATCH'
+                    emp['status_color'] = '#f59e0b'
+                else:
+                    emp['status'] = 'IDLE'
+                    emp['status_color'] = '#ef4444'
+                    
+            except (TypeError, ValueError, ZeroDivisionError) as e:
+                logger.error(f"Error calculating metrics for {emp.get('name', 'Unknown')}: {str(e)}")
+
+        # Get department costs for date range
+        department_costs_query = """
+        SELECT 
+            al.department,
+            COUNT(DISTINCT al.employee_id) as employee_count,
+            COUNT(DISTINCT DATE(al.window_start)) as days_active,
+            SUM(al.items_count) as items_processed,
+            ROUND(SUM(
+                TIMESTAMPDIFF(SECOND, al.window_start, al.window_end) / 3600.0 *
+                CASE 
+                    WHEN ep.pay_type = 'salary' THEN COALESCE(ep.pay_rate, 13.00 * 8 * 22) / 22 / 8
+                    ELSE ep.pay_rate
+                END
+            ), 2) as total_cost
+        FROM activity_logs al
+        JOIN employees e ON al.employee_id = e.id
+        LEFT JOIN employee_payrates ep ON e.id = ep.employee_id
+        WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
+        AND al.source = 'podfactory'
+        GROUP BY al.department
+        ORDER BY total_cost DESC
+        """
+        
+        department_costs = db_manager.execute_query(department_costs_query, (start_date, end_date))
+
+        # Get QC Passed items for date range
+        qc_passed_query = """
+        SELECT COALESCE(SUM(items_count), 0) as qc_passed_items
+        FROM activity_logs 
+        WHERE DATE(window_start) BETWEEN %s AND %s
+        AND activity_type = 'QC Passed'
+        AND source = 'podfactory'
+        """
+        qc_passed_result = db_manager.execute_query(qc_passed_query, (start_date, end_date))
+        qc_passed_items = int(qc_passed_result[0]['qc_passed_items']) if qc_passed_result else 0
+
+        # Calculate totals
+        totals = {
+            'active_employees': len(employee_costs),
+            'total_clocked_hours': sum(float(emp.get('clocked_hours', 0) or 0) for emp in employee_costs),
+            'total_active_hours': sum(float(emp.get('active_hours', 0)) for emp in employee_costs),
+            'total_non_active_hours': sum(float(emp.get('non_active_hours', 0)) for emp in employee_costs),
+            'total_labor_cost': sum(float(emp.get('total_cost', 0) or 0) for emp in employee_costs),
+            'total_active_cost': sum(float(emp.get('active_cost', 0) or 0) for emp in employee_costs),
+            'total_non_active_cost': sum(float(emp.get('non_active_cost', 0) or 0) for emp in employee_costs),
+            'total_items': sum(emp.get('items_processed', 0) or 0 for emp in employee_costs),
+            'total_days': len(set([d for emp in employee_costs for d in range(emp.get('days_worked', 0))])),
+            'avg_hourly_rate': sum(float(emp.get('hourly_rate', 0) or 0) for emp in employee_costs) / len(employee_costs) if employee_costs else 0,
+        }
+
+        # Calculate utilization
+        if totals['total_clocked_hours'] > 0:
+            totals['overall_utilization'] = round(totals['total_active_hours'] / totals['total_clocked_hours'] * 100, 1)
+        else:
+            totals['overall_utilization'] = 0
+
+        # Get top performers
+        top_performers = [emp for emp in employee_costs if emp['items_processed'] > 0]
+        top_performers.sort(key=lambda x: x['cost_per_item'])
+        
+        # Calculate date range info
+        from datetime import datetime
+        start = datetime.strptime(start_date, '%Y-%m-%d')
+        end = datetime.strptime(end_date, '%Y-%m-%d')
+        days_in_range = (end - start).days + 1
+        
+        return jsonify({
+            'success': True,
+            'date_range': {
+                'start': start_date,
+                'end': end_date,
+                'days': days_in_range,
+                'is_range': is_date_range
+            },
+            'employee_costs': employee_costs,
+            'department_costs': department_costs,
+            'total_labor_cost': totals['total_labor_cost'],
+            'total_active_cost': totals['total_active_cost'],
+            'total_non_active_cost': totals['total_non_active_cost'],
+            'total_items': totals['total_items'],
+            'qc_passed_items': qc_passed_items,
+            'total_clocked_hours': totals['total_clocked_hours'],
+            'total_active_hours': totals['total_active_hours'],
+            'total_non_active_hours': totals['total_non_active_hours'],
+            'overall_utilization': totals['overall_utilization'],
+            'active_employees': totals['active_employees'],
+            'avg_hourly_rate': totals['avg_hourly_rate'],
+            'avg_cost_per_item': round(float(totals['total_labor_cost']) / float(qc_passed_items), 3) if qc_passed_items > 0 else 0,
+            'avg_cost_per_item_active': round(float(totals['total_active_cost']) / float(qc_passed_items), 3) if qc_passed_items > 0 else 0,
+            'daily_avg_cost': round(totals['total_labor_cost'] / days_in_range, 2) if is_date_range else totals['total_labor_cost'],
+            'daily_avg_items': round(qc_passed_items / days_in_range, 0) if is_date_range else qc_passed_items,
+            'top_performers': top_performers[:5],
+            'is_range': is_date_range  # Also include at top level for compatibility
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in cost analysis: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500

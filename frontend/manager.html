@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Auth protection disabled temporarily -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manager Dashboard - Productivity System</title>
@@ -828,7 +829,7 @@
                     <i class="fas fa-dollar-sign"></i>
                     <span>Cost Analysis</span>
             </a>
-            <a href="#" class="nav-item" onclick="showSection('scheduling'); document.getElementById('sidebar').classList.remove('active'); return false;">
+            <a href="#" class="nav-item" onclick="window.open('/intelligent-schedule.html', '_blank'); return false;">
                 <i class="fas fa-calendar-alt"></i>
                 <span>Intelligent Scheduling</span>
             </a>
@@ -2837,5 +2838,6 @@ function applyDateFilter() {
         }
         
         </script>
+<script src="/js/auth-check.js"></script>
     </body>
     </html>

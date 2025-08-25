@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Station Assignment</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f0f0f0; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        h1 { color: #333; }
+        .btn { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .station { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .employee { padding: 8px; margin: 5px 0; background: white; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏭 Station Assignment Dashboard</h1>
+        <button class="btn" onclick="loadData()">Load Employee Performance</button>
+        <div id="stations"></div>
+    </div>
+    
+    <script>
+        function loadData() {
+            fetch('/api/station-performance')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        let html = '';
+                        for (let station in data.data) {
+                            html += '<div class="station"><h3>' + station + '</h3>';
+                            data.data[station].forEach(emp => {
+                                html += '<div class="employee">' + emp.employee_name + ' - ' + Math.round(emp.avg_items_per_hour) + ' items/hr</div>';
+                            });
+                            html += '</div>';
+                        }
+                        document.getElementById('stations').innerHTML = html;
+                    }
+                })
+                .catch(error => {
+                    alert('Error loading data');
+                });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+Abraham Remirez,hourly,14.00,
+Amy Truong,hourly,15.00,
+Andrea Romero,hourly,14.00,
+Anh Do,salary,2000,
+Anh Tu Le,hourly,15.00,
+Brandon Magallanez,hourly,14.50,
+Cristal Leslie,hourly,14,
+dung duong,hourly,15.00,Senior worker
+Duy Vo,hourly,14.00,
+Eduardo Vazquez,hourly,14.00,
+Fannie Arredondo,hourly,15.00,
+Gabrielle Ortiz,hourly,14.50,Multi-skilled
+Hau Nguyen,hourly,14.00,
+Humerto Amaro,hourly,14.00,
+Huu Nguyen,hourly,17.00,Manager
+Jazlynn Chavez,hourly,13.00,
+Jessie Vera,hourly,14.00,
+Kenzie Maceda,hourly,14.00,
+Lanette Rodriguez,hourly,14.50,
+Lieu Ninh-Truong,hourly,15.50,
+Man Nguyen,hourly,17.00,Night shift lead
+Michael Brown,hourly,15.50,
+Nathan Gonzales,hourly,16.00,
+Ngoc Anh  Tran,hourly,15.50,
+Nguyen Tran,hourly,15.50,
+Phuc Nguyen,hourly,15.50,
+Roberto Martinez,hourly,15.00,New hire
+Roger Dickerson,hourly,15.50,
+Tuan Truong,hourly,15.50,
+Vanessa Apodaca,hourly,15.50,
+Vincent Hua,hourly,15.50,
+Vincente Guerra,hourly,15.50,

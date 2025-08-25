@@ -513,6 +513,7 @@
         <!-- Main Navigation Tabs -->
         <div class="main-tabs no-print">
             <button class="main-tab active" onclick="showTab('calendar')">📅 Calendar Schedule</button>
+            <button class="main-tab" onclick="showTab('station')">🏭 Station Assignment</button>
             <button class="main-tab" onclick="showTab('proposal')">📋 AI Proposal</button>
             <button class="main-tab" onclick="showTab('performance')">📊 Performance View</button>
             <button class="main-tab" onclick="showTab('monitor')">⚡ Live Monitor</button>
@@ -539,6 +540,25 @@
         </div>
 
         <!-- Tab 2: AI Proposal -->
+        <!-- Station Assignment Tab (Based on Calendar Structure) -->
+        <div id="station" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>🏭 Station Assignment - Employee Performance</h2>
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="loadStationData()">🔄 Load Performance</button>
+                        <button class="btn btn-warning" onclick="smartAssign()" style="display:none;" id="smartAssignBtn">✨ Smart Assign</button>
+                        <button class="btn btn-warning" onclick="assignEmployees()">👥 Assign</button>
+                        <button class="btn btn-danger" onclick="clearAssignments()">↺ Clear</button>
+                        <button class="btn btn-success" onclick="saveAssignments()">💾 Save</button>
+                        <span id="stationStatus" style="margin-left: 20px; padding: 5px 10px; background: #f0f0f0; border-radius: 5px; font-size: 14px;"></span>
+                    </div>
+                </div>
+                <div id="stationContent">
+                    <div class="loading">Click Load Performance to view employee station data</div>
+                </div>
+            </div>
+        </div>
         <div id="proposal" class="tab-content">
             <div class="panel">
                 <div class="schedule-proposal">
@@ -2233,6 +2253,278 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 </script>
 <script>
 </script>
+<script>
+// Station Assignment Functions
+function assignEmployees() { alert("Assign feature coming soon"); }
+function clearAssignments() { document.getElementById("stationContent").innerHTML = "<div>Cleared</div>"; }
+function saveAssignments() { alert("Save feature coming soon"); }
+</script>
+<script>
+// Station Assignment Functions with Nice Styling
+function loadStationData() {
+    document.getElementById("stationContent").innerHTML = '<div class="loading">Loading employee performance data...</div>';
+    document.getElementById("stationStatus").textContent = "Loading...";
+    
+    fetch("/api/station-performance")
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let html = '<div style="padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">';
+                
+                const stationOrder = ["Heat Press", "QC Passed", "Picking", "Labeling", "Film Matching"];
+                
+                stationOrder.forEach(stationName => {
+                    const displayName = stationName === "QC Passed" ? "QC" : stationName;
+                    const employees = data.data[stationName] || [];
+                    
+                    html += `<div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">`;
+                    html += `<h3 style="color: #667eea; margin: 0 0 15px 0;">${displayName} (${employees.length} employees)</h3>`;
+                    html += `<div style="max-height: 400px; overflow-y: auto;">`;
+                    
+                    employees.forEach(emp => {
+                        const perf = Math.min(100, Math.round((emp.avg_items_per_hour / 150) * 100));
+                        const perfColor = perf >= 80 ? "#4CAF50" : perf >= 60 ? "#FFA726" : "#EF5350";
+                        
+                        html += `
+                            <div style="background: white; padding: 12px; margin: 8px 0; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <input type="checkbox" value="${emp.employee_id}" data-station="${stationName}" data-name="${emp.employee_name}" style="margin-right: 10px;">
+                                    <span style="font-weight: 500;">${emp.employee_name}</span>
+                                </div>
+                                <div>
+                                    <span style="background: ${perfColor}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; margin-right: 10px;">${perf}%</span>
+                                    <span>${Math.round(emp.avg_items_per_hour)} items/hr</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `</div></div>`;
+                });
+                
+                html += "</div>";
+                document.getElementById("stationContent").innerHTML = html;
+                document.getElementById("stationStatus").textContent = "Data Loaded";
+            }
+        })
+        .catch(error => {
+            document.getElementById("stationContent").innerHTML = "<div>Error loading data</div>";
+        });
+}
+
+function assignEmployees() {
+    const checkboxes = document.querySelectorAll("#stationContent input[type=checkbox]:checked");
+    alert("Selected " + checkboxes.length + " employees");
+}
+
+function clearAssignments() {
+    document.querySelectorAll("#stationContent input[type=checkbox]").forEach(cb => cb.checked = false);
+}
+
+function saveAssignments() {
+    alert("Save feature coming soon");
+}
+</script>
 </body>
 </html>
 
+<script>
+// Smart Assignment Algorithm
+var stationRequirements = {};
+
+function calculateStationNeeds() {
+    // Get predicted orders from the page or use default
+    const orderElements = document.querySelectorAll('.stat-value');
+    let predictedOrders = 500; // default
+    
+    orderElements.forEach(el => {
+        const text = el.textContent;
+        if (text && !isNaN(parseInt(text)) && parseInt(text) > 100) {
+            predictedOrders = parseInt(text);
+        }
+    });
+    
+    // More realistic capacity calculations based on 8-hour shifts
+    // Station: items per person per hour
+    const stationCapacity = {
+        "Heat Press": 60,      // 480 per day per person
+        "QC Passed": 100,      // 800 per day per person
+        "Picking": 200,        // 1600 per day per person
+        "Labeling": 150,       // 1200 per day per person
+        "Film Matching": 80    // 640 per day per person
+    };
+    
+    const stationRequirements = {};
+    
+    for (let station in stationCapacity) {
+        const dailyCapacityPerPerson = stationCapacity[station] * 8;
+        let needed = Math.ceil(predictedOrders / dailyCapacityPerPerson);
+        
+        // Apply minimum staffing levels
+        if (station === "Heat Press") {
+            needed = Math.max(2, needed); // Always at least 2 at Heat Press
+        } else {
+            needed = Math.max(1, needed); // At least 1 at other stations
+        }
+        
+        // Apply maximum limits
+        if (station === "Heat Press") {
+            needed = Math.min(6, needed); // Max 6 at Heat Press
+        } else {
+            needed = Math.min(5, needed); // Max 5 at other stations
+        }
+        
+        stationRequirements[station] = needed;
+    }
+    
+    console.log(`Predicted Orders: ${predictedOrders}`, stationRequirements);
+    return stationRequirements;
+}
+
+function smartAssign() {
+    const needs = calculateStationNeeds();
+    
+    // Show calculating animation
+    document.getElementById("stationStatus").innerHTML = "🤖 Calculating optimal assignments...";
+    
+    setTimeout(() => {
+        let totalAssigned = 0;
+        let assignmentsByStation = {};
+        let assignedEmployees = new Set();
+        
+        // Clear all checkboxes first
+        document.querySelectorAll('#stationContent input[type="checkbox"]').forEach(cb => cb.checked = false);
+        
+        // Priority order: Heat Press first (bottleneck), then QC, then others
+        const priorityStations = ["Heat Press", "QC Passed", "Picking", "Labeling", "Film Matching"];
+        
+        priorityStations.forEach(station => {
+            const needed = needs[station] || 2;
+            assignmentsByStation[station] = 0;
+            
+            // Get all employees for this station, sorted by performance
+            const stationEmployees = [];
+            document.querySelectorAll(`input[data-station="${station}"]`).forEach(cb => {
+                // Get performance score from the badge (if visible in DOM)
+                const parentDiv = cb.closest('div').parentElement;
+                const badgeEl = parentDiv.querySelector('.badge');
+                let performance = 50; // default
+                
+                if (badgeEl) {
+                    const perfText = badgeEl.textContent;
+                    const perfMatch = perfText.match(/(\d+)/);
+                    if (perfMatch) {
+                        performance = parseInt(perfMatch[1]);
+                    }
+                }
+                
+                stationEmployees.push({
+                    checkbox: cb,
+                    employeeId: cb.value,
+                    employeeName: cb.dataset.name,
+                    performance: performance
+                });
+            });
+            
+            // Sort by performance (highest first)
+            stationEmployees.sort((a, b) => b.performance - a.performance);
+            
+            // Assign top performers who aren't already assigned
+            for (let emp of stationEmployees) {
+                if (assignmentsByStation[station] >= needed) break;
+                if (assignedEmployees.has(emp.employeeId)) continue;
+                
+                emp.checkbox.checked = true;
+                assignedEmployees.add(emp.employeeId);
+                assignmentsByStation[station]++;
+                totalAssigned++;
+            }
+        });
+        
+        // Update status with detailed breakdown
+        let statusText = `✅ Assigned ${totalAssigned} employees | `;
+        for (let station in assignmentsByStation) {
+            statusText += `${station}: ${assignmentsByStation[station]} | `;
+        }
+        
+        document.getElementById("stationStatus").innerHTML = statusText;
+        
+        // Show recommendations if understaffed
+        showRecommendations(needs, assignmentsByStation);
+        
+    }, 500);
+}
+
+function showRecommendations(needs, assigned) {
+    let recommendations = [];
+    
+    // If assigned is just a number (old format), convert it
+    if (typeof assigned === 'object' && assigned !== null) {
+        for (let station in needs) {
+            const needed = needs[station];
+            const actualAssigned = assigned[station] || 0;
+            
+            if (actualAssigned < needed) {
+                recommendations.push(`⚠️ ${station}: Need ${needed - actualAssigned} more employees`);
+            } else if (actualAssigned > needed) {
+                recommendations.push(`ℹ️ ${station}: Overstaffed by ${actualAssigned - needed}`);
+            }
+        }
+    } else {
+        // Old format compatibility
+        for (let station in needs) {
+            const needed = needs[station];
+            recommendations.push(`📊 ${station}: Need ${needed} employees`);
+        }
+    }
+    
+    if (recommendations.length > 0) {
+        // Create or update recommendations div
+        let recDiv = document.getElementById('staffingRecommendations');
+        if (!recDiv) {
+            recDiv = document.createElement('div');
+            recDiv.id = 'staffingRecommendations';
+            recDiv.style.cssText = 'margin: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;';
+            const stationContent = document.getElementById('stationContent');
+            if (stationContent && stationContent.firstChild) {
+                stationContent.insertBefore(recDiv, stationContent.firstChild);
+            }
+        }
+        
+        recDiv.innerHTML = '<h4>📊 Staffing Analysis:</h4>' + recommendations.join('<br>');
+    }
+}
+
+// Modify loadStationData to show Smart Assign button after loading
+const originalLoad = loadStationData;
+loadStationData = function() {
+    originalLoad();
+    setTimeout(() => {
+        document.getElementById("smartAssignBtn").style.display = "inline-block";
+        
+        // Add "Need: X" badges to station headers
+        const needs = calculateStationNeeds();
+        setTimeout(() => {
+            document.querySelectorAll("#stationContent h3").forEach(h3 => {
+                const stationText = h3.textContent;
+                const stationName = stationText.split(" (")[0];
+                
+                // Map display names to data names
+                const stationMap = {
+                    "QC": "QC Passed",
+                    "Heat Press": "Heat Press",
+                    "Picking": "Picking",
+                    "Labeling": "Labeling",
+                    "Film Matching": "Film Matching"
+                };
+                
+                const dataStation = stationMap[stationName] || stationName;
+                if (needs[dataStation] && !h3.innerHTML.includes("Need:")) {
+                    h3.innerHTML = h3.innerHTML.replace("</h3>", "") + 
+                        ` <span style="background: #ffc107; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 12px;">Need: ${needs[dataStation]}</span>`;
+                }
+            });
+        }, 500);
+    }, 100);
+};
+</script>

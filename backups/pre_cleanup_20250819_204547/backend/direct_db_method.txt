@@ -1,0 +1,51 @@
+
+    def write_direct_to_db(self, activities_batch):
+        """Write activities directly to database - bypass Flask API for speed"""
+        if not activities_batch:
+            return True
+        
+        import pymysql
+        conn = pymysql.connect(**self.local_config)
+        cursor = conn.cursor()
+        
+        try:
+            values = []
+            for activity in activities_batch:
+                activity_type = activity.get('activity_type', '')
+                role_id = ACTION_TO_ROLE_ID.get(activity_type, 3)
+                
+                values.append((
+                    activity.get('employee_id'),
+                    activity_type,
+                    role_id,
+                    activity.get('items_count', 0),
+                    activity.get('window_start'),
+                    activity.get('window_end'),
+                    activity.get('department'),
+                    'podfactory',
+                    activity.get('reference_id'),
+                    activity.get('duration_minutes', 0)
+                ))
+            
+            cursor.executemany("""
+                INSERT INTO activity_logs 
+                (employee_id, activity_type, role_id, items_count,
+                 window_start, window_end, department, source,
+                 reference_id, duration_minutes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE 
+                    items_count = VALUES(items_count),
+                    updated_at = NOW()
+            """, values)
+            
+            conn.commit()
+            logger.info(f"✅ Direct DB: Wrote {len(values)} activities")
+            return True
+            
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Direct DB failed: {e}")
+            return False
+        finally:
+            cursor.close()
+            conn.close()

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Station Assignment Dashboard</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        h1 { 
+            margin: 0 0 10px 0;
+            font-size: 32px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .controls {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn { 
+            background: #667eea; 
+            color: white; 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn:hover { 
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-success { background: #4CAF50; }
+        .btn-success:hover { background: #45a049; }
+        .station { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .station h3 { 
+            color: #667eea; 
+            margin: 0 0 15px 0;
+            font-size: 20px;
+        }
+        .employee { 
+            background: white; 
+            padding: 12px; 
+            margin: 8px 0; 
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #e0e0e0;
+            transition: all 0.2s;
+        }
+        .employee:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .performance { 
+            background: #4CAF50; 
+            color: white; 
+            padding: 4px 10px; 
+            border-radius: 12px; 
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .stats {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        label {
+            cursor: pointer;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏭 Station Assignment Dashboard</h1>
+            <p>Intelligent Employee-to-Station Assignment System</p>
+        </div>
+        
+        <div class="content">
+            <div class="controls">
+                <button class="btn" onclick="loadRealData()">🔄 Load Employee Performance</button>
+                <button class="btn btn-success" onclick="saveAssignments()">💾 Save Assignments</button>
+                <button class="btn" onclick="window.location.href='intelligent-schedule.html'">📅 Go to Schedule</button>
+            </div>
+            
+            <div id="stations">
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    Click "Load Employee Performance" to fetch real data from your database
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Determine the API URL based on current location
+        function getApiUrl() {
+            // If accessed via localhost or direct IP, use direct API
+            if (window.location.hostname === '134.199.194.237' || window.location.hostname === 'localhost') {
+                return 'http://134.199.194.237:5000';
+            }
+            // Otherwise, we need to handle CORS differently
+            return 'http://134.199.194.237:5000';
+        }
+        
+        async function loadRealData() {
+            const apiUrl = getApiUrl();
+            console.log('Loading from:', apiUrl + '/api/station-performance');
+            
+            try {
+                const response = await fetch(apiUrl + '/api/station-performance', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Received data:', data);
+                
+                if (data.success) {
+                    displayStations(data.data);
+                } else {
+                    console.error('API returned error:', data.error);
+                    alert('Error loading data: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                alert('Could not connect to API. Please ensure you are accessing this page directly via http://134.199.194.237/frontend/station-assignment-v2.html');
+            }
+        }
+        
+        function displayStations(data) {
+            const container = document.getElementById('stations');
+            const stationOrder = ['Heat Press', 'QC Passed', 'Picking', 'Labeling', 'Film Matching'];
+            
+            let html = '';
+            stationOrder.forEach(stationName => {
+                // Map QC Passed to QC for display
+                const displayName = stationName === 'QC Passed' ? 'QC' : stationName;
+                const employees = data[stationName] || [];
+                
+                html += '<div class="station">';
+                html += '<h3>' + displayName + ' (' + employees.length + ' employees with experience)</h3>';
+                
+                if (employees.length > 0) {
+                    employees.forEach(emp => {
+                        const performance = Math.min(100, Math.round((emp.avg_items_per_hour / 100) * 100));
+                        html += '<div class="employee">';
+                        html += '<label>';
+                        html += '<input type="checkbox" value="' + emp.employee_id + '" ';
+                        html += 'data-station="' + stationName + '" ';
+                        html += 'data-name="' + emp.employee_name + '" ';
+                        html += 'data-performance="' + performance + '" ';
+                        html += 'data-items="' + emp.avg_items_per_hour + '"> ';
+                        html += emp.employee_name;
+                        html += '</label>';
+                        html += '<div class="stats">';
+                        html += '<span class="performance">' + performance + '%</span> ';
+                        html += '<span>' + Math.round(emp.avg_items_per_hour) + ' items/hr</span>';
+                        html += '</div>';
+                        html += '</div>';
+                    });
+                } else {
+                    html += '<div class="employee" style="color: #999;">No performance data available</div>';
+                }
+                
+                html += '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        async function saveAssignments() {
+            const assignments = [];
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+            
+            checkboxes.forEach(cb => {
+                assignments.push({
+                    station: cb.dataset.station,
+                    employee_id: cb.value,
+                    employee_name: cb.dataset.name,
+                    performance_rate: cb.dataset.performance,
+                    items_per_hour: cb.dataset.items,
+                    date: new Date().toISOString().split('T')[0],
+                    week_start: getMonday().toISOString().split('T')[0],
+                    shift_time: getShiftTime(cb.dataset.station)
+                });
+            });
+            
+            if (assignments.length === 0) {
+                alert('Please select at least one employee');
+                return;
+            }
+            
+            const apiUrl = getApiUrl();
+            try {
+                const response = await fetch(apiUrl + '/api/save-station-assignments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        week_start: getMonday().toISOString().split('T')[0],
+                        assignments: assignments
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('✅ Assignments saved successfully!');
+                } else {
+                    alert('Error saving assignments');
+                }
+            } catch (error) {
+                console.error('Save error:', error);
+                alert('Error saving assignments: ' + error.message);
+            }
+        }
+        
+        function getShiftTime(station) {
+            const times = {
+                'Picking': '5:00 AM',
+                'Labeling': '5:00 AM',
+                'Film Matching': '5:00 AM',
+                'Heat Press': '8:00 AM',
+                'QC Passed': '9:00 AM'
+            };
+            return times[station] || '8:00 AM';
+        }
+        
+        function getMonday() {
+            const d = new Date();
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            return new Date(d.setDate(diff));
+        }
+    </script>
+</body>
+</html>

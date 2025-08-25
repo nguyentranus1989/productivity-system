@@ -564,13 +564,6 @@
 
 <body>
     <!-- Login Overlay -->
-    <div id="loginOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 9999; display: flex; justify-content: center; align-items: center;">
-        <div style="background: white; padding: 40px; border-radius: 15px; width: 90%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
-            <h2 style="color: #333; margin-bottom: 30px; text-align: center;">Employee Login</h2>
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; color: #555; margin-bottom: 8px; font-weight: 600;">Employee ID</label>
-                <input type="number" id="employeeId" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;" placeholder="Enter your Employee ID" min="1" max="100">
-            </div>
             <div style="margin-bottom: 20px;">
                 <label style="display: block; color: #555; margin-bottom: 8px; font-weight: 600;">PIN</label>
                 <input type="password" id="pin" maxlength="4" pattern="[0-9]{4}" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;" placeholder="Enter 4-digit PIN">
@@ -581,54 +574,10 @@
                     Remember me for 7 days
                 </label>
             </div>
-            <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Login</button>
             <div id="loginError" style="color: red; margin-top: 15px; text-align: center; display: none;"></div>
         </div>
     </div>
     <script>
-        function handleLogin() {
-            const employeeId = document.getElementById("employeeId").value;
-            const pin = document.getElementById("pin").value;
-            const rememberMe = document.getElementById("rememberMe").checked;
-            
-            if (!employeeId || !pin) {
-                showLoginError("Please enter your Employee ID and PIN");
-                return;
-            }
-            
-            fetch("/api/employee/login", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    employee_id: employeeId,
-                    pin: pin
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (rememberMe) {
-                        localStorage.setItem("employeeToken", data.token);
-                        localStorage.setItem("employeeId", data.employee_id);
-                        localStorage.setItem("employeeName", data.name);
-                    } else {
-                        sessionStorage.setItem("employeeToken", data.token);
-                        sessionStorage.setItem("employeeId", data.employee_id);
-                        sessionStorage.setItem("employeeName", data.name);
-                    }
-                    
-                    document.getElementById("loginOverlay").style.display = "none";
-                    location.reload();
-                } else {
-                    showLoginError(data.message || "Invalid credentials");
-                }
-            })
-            .catch(error => {
-                showLoginError("Connection error. Please try again.");
-                console.error("Login error:", error);
-            });
         }
         
         function showLoginError(message) {
@@ -649,7 +598,6 @@
         document.addEventListener("DOMContentLoaded", function() {
             const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
             if (token) {
-                document.getElementById("loginOverlay").style.display = "none";
                 const name = localStorage.getItem("employeeName") || sessionStorage.getItem("employeeName");
                 const userNameElement = document.querySelector(".user-name");
                 if (userNameElement && name) {
@@ -659,27 +607,6 @@
         });
     </script>
     <script>
-        async function handleLogin() {
-            const employeeId = document.getElementById("employeeId").value;
-            const pin = document.getElementById("pin").value;
-            const rememberMe = document.getElementById("rememberMe").checked;
-            
-            if (!employeeId || !pin) {
-                showLoginError("Please enter your Employee ID and PIN");
-                return;
-            }
-            
-            try {
-                const response = await fetch("/api/employee/login", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        employee_id: employeeId,
-                        pin: pin
-                    })
-                });
                 
                 const data = await response.json();
                 
@@ -694,7 +621,6 @@
                         sessionStorage.setItem("employeeName", data.name);
                     }
                     
-                    document.getElementById("loginOverlay").style.display = "none";
                     location.reload();
                 } else {
                     showLoginError(data.message || "Invalid credentials");
@@ -723,14 +649,12 @@
         document.addEventListener("DOMContentLoaded", function() {
             const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
             if (token) {
-                document.getElementById("loginOverlay").style.display = "none";
                 const name = localStorage.getItem("employeeName") || sessionStorage.getItem("employeeName");
                 const userNameElement = document.querySelector(".user-name");
                 if (userNameElement && name) {
                     userNameElement.textContent = name;
                 }
             } else {
-                document.getElementById("loginOverlay").style.display = "flex";
             }
         });
     </script>
@@ -853,530 +777,9 @@
         });
         
         function showLogin() {
-            document.getElementById("loginOverlay").style.display = "flex";
         }
         
-        function hideLogin() {
-            document.getElementById("loginOverlay").style.display = "none";
-        }
         
-        window.handleLogin = async function() {
-            const employeeId = document.getElementById("employeeId").value;
-            const pin = document.getElementById("pin").value;
-            const rememberMe = document.getElementById("rememberMe").checked;
-            
-            if (!employeeId || !pin) {
-                showLoginError("Please select your name and enter PIN");
-                return;
-            }
-            
-            try {
-                const response = await fetch("/api/employee/login", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        employee_id: employeeId,
-                        pin: pin
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    authToken = data.token;
-                    currentEmployee = {
-                        id: data.employee_id,
-                        name: data.name
-                    };
-                    
-                    if (rememberMe) {
-                        localStorage.setItem("employeeToken", authToken);
-                    } else {
-                        sessionStorage.setItem("employeeToken", authToken);
-                    }
-                    
-                    hideLogin();
-                    loadEmployeeData();
-                } else {
-                    showLoginError(data.message || "Invalid credentials");
-                }
-            } catch (error) {
-                showLoginError("Connection error. Please try again.");
-            }
-        }
-        
-        async function verifyToken() {
-            try {
-                const response = await fetch("/api/employee/verify", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${authToken}`
-                    }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    currentEmployee = {
-                        id: data.employee_id,
-                        name: data.name
-                    };
-                    hideLogin();
-                    loadEmployeeData();
-                    return true;
-                }
-            } catch (error) {
-                console.error("Token verification failed:", error);
-            }
-            return false;
-        }
-        
-        function showLoginError(message) {
-            const errorDiv = document.getElementById("loginError");
-            errorDiv.textContent = message;
-            errorDiv.style.display = "block";
-        }
-        
-        window.logout = function() {
-            localStorage.removeItem("employeeToken");
-            sessionStorage.removeItem("employeeToken");
-            location.reload();
-        }
-        
-        function loadEmployeeData() {
-            // Update the dashboard to show only logged-in employee data
-            if (currentEmployee) {
-                // Update welcome message
-                const userName = document.querySelector(".user-name");
-                if (userName) userName.textContent = currentEmployee.name;
-                
-                // Reload dashboard with employee-specific data
-                loadDashboard();
-            }
-        }
-</script>
-                        <button class="toggle-btn active">Daily</button>
-                        <button class="toggle-btn">Weekly</button>
-                    </div>
-                </div>
-                
-                <div id="goalsContainer">
-                    <!-- Goals will be populated here -->
-                </div>
-            </div>
-            
-            <!-- Achievements -->
-            <div class="progress-section">
-                <div class="section-header">
-                    <h2 class="section-title">My Achievements</h2>
-                </div>
-                
-                <div class="achievements-grid" id="achievementsGrid">
-                    <!-- Achievements will be populated here -->
-                </div>
-            </div>
-            
-            <!-- Recent Activity -->
-            <div class="progress-section">
-                <div class="section-header">
-                    <h2 class="section-title">Recent Activity</h2>
-                </div>
-                
-                <div class="activity-timeline" id="activityTimeline">
-                    <!-- Activities will be populated here -->
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Bottom Navigation (Mobile) -->
-    <nav class="bottom-nav">
-        <div class="nav-items">
-            <a href="#" class="nav-item active">
-                <i class="fas fa-home"></i>
-                <span>Home</span>
-            </a>
-            <a href="#" class="nav-item">
-                <i class="fas fa-chart-line"></i>
-                <span>Stats</span>
-            </a>
-            <a href="#" class="nav-item">
-                <i class="fas fa-trophy"></i>
-                <span>Achievements</span>
-            </a>
-            <a href="#" class="nav-item">
-                <i class="fas fa-user"></i>
-                <span>Profile</span>
-            </a>
-        </div>
-    </nav>
-    
-    <script src="dashboard-api.js"></script>
-    <script>
-        // Get employee ID from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        let employeeId = urlParams.get('id');
-        
-        // Initialize API
-        const api = new ProductivityAPI();
-        // let currentEmployee = null;
-        
-        // Load employee list for dropdown
-        async function loadEmployeeList() {
-            try {
-                const employees = await api.getEmployees();
-                const selector = document.getElementById('employeeSelector');
-                
-                // Sort employees by name
-                employees.sort((a, b) => a.name.localeCompare(b.name));
-                
-                // Populate dropdown
-                employees.forEach(emp => {
-                    const option = document.createElement('option');
-                    option.value = emp.id;
-                    option.textContent = emp.name;
-                    selector.appendChild(option);
-                });
-                
-                // If no employee ID in URL, show selector
-                if (!employeeId) {
-                    document.getElementById('loadingState').innerHTML = `
-                        <i class="fas fa-users" style="color: #667eea;"></i>
-                        <p>Please select an employee from the dropdown above</p>
-                    `;
-                } else {
-                    // Set the dropdown to current employee
-                    selector.value = employeeId;
-                    loadEmployeeData();
-                }
-                
-            } catch (error) {
-                console.error('Failed to load employee list:', error);
-            }
-        }
-        
-        // Handle employee selection
-        document.getElementById('employeeSelector').addEventListener('change', function(e) {
-            if (e.target.value) {
-                employeeId = e.target.value;
-                // Update URL without reloading page
-                window.history.pushState({}, '', `?id=${employeeId}`);
-                // Show loading state
-                document.getElementById('loadingState').style.display = 'block';
-                document.getElementById('loadingState').innerHTML = `
-                    <i class="fas fa-spinner"></i>
-                    <p>Loading your data...</p>
-                `;
-                document.getElementById('mainContent').style.display = 'none';
-                // Load new employee data
-                loadEmployeeData();
-            }
-        });
-        
-        // Load employee data
-        async function loadEmployeeData() {
-            if (!employeeId) return;
-            
-            try {
-                // Get employee details
-                const employee = await api.getEmployee(employeeId);
-                currentEmployee = employee;
-                
-                // Get employee stats
-                const stats = await api.getEmployeeStats(employeeId);
-                
-                // Get working now data to check if employee is clocked in
-                let liveMinutes = null;
-                try {
-                    const workingNow = await api.getWorkingNow();
-                    // Check if current employee is in the working list
-                    const workingEmployee = workingNow.employees?.find(emp => emp.id === parseInt(employeeId));
-                    if (workingEmployee) {
-                        liveMinutes = {
-                            is_working: true,
-                            clock_in_time: workingEmployee.clock_in_time || 'Today',
-                            hours_worked: workingEmployee.hours_today || '0h'
-                        };
-                    }
-                } catch (e) {
-                    console.log('Could not fetch working status');
-                }
-                
-                // Get activities
-                const activities = await api.getActivities({ employee_id: employeeId, limit: 10 });
-                
-                // Update UI
-                updateEmployeeInfo(employee, stats, liveMinutes);
-                updateStats(stats);
-                updateGoals(stats);
-                updateActivities(activities);
-                updateAchievements(stats);
-                
-                // Show content
-                document.getElementById('loadingState').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
-                
-            } catch (error) {
-                console.error('Failed to load employee data:', error);
-                document.getElementById('loadingState').innerHTML = `
-                    <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
-                    <p>Failed to load data. Please try another employee.</p>
-                `;
-            }
-        }
-        
-        function updateEmployeeInfo(employee, stats, liveMinutes) {
-            // Update name and avatar
-            document.getElementById('employeeName').textContent = employee.first_name || employee.name;
-            const initials = employee.name.split(' ').map(n => n[0]).join('').toUpperCase();
-            document.getElementById('userAvatar').textContent = initials;
-            
-            // Update welcome message based on rank
-            const welcomeMsg = document.getElementById('welcomeMessage');
-            if (stats.rank && stats.rank <= 3) {
-                welcomeMsg.textContent = `You're currently ranked #${stats.rank} in productivity today! 🏆`;
-            } else {
-                welcomeMsg.textContent = "Let's make today productive!";
-            }
-            
-            // Update clock status
-            const clockActions = document.getElementById('clockActions');
-            const clockStatus = document.getElementById('clockStatus');
-            
-            if (liveMinutes && liveMinutes.is_working) {
-                clockActions.innerHTML = `
-                    <button class="clock-btn clock-out">
-                        <i class="fas fa-sign-out-alt"></i>
-                        Clock Out
-                    </button>
-                `;
-                clockStatus.style.display = 'block';
-                clockStatus.innerHTML = `
-                    <i class="fas fa-clock"></i> Clocked in since ${liveMinutes.clock_in_time} - Working for ${liveMinutes.hours_worked}
-                `;
-            } else {
-                clockActions.innerHTML = `
-                    <button class="clock-btn clock-in">
-                        <i class="fas fa-sign-in-alt"></i>
-                        Clock In
-                    </button>
-                `;
-                clockStatus.style.display = 'none';
-            }
-        }
-        
-        function updateStats(stats) {
-            // Update stat values
-            document.getElementById('itemsToday').textContent = stats.items_today || 0;
-            document.getElementById('itemsPerMinute').textContent = stats.items_per_minute || 0;
-            document.getElementById('streakDays').textContent = stats.streak_days || 0;
-            document.getElementById('currentRank').textContent = stats.rank ? `#${stats.rank}` : '#-';
-            
-            // Update streak message
-            const streakMsg = document.getElementById('streakMessage');
-            if (stats.streak_days > 0) {
-                streakMsg.textContent = `Keep it up!`;
-                streakMsg.className = 'stat-change positive';
-            } else {
-                streakMsg.textContent = 'Start your streak!';
-                streakMsg.className = 'stat-change';
-            }
-            
-            // Update rank message
-            const rankChange = document.getElementById('rankChange');
-            if (stats.rank === 1) {
-                rankChange.textContent = 'Top performer!';
-                rankChange.className = 'stat-change positive';
-            } else if (stats.rank <= 3) {
-                rankChange.textContent = 'Great job!';
-                rankChange.className = 'stat-change positive';
-            } else {
-                rankChange.textContent = 'Keep going!';
-                rankChange.className = 'stat-change';
-            }
-        }
-        
-        function updateGoals(stats) {
-            const container = document.getElementById('goalsContainer');
-            const itemsProcessed = stats.items_today || 0;
-            const itemsPerMin = stats.items_per_minute || 0;
-            const errors = stats.errors_today || 0;
-            
-            container.innerHTML = `
-                <div class="goal-item">
-                    <div class="goal-header">
-                        <span class="goal-title">📦 Process 500 Items</span>
-                        <span class="goal-value">${itemsProcessed}/500</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${Math.min((itemsProcessed / 500) * 100, 100)}%"></div>
-                    </div>
-                    <div class="goal-status">${itemsProcessed >= 500 ? '✅ Goal achieved!' : `${500 - itemsProcessed} items to go`}</div>
-                </div>
-                
-                <div class="goal-item">
-                    <div class="goal-header">
-                        <span class="goal-title">⚡ Maintain 15+ items/min</span>
-                        <span class="goal-value">${itemsPerMin} avg</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${Math.min((itemsPerMin / 15) * 100, 100)}%"></div>
-                    </div>
-                    <div class="goal-status">${itemsPerMin >= 15 ? '✅ Great speed!' : 'Keep up the pace'}</div>
-                </div>
-                
-                <div class="goal-item">
-                    <div class="goal-header">
-                        <span class="goal-title">🎯 Zero errors</span>
-                        <span class="goal-value">${errors} errors</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${errors === 0 ? 100 : 0}%"></div>
-                    </div>
-                    <div class="goal-status">${errors === 0 ? '✅ Perfect accuracy!' : 'Focus on accuracy'}</div>
-                </div>
-            `;
-        }
-        
-        function updateActivities(activities) {
-            const timeline = document.getElementById('activityTimeline');
-            
-            if (!activities || activities.length === 0) {
-                timeline.innerHTML = `
-                    <div class="timeline-item">
-                        <div class="timeline-dot"></div>
-                        <div class="timeline-content">
-                            <div class="timeline-title">No activities yet today</div>
-                            <div class="timeline-time">Start scanning to see your progress</div>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-            
-            timeline.innerHTML = activities.map(activity => `
-                <div class="timeline-item">
-                    <div class="timeline-dot"></div>
-                    <div class="timeline-content">
-                        <div class="timeline-title">${activity.description}</div>
-                        <div class="timeline-time">${formatTime(activity.timestamp)}</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-        
-        function updateAchievements(stats) {
-            const grid = document.getElementById('achievementsGrid');
-            const achievements = [
-                { icon: '🏆', name: 'Top Performer', earned: stats.rank === 1 },
-                { icon: '🔥', name: '5 Day Streak', earned: stats.streak_days >= 5 },
-                { icon: '⚡', name: 'Speed Demon', earned: stats.items_per_minute >= 20 },
-                { icon: '💎', name: 'Quality Star', earned: stats.errors_today === 0 && stats.items_today > 0 },
-                { icon: '🌟', name: 'Month Champion', earned: false },
-                { icon: '🎯', name: '1000 Items', earned: stats.items_today >= 1000 }
-            ];
-            
-            grid.innerHTML = achievements.map(achievement => `
-                <div class="achievement-card ${achievement.earned ? 'earned' : ''}">
-                    <div class="achievement-icon">${achievement.icon}</div>
-                    <div class="achievement-name">${achievement.name}</div>
-                </div>
-            `).join('');
-        }
-        
-        function formatTime(timestamp) {
-            if (!timestamp) return '';
-            const date = new Date(timestamp);
-            return date.toLocaleTimeString('en-US', { 
-                hour: 'numeric', 
-                minute: '2-digit',
-                hour12: true 
-            });
-        }
-        
-        // Clock functionality
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.clock-out')) {
-                if (confirm('Are you sure you want to clock out?')) {
-                    e.target.closest('.clock-btn').textContent = 'Clocking out...';
-                    e.target.closest('.clock-btn').disabled = true;
-                    setTimeout(() => {
-                        alert('You have been clocked out. Have a great day!');
-                        window.location.href = 'index.html';
-                    }, 1500);
-                }
-            } else if (e.target.closest('.clock-in')) {
-                e.target.closest('.clock-btn').textContent = 'Clocking in...';
-                e.target.closest('.clock-btn').disabled = true;
-                alert('Clock in through Connecteam app');
-                setTimeout(() => {
-                    loadEmployeeData(); // Refresh data
-                }, 1000);
-            }
-        });
-        
-        // Toggle view buttons
-        document.querySelectorAll('.toggle-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-        
-        // Load employee list on page load
-        loadEmployeeList();
-    </script>
-</body>
-</html><script>
-// Auto-load logged-in employee data
-window.addEventListener("load", function() {
-    setTimeout(function() {
-        const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
-        const employeeName = localStorage.getItem("employeeName") || sessionStorage.getItem("employeeName");
-        const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-        
-        if (employeeId && token) {
-            console.log("Auto-loading data for:", employeeName);
-            
-            // Update the employee name in welcome section
-            const nameElement = document.getElementById("employeeName");
-            if (nameElement) {
-                nameElement.textContent = employeeName;
-            }
-            
-            // Hide loading and show content
-            const loadingState = document.getElementById("loadingState");
-            const mainContent = document.getElementById("mainContent");
-            
-            if (loadingState) loadingState.style.display = "none";
-            if (mainContent) mainContent.style.display = "block";
-            
-            // If there's an employee selector, set it and trigger change
-            const selector = document.getElementById("employeeSelector");
-            if (selector) {
-                selector.value = employeeId;
-                selector.dispatchEvent(new Event('change'));
-            } else {
-                // Directly call the load function with the employee ID
-                if (typeof loadEmployeeData === 'function') {
-                    // Find and call the second loadEmployeeData (the async one)
-                    const scripts = document.getElementsByTagName('script');
-                    for (let script of scripts) {
-                        if (script.innerHTML.includes('async function loadEmployeeData')) {
-                            // Call with employee ID directly
-                            eval(`(async function() {
-                                const employeeId = ${employeeId};
-                                ${script.innerHTML.match(/async function loadEmployeeData[\s\S]*?^\s{8}\}/m)[0].replace('async function loadEmployeeData()', '')}
-                            })();`);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }, 500);
 });
 </script>
 <script>
@@ -1406,7 +809,6 @@ document.addEventListener("DOMContentLoaded", function() {
         pinInput.addEventListener("keypress", function(event) {
             if (event.key === "Enter") {
                 event.preventDefault();
-                handleLogin();
             }
         });
     }
@@ -1420,7 +822,6 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (pin && !pin.value) {
                     pin.focus();
                 } else {
-                    handleLogin();
                 }
             }
         });
@@ -1430,72 +831,6 @@ document.addEventListener("DOMContentLoaded", function() {
 <script>
 // Update to show loading for both click and Enter key
 (function() {
-    window.showLoginLoading = function() {
-        const loginButton = document.querySelector('button[onclick="handleLogin()"]');
-        if (loginButton && !loginButton.disabled) {
-            // Store original button text
-            loginButton.setAttribute('data-original-text', loginButton.textContent);
-            
-            // Show loading state
-            loginButton.disabled = true;
-            loginButton.style.opacity = '0.7';
-            loginButton.innerHTML = '⏳ Logging in... Please wait';
-            
-            // Hide any previous error
-            const errorDiv = document.getElementById("loginError");
-            if (errorDiv) errorDiv.style.display = "none";
-            
-            // Auto-restore after 5 seconds in case of timeout
-            setTimeout(() => {
-                if (loginButton.disabled) {
-                    loginButton.disabled = false;
-                    loginButton.style.opacity = '1';
-                    loginButton.textContent = loginButton.getAttribute('data-original-text') || 'Login';
-                }
-            }, 5000);
-        }
-    };
-    
-    // Override handleLogin to always show loading
-    const originalHandleLogin = window.handleLogin;
-    window.handleLogin = function() {
-        showLoginLoading();
-        return originalHandleLogin.apply(this, arguments);
-    };
-    
-    // Update Enter key handlers to use the same function
-    document.addEventListener("DOMContentLoaded", function() {
-        const pinInput = document.getElementById("pin");
-        const employeeIdInput = document.getElementById("employeeId");
-        
-        if (pinInput) {
-            pinInput.removeEventListener("keypress", pinInput.keypressHandler);
-            pinInput.keypressHandler = function(event) {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleLogin(); // This will now show loading
-                }
-            };
-            pinInput.addEventListener("keypress", pinInput.keypressHandler);
-        }
-        
-        if (employeeIdInput) {
-            employeeIdInput.removeEventListener("keypress", employeeIdInput.keypressHandler);
-            employeeIdInput.keypressHandler = function(event) {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    const pin = document.getElementById("pin");
-                    if (pin && !pin.value) {
-                        pin.focus();
-                    } else {
-                        handleLogin(); // This will now show loading
-                    }
-                }
-            };
-            employeeIdInput.addEventListener("keypress", employeeIdInput.keypressHandler);
-        }
-    });
-})();
 </script>
 <script>
 // Override the employee loading for logged-in users
@@ -1571,21 +906,6 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 <style>
 .fixed-logout-btn {
-    position: fixed !important;
-    top: 15px !important;
-    right: 15px !important;
-    padding: 10px 20px !important;
-    background: #dc3545 !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 5px !important;
-    cursor: pointer !important;
-    font-weight: 600 !important;
-    z-index: 99999 !important;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
-}
-.fixed-logout-btn:hover {
-    background: #c82333 !important;
 }
 </style>
 <script>
@@ -1779,3 +1099,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 3000); // Wait 3 seconds for page to load
 });
 </script>
+<script src="/js/auth-check.js"></script>
+</body>
+</html>
