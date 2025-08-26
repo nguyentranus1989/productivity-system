@@ -837,6 +837,9 @@
                 <i class="fas fa-tv"></i>
                 <span>Shop Floor Display</span>
             </a>
+            <a href="#" class="nav-item" onclick="showEmployeeManagement()">
+                <i class="fas fa-users"></i> Employees
+            </a>
             <a href="employee.html" class="nav-item">
                 <i class="fas fa-user"></i>
                 <span>Employee Portal</span>
@@ -1225,6 +1228,124 @@
             <i class="fas fa-chart-bar" style="font-size: 4em; color: #667eea; margin-bottom: 20px;"></i>
             <h2 style="color: #e0e0e0; margin-bottom: 10px;">Analytics Dashboard</h2>
             <p style="color: #808080;">Advanced analytics features coming soon</p>
+        </div>
+    </div>
+    <!-- Employee Management Section -->
+    <div id="employee-management-section" class="section-content">
+        <div style="padding: 20px;">
+            <!-- Header -->
+            <div class="dashboard-header" style="margin-bottom: 30px;">
+                <div class="dashboard-title">
+                    <h1>Employee Management</h1>
+                    <p>Manage employee mappings and configurations</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-action btn-secondary" onclick="showSection('dashboard')">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back to Dashboard</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Alert Section -->
+            <div id="empMgmtAlerts"></div>
+
+            <!-- Statistics Cards -->
+            <div class="metrics-grid" style="margin-bottom: 30px;">
+                <div class="metric-card">
+                    <div class="metric-icon blue">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="metric-value" id="totalEmployeeCount">-</div>
+                    <div class="metric-label">Total Employees</div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-icon green">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="metric-value" id="activeEmployeeCount">-</div>
+                    <div class="metric-label">Active Today</div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-icon yellow">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="metric-value" id="unmappedCount">-</div>
+                    <div class="metric-label">Need Mapping</div>
+                </div>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; padding: 0 20px;">
+                <button class="btn-action btn-secondary emp-nav-link active" onclick="showEmpTab('list')">All Employees</button>
+                <button class="btn-action btn-secondary emp-nav-link" onclick="showEmpTab('mapping')">Email Mapping</button>
+                <button class="btn-action btn-secondary emp-nav-link" onclick="showEmpTab('add')">Add Employee</button>
+            </div>
+
+            <!-- Employee List Tab -->
+            <div id="empTabList" class="emp-tab-content" style="display: block;">
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="empSearchInput" placeholder="Search by name, email, or ID..." onkeyup="filterEmployees()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                        <button class="btn-action btn-secondary" onclick="syncWithConnecteam()">
+                            <i class="fas fa-sync"></i> Sync Connecteam
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; color: #e0e0e0; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid rgba(255,255,255,0.2);">
+                                <th style="padding: 12px;">ID</th>
+                                <th style="padding: 12px;">Name</th>
+                                <th style="padding: 12px;">Email</th>
+                                <th style="padding: 12px;">Connecteam ID</th>
+                                <th style="padding: 12px;">PodFactory Emails</th>
+                                <th style="padding: 12px;">Status</th>
+                                <th style="padding: 12px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeeTableBody">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Email Mapping Tab -->
+            <div id="empTabMapping" class="emp-tab-content" style="display: none;">
+                <h3 style="margin-bottom: 20px;">Email Mapping Configuration</h3>
+                <div id="unmappedEmployeesList">
+                    <p style="color: #808080;">Loading unmapped employees...</p>
+                </div>
+            </div>
+
+            <!-- Add Employee Tab -->
+            <div id="empTabAdd" class="emp-tab-content" style="display: none;">
+                <h3 style="margin-bottom: 20px;">Add New Employee</h3>
+                <form id="addEmployeeForm" onsubmit="return addEmployee(event)" style="max-width: 600px;">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Full Name *</label>
+                        <input type="text" id="newEmpName" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Email *</label>
+                        <input type="email" id="newEmpEmail" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Connecteam User ID</label>
+                        <input type="text" id="newEmpConnecteamId" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">PodFactory Email(s) (comma-separated)</label>
+                        <input type="text" id="newEmpPodFactoryEmails" placeholder="email1@podfactory.com, email2@podfactory.com" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                    </div>
+                    <button type="submit" class="btn-action btn-primary">Add Employee</button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -1786,8 +1907,225 @@
             
             // Chart time range change
             document.getElementById('chartTimeRange').addEventListener('change', updateProductivityChart);
-        
-    // Clean up on page unload
+            
+            // Employee Management Functions
+            window.showEmployeeManagement = function() {
+                showSection('employee-management');
+                window.loadEmployeeManagementData();  // Add window. prefix
+            };
+
+            window.loadEmployeeManagementData = async function() {
+                try {
+                    console.log('Loading employee management data...');
+                    
+                    const response = await api.request('/dashboard/employees');
+                    console.log('Response received:', response); // Add this line
+                    
+                    if (response && response.employees) {
+                        const employees = response.employees;
+                        console.log('Employees found:', employees.length); // Add this line
+                        
+                        // Update statistics
+                        document.getElementById('totalEmployeeCount').textContent = employees.length;
+                        
+                        // Count unmapped employees
+                        const unmapped = employees.filter(e => !e.connecteam_user_id || e.connecteam_user_id === '').length;
+                        document.getElementById('unmappedCount').textContent = unmapped;
+                        
+                        // Count active today
+                        const activeToday = employees.filter(e => e.is_active).length;
+                        document.getElementById('activeEmployeeCount').textContent = activeToday;
+                        
+                        // Display employees in table
+                        window.displayEmployeeTable(employees);
+                    } else {
+                        console.log('No employees in response:', response); // Add this line
+                    }
+                } catch (error) {
+                    console.error('Error loading employee data:', error);
+                }
+            };
+
+            window.displayEmployeeTable = function(employees) {  // Add window. prefix
+                const tbody = document.getElementById('employeeTableBody');
+                if (!tbody) return;
+                
+                tbody.innerHTML = employees.map(emp => `
+                    <tr>
+                        <td style="padding: 12px;">${emp.id}</td>
+                        <td style="padding: 12px;">${emp.name}</td>
+                        <td style="padding: 12px;">${emp.email || '-'}</td>
+                        <td style="padding: 12px;">${emp.connecteam_user_id || '<span style="color: #fbbf24;">Not mapped</span>'}</td>
+                        <td style="padding: 12px;">${emp.podfactory_emails || '<span style="color: #fbbf24;">Not mapped</span>'}</td>
+                        <td style="padding: 12px;"><span class="badge ${emp.is_active ? 'badge-success' : 'badge-danger'}" style="background: ${emp.is_active ? '#22c55e' : '#ef4444'}; padding: 4px 12px; border-radius: 12px;">${emp.is_active ? 'Active' : 'Inactive'}</span></td>
+                        <td style="padding: 12px;">
+                            <button class="btn btn-sm btn-primary" onclick="editEmployee(${emp.id})" style="padding: 5px 10px; background: #3498db; color: white; border: none; border-radius: 5px; margin-right: 5px;">Edit</button>
+                            <button class="btn btn-sm btn-warning" onclick="mapEmployee(${emp.id})" style="padding: 5px 10px; background: #9b59b6; color: white; border: none; border-radius: 5px;">Map</button>
+                        </td>
+                    </tr>
+                `).join('');
+            };
+
+
+            window.showEmpTab = function(tab) {
+                // Hide all tabs
+                document.querySelectorAll('.emp-tab-content').forEach(t => t.style.display = 'none');
+                
+                // Remove active class from all buttons
+                document.querySelectorAll('.emp-nav-link').forEach(link => {
+                    link.classList.remove('active');
+                });
+                
+                // Show selected tab
+                const tabElement = document.getElementById('empTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+                if (tabElement) {
+                    tabElement.style.display = 'block';
+                }
+                
+                // Add active class to clicked button
+                if (event && event.target) {
+                    event.target.classList.add('active');
+                }
+            };
+
+            window.filterEmployees = function() {
+                const searchText = document.getElementById('empSearchInput').value.toLowerCase();
+                const rows = document.querySelectorAll('#employeeTableBody tr');
+                
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(searchText) ? '' : 'none';
+                });
+            };
+
+            window.editEmployee = function(id) {
+                alert('Edit employee ' + id + ' - To be implemented');
+            };
+
+            window.mapEmployee = async function(id) {
+                // Get employee details
+                const row = Array.from(document.querySelectorAll('#employeeTableBody tr')).find(r => r.querySelector('td').textContent == id);
+                const employeeName = row.querySelectorAll('td')[1].textContent;
+                
+                // Fetch unmapped PodFactory emails and Connecteam users
+                const unmappedData = await fetch('http://localhost:5000/api/dashboard/unmapped-users', {
+                    headers: {'X-API-Key': 'dev-api-key-123'}
+                }).then(r => r.json());
+                
+                const modal = `
+                    <div id="mappingModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+                        <div style="background: #2a2a2a; padding: 30px; border-radius: 10px; width: 700px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
+                            <h3 style="color: #e0e0e0; margin-bottom: 20px;">Map ${employeeName}</h3>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div>
+                                    <h4 style="color: #667eea;">Select Connecteam User:</h4>
+                                    <input type="text" id="connecteamSearch" placeholder="Search by name..." style="width: 100%; padding: 8px; margin-bottom: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 5px;" onkeyup="filterConnecteamList()">
+                                    <div id="connecteamList" style="max-height: 300px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; padding: 10px;">
+                                        ${unmappedData.connecteam_users.map(user => `
+                                            <label style="display: block; padding: 8px; cursor: pointer; color: #e0e0e0;">
+                                                <input type="radio" name="connecteamUser" value="${user.connecteam_id}" data-name="${user.name}">
+                                                ${user.name} (${user.connecteam_id})
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <h4 style="color: #9b59b6;">Select PodFactory Emails:</h4>
+                                    <input type="text" id="podfactorySearch" placeholder="Search emails..." style="width: 100%; padding: 8px; margin-bottom: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 5px;" onkeyup="filterPodfactoryList()">
+                                    <div id="podfactoryList" style="max-height: 300px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; padding: 10px;">
+                                        ${unmappedData.podfactory_emails.map(email => `
+                                            <label style="display: block; padding: 8px; cursor: pointer; color: #e0e0e0;">
+                                                <input type="checkbox" name="podfactoryEmail" value="${email}">
+                                                ${email}
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                                <button onclick="document.getElementById('mappingModal').remove()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">Cancel</button>
+                                <button onclick="saveSmartMapping(${id})" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Save Mapping</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modal);
+            };
+
+            window.filterConnecteamList = function() {
+                const search = document.getElementById('connecteamSearch').value.toLowerCase();
+                document.querySelectorAll('#connecteamList label').forEach(label => {
+                    label.style.display = label.textContent.toLowerCase().includes(search) ? 'block' : 'none';
+                });
+            };
+
+            window.filterPodfactoryList = function() {
+                const search = document.getElementById('podfactorySearch').value.toLowerCase();
+                document.querySelectorAll('#podfactoryList label').forEach(label => {
+                    label.style.display = label.textContent.toLowerCase().includes(search) ? 'block' : 'none';
+                });
+            };
+
+            window.saveSmartMapping = async function(employeeId) {
+                const connecteamUser = document.querySelector('input[name="connecteamUser"]:checked');
+                const podfactoryEmails = Array.from(document.querySelectorAll('input[name="podfactoryEmail"]:checked')).map(cb => cb.value);
+                
+                if (!connecteamUser) {
+                    alert('Please select a Connecteam user');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`http://localhost:5000/api/dashboard/employees/${employeeId}/mapping`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': 'dev-api-key-123'
+                        },
+                        body: JSON.stringify({
+                            connecteam_user_id: connecteamUser.value,
+                            podfactory_emails: podfactoryEmails.join(',')
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        alert('Mapping saved successfully!');
+                        document.getElementById('mappingModal').remove();
+                        window.loadEmployeeManagementData();
+                    } else {
+                        alert('Error saving mapping');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error saving mapping');
+                }
+            };
+
+            window.syncWithConnecteam = async function() {
+                if (!confirm('Sync all employees from Connecteam? This may take a moment.')) return;
+                
+                try {
+                    const response = await fetch('http://localhost:5000/api/connecteam/sync/employees', {
+                        method: 'POST',
+                        headers: {'X-API-Key': 'dev-api-key-123'}
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        alert(`Sync complete! Updated: ${result.stats.updated}, Created: ${result.stats.created}`);
+                        window.loadEmployeeManagementData();
+                    } else {
+                        alert('Sync failed');
+                    }
+                } catch (error) {
+                    alert('Error syncing with Connecteam');
+                }
+            };
+
+            // Clean up on page unload
             window.addEventListener('beforeunload', () => {
                 if (refreshInterval) {
                     clearInterval(refreshInterval);
@@ -2752,12 +3090,11 @@
             }
         }
 
-        
         function showSection(sectionName) {
             console.log('Showing section:', sectionName);
             
             // Hide all sections
-            const sections = ['dashboard-section', 'cost-section', 'bottleneck-section', 'scheduling-section', 'analytics-section'];
+            const sections = ['dashboard-section', 'cost-section', 'bottleneck-section', 'scheduling-section', 'analytics-section', 'employee-management-section'];
             sections.forEach(id => {
                 const section = document.getElementById(id);
                 if (section) {
@@ -2782,6 +3119,10 @@
                 } else if (sectionName === 'bottleneck') {
                     if (typeof loadBottleneckData === 'function') {
                         loadBottleneckData();
+                    }
+                } else if (sectionName === 'employee-management') {
+                    if (typeof loadEmployeeManagementData === 'function') {
+                        loadEmployeeManagementData();
                     }
                 }
             }

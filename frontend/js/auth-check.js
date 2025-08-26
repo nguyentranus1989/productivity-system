@@ -3,7 +3,18 @@
 
 (function() {
     'use strict';
-    
+    // Check if running locally - BYPASS AUTH FOR DEVELOPMENT
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log('Auth disabled for local development');
+        // Set fake admin session
+        sessionStorage.setItem('adminToken', 'local-dev-token');
+        sessionStorage.setItem('userRole', 'admin');
+        window.currentUserRole = 'admin';
+        // Make page visible
+        document.documentElement.style.visibility = 'visible';
+        document.documentElement.style.opacity = '1';
+        return; // Exit early - skip all auth checks
+    }
     // Configuration
     const LOGIN_PAGE = '/login.html';
     const SHOP_FLOOR_PIN_EXPIRY = 180 * 24 * 60 * 60 * 1000; // 180 days

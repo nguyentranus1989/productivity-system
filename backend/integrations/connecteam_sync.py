@@ -75,6 +75,7 @@ class ConnecteamSync:
             email_map = {emp['email']: emp for emp in local_employees}
             
             for user_id, ct_employee in connecteam_employees.items():
+                user_id = str(user_id)
                 try:
                     # Skip archived employees unless they exist locally
                     if ct_employee.is_archived and user_id not in local_map:

@@ -1,6 +1,6 @@
 import os
 # backend/api/dashboard.py
-
+from database.db_manager import DatabaseManager
 from flask import Blueprint, jsonify, request
 
 # Simple in-memory cache
@@ -1469,34 +1469,34 @@ def get_employee_stats(employee_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Employees List
-@dashboard_bp.route('/employees', methods=['GET'])
-@require_api_key
-def get_employees():
-    """Get all active employees"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+# # Employees List
+# @dashboard_bp.route('/employees', methods=['GET'])
+# @require_api_key
+# def get_employees():
+#     """Get all active employees"""
+#     try:
+#         conn = get_db_connection()
+#         cursor = conn.cursor(dictionary=True)
         
-        cursor.execute("""
-            SELECT 
-                e.id,
-                e.name,
-                e.name as full_name
-            FROM employees e
-            WHERE e.is_active = 1
-            ORDER BY e.name
-        """)
+#         cursor.execute("""
+#             SELECT 
+#                 e.id,
+#                 e.name,
+#                 e.name as full_name
+#             FROM employees e
+#             WHERE e.is_active = 1
+#             ORDER BY e.name
+#         """)
         
-        employees = cursor.fetchall()
+#         employees = cursor.fetchall()
         
-        cursor.close()
-        conn.close()
+#         cursor.close()
+#         conn.close()
         
-        return jsonify(employees)
+#         return jsonify(employees)
         
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 500
 
 # Single Employee
 @dashboard_bp.route('/employees/<int:employee_id>', methods=['GET'])
@@ -2333,6 +2333,179 @@ def get_bottleneck_history():
         logger.error(f"Error getting bottleneck history: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@dashboard_bp.route('/employees', methods=['GET'])
+@require_api_key
+def get_employees():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get all employees with their mapping info
+        query = """
+            SELECT 
+                e.id,
+                e.name,
+                e.email,
+                e.connecteam_user_id,
+                e.is_active,
+                GROUP_CONCAT(DISTINCT m.podfactory_email) as podfactory_emails
+            FROM employees e
+            LEFT JOIN employee_podfactory_mapping_v2 m ON e.id = m.employee_id
+            GROUP BY e.id
+            ORDER BY e.name
+        """
+        cursor.execute(query)
+        employees = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'employees': employees
+        })
+        
+    except Exception as e:
+        print(f"Error fetching employees: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@dashboard_bp.route('/employees/<int:employee_id>/mapping', methods=['POST'])
+@require_api_key
+def update_employee_mapping(employee_id):
+    try:
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Update Connecteam ID
+        if 'connecteam_user_id' in data:
+            cursor.execute("""
+                UPDATE employees 
+                SET connecteam_user_id = %s 
+                WHERE id = %s
+            """, (data['connecteam_user_id'], employee_id))
+        
+        # Update PodFactory emails
+        if 'podfactory_emails' in data:
+            # First, delete existing mappings
+            cursor.execute("""
+                DELETE FROM employee_podfactory_mapping_v2 
+                WHERE employee_id = %s
+            """, (employee_id,))
+            
+            # Add new mappings
+            emails = [email.strip() for email in data['podfactory_emails'].split(',') if email.strip()]
+            for email in emails:
+                cursor.execute("""
+                    INSERT INTO employee_podfactory_mapping_v2 
+                    (employee_id, podfactory_email, similarity_score, confidence_level, is_verified)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (employee_id, email, 1.00, 'manual', 1))  # Changed to 1.00
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        print(f"Error updating mapping: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+@dashboard_bp.route('/unmapped-users', methods=['GET'])
+@require_api_key
+def get_unmapped_users():
+    try:
+        import requests
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        
+        # Get fresh user data from Connecteam API
+        connecteam_headers = {
+            'X-API-Key': os.getenv('CONNECTEAM_API_KEY'),
+            'Content-Type': 'application/json'
+        }
+        
+        response = requests.get(
+            'https://api.connecteam.com/users/v1/users',
+            headers=connecteam_headers,
+            params={'limit': 100},
+            verify=False  # Note: In production, handle SSL properly
+        )
+        
+        connecteam_users = []
+        if response.status_code == 200:
+            data = response.json()
+            users = data.get('data', {}).get('users', [])
+            
+            for user in users:
+                if not user.get('isArchived', False):  # Only active users
+                    connecteam_users.append({
+                        'connecteam_id': str(user.get('userId')),
+                        'name': f"{user.get('firstName', '')} {user.get('lastName', '')}".strip()
+                    })
+        
+        # Get PodFactory emails from mapping table
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT DISTINCT podfactory_email as email
+            FROM employee_podfactory_mapping_v2
+            ORDER BY podfactory_email
+        """)
+        podfactory_emails = [row['email'] for row in cursor.fetchall()]
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'connecteam_users': connecteam_users,
+            'podfactory_emails': podfactory_emails
+        })
+        
+    except Exception as e:
+        print(f"Error getting users: {e}")
+        return jsonify({'connecteam_users': [], 'podfactory_emails': []})
+
+@dashboard_bp.route('/debug-mapping', methods=['GET'])
+@require_api_key
+def debug_mapping():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Count total Connecteam users in clock_times
+        cursor.execute("SELECT COUNT(DISTINCT connecteam_user_id) as total FROM clock_times WHERE connecteam_user_id IS NOT NULL")
+        result = cursor.fetchone()
+        total_ct = result['total'] if result else 0
+        
+        # Count mapped Connecteam IDs in employees
+        cursor.execute("SELECT COUNT(*) as mapped FROM employees WHERE connecteam_user_id IS NOT NULL AND connecteam_user_id != ''")
+        result = cursor.fetchone()
+        mapped = result['mapped'] if result else 0
+        
+        # Get sample of Connecteam users from clock_times
+        cursor.execute("SELECT DISTINCT connecteam_user_id, name FROM clock_times WHERE connecteam_user_id IS NOT NULL LIMIT 5")
+        sample_ct = cursor.fetchall()
+        
+        # Get sample of unmapped employees
+        cursor.execute("SELECT id, name, connecteam_user_id FROM employees WHERE connecteam_user_id IS NULL OR connecteam_user_id = '' LIMIT 5")
+        unmapped_emp = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'total_connecteam_users': total_ct,
+            'mapped_employees': mapped,
+            'sample_connecteam': sample_ct,
+            'unmapped_employees': unmapped_emp
+        })
+    except Exception as e:
+        print(f"Debug error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @dashboard_bp.route('/bottleneck/reassign', methods=['POST'])
 @require_api_key
 def reassign_worker():
@@ -2400,6 +2573,7 @@ def test_bottleneck():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+    
 @dashboard_bp.route('/cost-analysis', methods=['GET'])
 @cached_endpoint(ttl_seconds=30)
 def get_cost_analysis():
