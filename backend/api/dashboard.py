@@ -2527,6 +2527,171 @@ def reassign_worker():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+@dashboard_bp.route('/employees/payrates', methods=['GET'])
+@require_api_key
+def get_all_payrates():
+    """Get all employee payrates"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT 
+                e.id,
+                e.name,
+                COALESCE(ep.pay_rate, 13.00) as pay_rate,
+                COALESCE(ep.pay_type, 'hourly') as pay_type,
+                ep.effective_date,
+                ep.notes,
+                CASE 
+                    WHEN ep.pay_type = 'salary' THEN ROUND(ep.pay_rate / 22 / 8, 2)
+                    ELSE ep.pay_rate
+                END as hourly_equivalent
+            FROM employees e
+            LEFT JOIN employee_payrates ep ON e.id = ep.employee_id
+            WHERE e.is_active = 1
+            ORDER BY e.name
+        """)
+        
+        payrates = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'payrates': payrates})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@dashboard_bp.route('/employees/<int:employee_id>/payrate', methods=['POST'])
+@require_api_key
+def update_employee_payrate(employee_id):
+    """Update payrate for specific employee"""
+    try:
+        data = request.json
+        pay_rate = data.get('pay_rate')
+        pay_type = data.get('pay_type', 'hourly')
+        notes = data.get('notes', '')
+        
+        if pay_rate is None:
+            return jsonify({'success': False, 'error': 'pay_rate is required'}), 400
+            
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if payrate record exists
+        cursor.execute("SELECT id FROM employee_payrates WHERE employee_id = %s", (employee_id,))
+        exists = cursor.fetchone()
+        
+        if exists:
+            # Update existing
+            cursor.execute("""
+                UPDATE employee_payrates 
+                SET pay_rate = %s, 
+                    pay_type = %s,
+                    notes = %s
+                WHERE employee_id = %s
+            """, (pay_rate, pay_type, notes, employee_id))
+        else:
+            # Insert new
+            cursor.execute("""
+                INSERT INTO employee_payrates (employee_id, pay_rate, pay_type, effective_date, notes)
+                VALUES (%s, %s, %s, CURDATE(), %s)
+            """, (employee_id, pay_rate, pay_type, notes))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Payrate updated successfully'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@dashboard_bp.route('/employees/<int:employee_id>/archive', methods=['POST'])
+@require_api_key
+def archive_employee(employee_id):
+    """Archive an employee (soft delete)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check if employee is currently clocked in
+        cursor.execute("""
+            SELECT COUNT(*) as count 
+            FROM time_tracking 
+            WHERE employee_id = %s 
+            AND clock_out_time IS NULL 
+            AND DATE(clock_in_time) = CURDATE()
+        """, (employee_id,))
+        
+        result = cursor.fetchone()
+        if result['count'] > 0:
+            return jsonify({'success': False, 'error': 'Cannot archive employee who is currently clocked in'}), 400
+        
+        # Archive the employee
+        cursor.execute("""
+            UPDATE employees 
+            SET is_active = 0, 
+                archived_at = NOW() 
+            WHERE id = %s
+        """, (employee_id,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Employee archived successfully'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@dashboard_bp.route('/employees/archived', methods=['GET'])
+@require_api_key
+def get_archived_employees():
+    """Get list of archived employees"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT id, name, email, archived_at 
+            FROM employees 
+            WHERE archived_at IS NOT NULL 
+            ORDER BY archived_at DESC
+        """)
+        
+        archived = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'archived': archived})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@dashboard_bp.route('/employees/<int:employee_id>/restore', methods=['POST'])
+@require_api_key
+def restore_employee(employee_id):
+    """Restore an archived employee"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE employees 
+            SET is_active = 1, 
+                archived_at = NULL 
+            WHERE id = %s
+        """, (employee_id,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Employee restored successfully'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
     
 @dashboard_bp.route('/bottleneck/test', methods=['GET'])
 @require_api_key
@@ -2603,7 +2768,7 @@ def get_cost_analysis():
         # Get employee costs for the date range
         employee_costs_query = """
         WITH employee_hours AS (
-            -- Get actual clocked hours for the date range
+            -- Get actual clocked hours for ALL employees who worked
             SELECT 
                 e.id,
                 e.name,
@@ -2611,17 +2776,34 @@ def get_cost_analysis():
                 ep.pay_type,
                 CASE 
                     WHEN ep.pay_type = 'salary' THEN ROUND(COALESCE(ep.pay_rate, 13.00 * 8 * 22) / 22 / 8, 2)
-                    ELSE ep.pay_rate 
+                    ELSE COALESCE(ep.pay_rate, 13.00)
                 END as hourly_rate,
-                (SELECT SUM(clocked_minutes) / 60.0 FROM daily_scores WHERE employee_id = e.id AND score_date BETWEEN %s AND %s) as clocked_hours,
-                COUNT(DISTINCT DATE(ct.clock_in)) as days_worked,
-                MIN(ct.clock_in) as first_clock_in
+                COALESCE(
+                    (SELECT SUM(TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, NOW()))) / 60.0 
+                    FROM clock_times 
+                    WHERE employee_id = e.id 
+                    AND DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s),
+                    0
+                ) as clocked_hours,
+                COALESCE(
+                    (SELECT COUNT(DISTINCT DATE(clock_in)) 
+                    FROM clock_times 
+                    WHERE employee_id = e.id 
+                    AND DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s),
+                    0
+                ) as days_worked,
+                (SELECT MIN(clock_in) 
+                FROM clock_times 
+                WHERE employee_id = e.id 
+                AND DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s) as first_clock_in
             FROM employees e
             LEFT JOIN employee_payrates ep ON e.id = ep.employee_id
-            INNER JOIN clock_times ct ON e.id = ct.employee_id 
-                AND DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
             WHERE e.is_active = 1
-            GROUP BY e.id, e.name, ep.pay_rate, ep.pay_type
+            AND EXISTS (
+                SELECT 1 FROM clock_times ct2 
+                WHERE ct2.employee_id = e.id 
+                AND DATE(CONVERT_TZ(ct2.clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
+            )
         ),
         employee_activities AS (
             -- Use corrected active hours from daily_scores
@@ -2688,9 +2870,10 @@ def get_cost_analysis():
 
         employee_costs = db_manager.execute_query(
             employee_costs_query, 
-            (start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date)
+            (start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date,  # employee_hours CTE
+            start_date, end_date,  # employee_activities CTE
+            start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date)  # main SELECT
         )
-        
         # Calculate additional metrics for each employee
         for emp in employee_costs:
             try:

@@ -7,9 +7,25 @@ load_dotenv()
 
 class Config:
     """Base configuration"""
+    # Environment detection
+    ENV = os.getenv('ENVIRONMENT', 'development')
+    IS_PRODUCTION = ENV == 'production'
+    
     # Flask settings
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-    API_KEY = os.getenv('API_KEY', 'dev-api-key')
+    API_KEY = os.getenv('API_KEY', 'dev-api-key-123')
+    
+    # Determine API URLs based on environment
+    if IS_PRODUCTION:
+        API_BASE_URL = 'http://134.199.194.237:5000'
+        FRONTEND_URL = 'http://134.199.194.237'
+    else:
+        API_BASE_URL = 'http://localhost:5000'
+        FRONTEND_URL = 'http://localhost:5000'
+    
+    # Server settings
+    HOST = '0.0.0.0'
+    PORT = int(os.getenv('PORT', 5000))
     
     # Database settings
     DB_HOST = os.getenv('DB_HOST', 'localhost')
@@ -23,9 +39,9 @@ class Config:
     REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
     REDIS_DB = int(os.getenv('REDIS_DB', 0))
     
-    # Connecteam API
+    # Connecteam API - REMOVE HARDCODED VALUES
     CONNECTEAM_API_KEY = os.getenv('CONNECTEAM_API_KEY')
-    CONNECTEAM_CLOCK_ID = os.getenv('CONNECTEAM_CLOCK_ID')
+    CONNECTEAM_CLOCK_ID = int(os.getenv('CONNECTEAM_CLOCK_ID', 0)) if os.getenv('CONNECTEAM_CLOCK_ID') else None
     CONNECTEAM_BASE_URL = os.getenv('CONNECTEAM_BASE_URL', 'https://api.connecteam.com/v1')
     
     # PodFactory settings
@@ -43,7 +59,7 @@ class Config:
     
     # Email settings
     SMTP_HOST = os.getenv('SMTP_HOST')
-    SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
+    SMTP_PORT = int(os.getenv('SMTP_PORT', 587)) if os.getenv('SMTP_PORT') else 587
     SMTP_USER = os.getenv('SMTP_USER')
     SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')
     REPORT_FROM_EMAIL = os.getenv('REPORT_FROM_EMAIL')
@@ -66,16 +82,15 @@ class TestingConfig(Config):
     DB_NAME = 'productivity_tracker_test'
 
 # Configuration dictionary
-config = {
+config_dict = {
     'development': DevelopmentConfig,
     'production': ProductionConfig,
     'testing': TestingConfig,
     'default': DevelopmentConfig
 }
-# Connecteam Configuration
-CONNECTEAM_CONFIG = {
-    'API_KEY': '9255ce96-70eb-4982-82ef-fc35a7651428',
-    'CLOCK_ID': 7425182,
-    'SYNC_INTERVAL': 300,  # 5 minutes
-    'ENABLE_AUTO_SYNC': True
-}
+
+# Get the active configuration
+env = os.getenv('ENVIRONMENT', 'development')
+config = config_dict.get(env, config_dict['default'])()
+
+# REMOVE THE HARDCODED CONNECTEAM_CONFIG - use config object instead

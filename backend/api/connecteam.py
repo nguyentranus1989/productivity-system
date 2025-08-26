@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import logging
 
 from integrations.connecteam_sync import ConnecteamSync
-from config import CONNECTEAM_CONFIG
+from config import config
 from api.auth import require_api_key
 from api.validators import validate_date
 
@@ -15,8 +15,8 @@ connecteam_bp = Blueprint('connecteam', __name__)
 
 # Initialize sync service
 sync_service = ConnecteamSync(
-    CONNECTEAM_CONFIG['API_KEY'],
-    CONNECTEAM_CONFIG['CLOCK_ID']
+    config.CONNECTEAM_API_KEY,
+    config.CONNECTEAM_CLOCK_ID
 )
 
 
@@ -368,7 +368,7 @@ def toggle_auto_sync():
         return jsonify({
             'success': True,
             'auto_sync_enabled': enable,
-            'sync_interval': CONNECTEAM_CONFIG['SYNC_INTERVAL']
+            'sync_interval': getattr(config, 'SYNC_INTERVAL', 300)
         })
         
     except Exception as e:

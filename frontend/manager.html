@@ -872,7 +872,6 @@
             </div>
             <div class="header-actions">
                 <div id="currentDateTime"></div>
-
                 <!-- ADD THIS DATE FILTER SECTION -->
                 <div class="date-filter-container" style="display: flex; align-items: center; gap: 10px; margin-right: 15px;">
                     <input type="date" id="startDate" class="form-control" style="background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); max-width: 150px;">
@@ -898,6 +897,63 @@
                     <span>Export Report</span>
                 </button>
             </div>
+        </div>
+        
+        <!-- SYSTEM STATUS BAR - COMPACT VERSION -->
+        <div id="system-status-container" style="
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 8px 20px;
+            background: rgba(255,255,255,0.02);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-top: -10px;
+            margin-bottom: 15px;
+        ">
+            <span style="font-weight: 600; color: #808080; font-size: 0.85em;">System:</span>
+            
+            <!-- Connecteam Status -->
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div id="connecteam-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: #6c757d;"></div>
+                <span style="font-size: 0.8em; color: #b0b0b0;">Connecteam</span>
+                <span id="connecteam-last-sync" style="font-size: 0.7em; color: #808080;">(--)</span>
+            </div>
+            
+            <!-- PodFactory Status -->
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div id="podfactory-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: #6c757d;"></div>
+                <span style="font-size: 0.8em; color: #b0b0b0;">PodFactory</span>
+                <span id="podfactory-last-sync" style="font-size: 0.7em; color: #808080;">(--)</span>
+            </div>
+            
+            <!-- Flask Status -->
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div id="flask-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: #6c757d;"></div>
+                <span style="font-size: 0.8em; color: #b0b0b0;">Backend</span>
+            </div>
+            
+            <!-- Database Status -->
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div id="database-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: #6c757d;"></div>
+                <span style="font-size: 0.8em; color: #b0b0b0;">Database</span>
+                <span id="database-latency" style="font-size: 0.7em; color: #808080;">(--)</span>
+            </div>
+            
+            <!-- Separator -->
+            <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.2); margin: 0 5px;"></div>
+            
+            <!-- Control Button -->
+            <button onclick="openSystemControls()" style="
+                padding: 4px 10px;
+                background: rgba(102, 126, 234, 0.15);
+                border: 1px solid rgba(102, 126, 234, 0.3);
+                color: #667eea;
+                border-radius: 5px;
+                font-size: 0.8em;
+                cursor: pointer;
+            ">
+                Controls
+            </button>
         </div>
         
         <!-- Dashboard Section (existing content) -->
@@ -1280,8 +1336,10 @@
             <!-- Tab Navigation -->
             <div style="margin-bottom: 20px; display: flex; gap: 10px; padding: 0 20px;">
                 <button class="btn-action btn-secondary emp-nav-link active" onclick="showEmpTab('list')">All Employees</button>
+                <button class="btn-action btn-secondary emp-nav-link" onclick="showEmpTab('payrates')">Payrates</button>
                 <button class="btn-action btn-secondary emp-nav-link" onclick="showEmpTab('mapping')">Email Mapping</button>
                 <button class="btn-action btn-secondary emp-nav-link" onclick="showEmpTab('add')">Add Employee</button>
+                <button class="btn-action btn-secondary emp-nav-link" onclick="showEmpTab('archived')">Archived</button>
             </div>
 
             <!-- Employee List Tab -->
@@ -1314,7 +1372,48 @@
                     </table>
                 </div>
             </div>
-
+            <!-- Payrates Tab -->
+            <div id="empTabPayrates" class="emp-tab-content" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0;">Employee Payrates Management</h3>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="payrateSearchInput" 
+                            placeholder="Search by name..." 
+                            onkeyup="filterPayrates()"
+                            style="padding: 8px 12px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; width: 250px;">
+                        <select id="payrateSortBy" onchange="sortPayrates()"
+                                style="padding: 8px 12px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                            <option value="name">Sort by Name</option>
+                            <option value="no_rate">No Rate First</option>
+                            <option value="hourly_asc">Hourly: $0 → $$$</option>
+                            <option value="hourly_desc">Hourly: $$$ → $0</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; color: #e0e0e0; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid rgba(255,255,255,0.2);">
+                                <th style="padding: 12px;">Employee</th>
+                                <th style="padding: 12px; text-align: center;">Pay Type</th>
+                                <th style="padding: 12px; text-align: center;">Rate</th>
+                                <th style="padding: 12px; text-align: center; cursor: pointer; user-select: none;" onclick="toggleHourlySort()">
+                                    Hourly Equiv <i class="fas fa-sort"></i>
+                                </th>
+                                <th style="padding: 12px;">Notes</th>
+                                <th style="padding: 12px; text-align: center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payrateTableBody">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="payrateNoResults" style="display: none; text-align: center; padding: 40px; color: #808080;">
+                    <i class="fas fa-search" style="font-size: 2em; margin-bottom: 10px;"></i>
+                    <p>No employees found matching your search</p>
+                </div>
+            </div>
             <!-- Email Mapping Tab -->
             <div id="empTabMapping" class="emp-tab-content" style="display: none;">
                 <h3 style="margin-bottom: 20px;">Email Mapping Configuration</h3>
@@ -1346,9 +1445,250 @@
                     <button type="submit" class="btn-action btn-primary">Add Employee</button>
                 </form>
             </div>
+            <!-- Archived Employees Tab -->
+            <div id="empTabArchived" class="emp-tab-content" style="display: none;">
+                <h3 style="margin-bottom: 20px;">Archived Employees</h3>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; color: #e0e0e0; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid rgba(255,255,255,0.2);">
+                                <th style="padding: 12px;">Name</th>
+                                <th style="padding: 12px;">Email</th>
+                                <th style="padding: 12px;">Archived Date</th>
+                                <th style="padding: 12px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="archivedTableBody">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- System Control Modal -->
+    <div id="system-control-modal" style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 10000;
+    ">
+        <div style="
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        ">
+            <!-- Modal Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h2 style="margin: 0; color: #e0e0e0;">
+                    <span style="color: #667eea;">⚙️</span> System Controls
+                </h2>
+                <button onclick="closeSystemControls()" style="
+                    background: none;
+                    border: none;
+                    color: #808080;
+                    font-size: 1.5em;
+                    cursor: pointer;
+                ">×</button>
+            </div>
+            
+            <!-- Service Controls Grid -->
+            <div style="display: grid; gap: 20px;">
+                
+                <!-- Flask Backend Control -->
+                <div style="
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 10px;
+                    padding: 20px;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <h3 style="margin: 0 0 10px 0; color: #667eea;">Flask Backend</h3>
+                            <div style="color: #808080; font-size: 0.9em;">
+                                <div>Process: flask-backend (PM2 ID: 9)</div>
+                                <div id="flask-uptime">Uptime: --</div>
+                                <div id="flask-memory">Memory: --</div>
+                                <div id="flask-restarts">Restarts: --</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="restartService('flask-backend')" style="
+                                padding: 8px 16px;
+                                background: #667eea;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                            ">🔄 Restart</button>
+                            <button onclick="viewLogs('flask-backend')" style="
+                                padding: 8px 16px;
+                                background: rgba(255,255,255,0.1);
+                                color: #e0e0e0;
+                                border: 1px solid rgba(255,255,255,0.2);
+                                border-radius: 6px;
+                                cursor: pointer;
+                            ">📋 Logs</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Connecteam Sync Control -->
+                <div style="
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 10px;
+                    padding: 20px;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <h3 style="margin: 0 0 10px 0; color: #34d399;">Connecteam Sync</h3>
+                            <div style="color: #808080; font-size: 0.9em;">
+                                <div id="connecteam-status-detail">Last sync: --</div>
+                                <div id="connecteam-records">Records synced: --</div>
+                                <div>Schedule: Every 5 minutes</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="forceSync('connecteam')" style="
+                                padding: 8px 16px;
+                                background: #34d399;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                            ">🔄 Sync Now</button>
+                            <button onclick="clearSyncLogs('connecteam')" style="
+                                padding: 8px 16px;
+                                background: rgba(239, 68, 68, 0.2);
+                                color: #ef4444;
+                                border: 1px solid rgba(239, 68, 68, 0.3);
+                                border-radius: 6px;
+                                cursor: pointer;
+                            ">🗑️ Clear Logs</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- PodFactory Sync Control -->
+                <div style="
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 10px;
+                    padding: 20px;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <h3 style="margin: 0 0 10px 0; color: #a855f7;">PodFactory Sync</h3>
+                            <div style="color: #808080; font-size: 0.9em;">
+                                <div id="podfactory-status-detail">Last sync: --</div>
+                                <div id="podfactory-items">Items synced: --</div>
+                                <div>Process: podfactory-sync (PM2 ID: 6)</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="forceSync('podfactory')" style="
+                                padding: 8px 16px;
+                                background: #a855f7;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                            ">🔄 Sync Now</button>
+                            <button onclick="restartService('podfactory-sync')" style="
+                                padding: 8px 16px;
+                                background: rgba(255,255,255,0.1);
+                                color: #e0e0e0;
+                                border: 1px solid rgba(255,255,255,0.2);
+                                border-radius: 6px;
+                                cursor: pointer;
+                            ">🔄 Restart</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Database Control -->
+                <div style="
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 10px;
+                    padding: 20px;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <h3 style="margin: 0 0 10px 0; color: #fbbf24;">Database Connection</h3>
+                            <div style="color: #808080; font-size: 0.9em;">
+                                <div id="db-status-detail">Status: --</div>
+                                <div id="db-latency-detail">Latency: --</div>
+                                <div>Location: Singapore (DigitalOcean)</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="testDatabaseConnection()" style="
+                                padding: 8px 16px;
+                                background: #fbbf24;
+                                color: black;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                            ">🔍 Test</button>
+                            <button onclick="resetConnectionPool()" style="
+                                padding: 8px 16px;
+                                background: rgba(255,255,255,0.1);
+                                color: #e0e0e0;
+                                border: 1px solid rgba(255,255,255,0.2);
+                                border-radius: 6px;
+                                cursor: pointer;
+                            ">🔄 Reset Pool</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Emergency Actions -->
+            <div style="
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid rgba(255,255,255,0.1);
+            ">
+                <h3 style="color: #ef4444; margin-bottom: 15px;">⚠️ Emergency Actions</h3>
+                <div style="display: flex; gap: 15px;">
+                    <button onclick="restartAllServices()" style="
+                        padding: 10px 20px;
+                        background: rgba(239, 68, 68, 0.2);
+                        color: #ef4444;
+                        border: 2px solid #ef4444;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: 600;
+                    ">🔄 Restart All Services</button>
+                    <button onclick="clearAllCaches()" style="
+                        padding: 10px 20px;
+                        background: rgba(251, 191, 36, 0.2);
+                        color: #fbbf24;
+                        border: 2px solid #fbbf24;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: 600;
+                    ">🗑️ Clear All Caches</button>
+                </div>
+            </div>
+        </div>
+    </div>
     </div> <!-- This closes the main-content div -->
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.1/dist/chart.umd.min.js"></script>
@@ -1376,6 +1716,422 @@
         let previousData = null;
         // Cost Analysis Variables
         let costData = null;
+        // ============= SYSTEM HEALTH MONITORING =============
+        // Cooldown tracking for restart buttons
+        let restartCooldowns = {};
+
+        // Update system health status
+        async function updateSystemHealth() {
+            try {
+                const response = await fetch('http://localhost:5000/api/system/health', {
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+                
+                if (response.ok) {
+                    const health = await response.json();
+                    
+                    // Update Connecteam status
+                    if (health.syncs && health.syncs.connecteam) {
+                        const connecteam = health.syncs.connecteam;
+                        updateStatusIndicator('connecteam', connecteam.status);
+                        document.getElementById('connecteam-last-sync').textContent = 
+                            `(${Math.round(connecteam.minutes_ago)}m ago)`;
+                    }
+                    
+                    // Update PodFactory status
+                    if (health.syncs && health.syncs.podfactory) {
+                        const podfactory = health.syncs.podfactory;
+                        updateStatusIndicator('podfactory', podfactory.status);
+                        document.getElementById('podfactory-last-sync').textContent = 
+                            `(${Math.round(podfactory.minutes_ago)}m ago)`;
+                    }
+                    
+                    // Update Flask status
+                    if (health.services && health.services['flask-backend']) {
+                        const flask = health.services['flask-backend'];
+                        updateStatusIndicator('flask', flask.status === 'online' ? 'healthy' : 'critical');
+                    }
+                    
+                    // Update Database status
+                    if (health.database && health.database.status === 'connected') {
+                        updateStatusIndicator('database', 'healthy');
+                        document.getElementById('database-latency').textContent = '(connected)';
+                    }
+                    
+                } else {
+                    // If we can't reach the health endpoint, show all as offline
+                    ['connecteam', 'podfactory', 'flask', 'database'].forEach(service => {
+                        updateStatusIndicator(service, 'critical');
+                    });
+                }
+            } catch (error) {
+                console.error('Error updating system health:', error);
+                // Show all as unknown if we can't connect
+                ['connecteam', 'podfactory', 'flask', 'database'].forEach(service => {
+                    updateStatusIndicator(service, 'unknown');
+                });
+            }
+        }
+
+        // Update status indicator color
+        function updateStatusIndicator(service, status) {
+            const indicator = document.getElementById(`${service}-indicator`);
+            if (indicator) {
+                let color = '#6c757d'; // gray - unknown
+                
+                switch(status) {
+                    case 'healthy':
+                    case 'online':
+                        color = '#22c55e'; // green
+                        break;
+                    case 'warning':
+                        color = '#fbbf24'; // yellow
+                        break;
+                    case 'critical':
+                    case 'offline':
+                        color = '#ef4444'; // red
+                        break;
+                }
+                
+                indicator.style.background = color;
+                
+                // Add pulse animation for critical status
+                if (status === 'critical') {
+                    indicator.style.animation = 'pulse 2s infinite';
+                } else {
+                    indicator.style.animation = 'none';
+                }
+            }
+        }
+
+        // Open system controls modal
+        function openSystemControls() {
+            document.getElementById('system-control-modal').style.display = 'block';
+            loadSystemDetails();
+        }
+
+        // Close system controls modal
+        function closeSystemControls() {
+            document.getElementById('system-control-modal').style.display = 'none';
+        }
+
+        // Load detailed system information
+        async function loadSystemDetails() {
+            try {
+                // Get PM2 status
+                const pm2Response = await fetch('http://localhost:5000/api/system/pm2-status', {
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+                
+                if (pm2Response.ok) {
+                    const data = await pm2Response.json();
+                    const processes = data.processes;
+                    
+                    // Update Flask details
+                    const flask = processes.find(p => p.name === 'flask-backend');
+                    if (flask) {
+                        document.getElementById('flask-uptime').textContent = 
+                            `Uptime: ${formatUptime(flask.uptime)}`;
+                        document.getElementById('flask-memory').textContent = 
+                            `Memory: ${(flask.memory / 1024 / 1024).toFixed(1)} MB`;
+                        document.getElementById('flask-restarts').textContent = 
+                            `Restarts: ${flask.restarts}`;
+                    }
+                }
+                
+                // Get system health for sync details
+                const healthResponse = await fetch('http://localhost:5000/api/system/health', {
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+                
+                if (healthResponse.ok) {
+                    const health = await healthResponse.json();
+                    
+                    // Update Connecteam details
+                    if (health.syncs && health.syncs.connecteam) {
+                        document.getElementById('connecteam-status-detail').textContent = 
+                            `Last sync: ${health.syncs.connecteam.minutes_ago.toFixed(0)} minutes ago`;
+                        document.getElementById('connecteam-records').textContent = 
+                            `Records synced: ${health.syncs.connecteam.records || 0}`;
+                    }
+                    
+                    // Update PodFactory details
+                    if (health.syncs && health.syncs.podfactory) {
+                        document.getElementById('podfactory-status-detail').textContent = 
+                            `Last sync: ${health.syncs.podfactory.minutes_ago.toFixed(0)} minutes ago`;
+                        document.getElementById('podfactory-items').textContent = 
+                            `Items synced: ${health.syncs.podfactory.items || 0}`;
+                    }
+                    
+                    // Update Database details
+                    if (health.database) {
+                        document.getElementById('db-status-detail').textContent = 
+                            `Status: ${health.database.status}`;
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Error loading system details:', error);
+            }
+        }
+
+        // Restart a service
+        async function restartService(serviceName) {
+            // Check cooldown
+            if (restartCooldowns[serviceName]) {
+                const timeLeft = Math.ceil((restartCooldowns[serviceName] - Date.now()) / 1000);
+                if (timeLeft > 0) {
+                    alert(`Please wait ${timeLeft} seconds before restarting again`);
+                    return;
+                }
+            }
+            
+            // Double confirmation for critical services
+            if (serviceName === 'flask-backend') {
+                if (!confirm(`This will restart the main backend. Users may experience brief interruption. Continue?`)) {
+                    return;
+                }
+            } else {
+                if (!confirm(`Are you sure you want to restart ${serviceName}?`)) {
+                    return;
+                }
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/system/restart-service', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'dev-api-key-123'
+                    },
+                    body: JSON.stringify({ service: serviceName })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`${serviceName} restarted successfully`);
+                    // Set 30-second cooldown
+                    restartCooldowns[serviceName] = Date.now() + 30000;
+                    // Update status after a few seconds
+                    setTimeout(() => {
+                        updateSystemHealth();
+                        loadSystemDetails();
+                    }, 3000);
+                } else {
+                    alert(`Failed to restart: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // Force a sync
+        async function forceSync(syncType) {
+            if (!confirm(`Force ${syncType} sync now?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/system/force-sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'dev-api-key-123'
+                    },
+                    body: JSON.stringify({ type: syncType })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`${syncType} sync completed successfully`);
+                    updateSystemHealth();
+                    loadSystemDetails();
+                } else {
+                    alert(`Sync failed: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // Clear sync logs
+        async function clearSyncLogs(syncType) {
+            if (!confirm(`Clear old ${syncType} sync logs?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/system/clear-sync-logs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'dev-api-key-123'
+                    },
+                    body: JSON.stringify({ type: syncType, days: 7 })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                } else {
+                    alert(`Failed: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // Test database connection
+        async function testDatabaseConnection() {
+            try {
+                const response = await fetch('http://localhost:5000/api/system/test-connection', {
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('db-status-detail').textContent = 
+                        `Status: Connected`;
+                    document.getElementById('db-latency-detail').textContent = 
+                        `Latency: ${data.latency_ms} ms`;
+                    
+                    alert(`Database connected!\nLatency: ${data.latency_ms} ms\nStatus: ${data.status}`);
+                } else {
+                    alert(`Connection failed: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // Reset connection pool
+        async function resetConnectionPool() {
+            if (!confirm('Reset database connection pool?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/system/reset-connection-pool', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'dev-api-key-123'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Connection pool reset successfully');
+                    updateSystemHealth();
+                } else {
+                    alert(`Failed: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // Restart all services
+        async function restartAllServices() {
+            if (!confirm('⚠️ WARNING: This will restart ALL services and cause a brief outage.\n\nAre you absolutely sure?')) {
+                return;
+            }
+            
+            if (!confirm('This is your final confirmation. Restart all services?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/system/restart-all', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'dev-api-key-123'
+                    },
+                    body: JSON.stringify({ confirm: true })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('All services restarted. Please wait 10-15 seconds for everything to come back online.');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 15000);
+                } else {
+                    alert(`Failed: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // Clear all caches
+        async function clearAllCaches() {
+            if (!confirm('Clear all system caches?')) {
+                return;
+            }
+            
+            alert('Cache clearing not yet implemented');
+            // TODO: Implement cache clearing
+        }
+
+        // View logs (placeholder)
+        function viewLogs(serviceName) {
+            alert(`Log viewing for ${serviceName} not yet implemented`);
+            // TODO: Implement log viewing
+        }
+
+        // Format uptime
+        function formatUptime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+            
+            if (days > 0) {
+                return `${days}d ${hours % 24}h`;
+            } else if (hours > 0) {
+                return `${hours}h ${minutes % 60}m`;
+            } else {
+                return `${minutes}m`;
+            }
+        }
+
+        // Add CSS animation for pulse
+        if (!document.getElementById('pulse-animation')) {
+            const style = document.createElement('style');
+            style.id = 'pulse-animation';
+            style.textContent = `
+                @keyframes pulse {
+                    0% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                    100% { opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Initialize health monitoring
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initial health check
+            updateSystemHealth();
+            
+            // Update health status every 30 seconds
+            setInterval(updateSystemHealth, 30000);
+            
+            // Close modal when clicking outside
+            document.getElementById('system-control-modal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeSystemControls();
+                }
+            });
+        });
         // Initialize Chart
         function initializeChart() {
             const ctx = document.getElementById('productivityChart').getContext('2d');
@@ -1919,27 +2675,28 @@
                     console.log('Loading employee management data...');
                     
                     const response = await api.request('/dashboard/employees');
-                    console.log('Response received:', response); // Add this line
+                    console.log('Response received:', response);
                     
                     if (response && response.employees) {
-                        const employees = response.employees;
-                        console.log('Employees found:', employees.length); // Add this line
+                        // Filter out archived employees (is_active = 0)
+                        const activeEmployees = response.employees.filter(e => e.is_active === 1 || e.is_active === true);
+                        console.log('Active employees found:', activeEmployees.length);
                         
                         // Update statistics
-                        document.getElementById('totalEmployeeCount').textContent = employees.length;
+                        document.getElementById('totalEmployeeCount').textContent = activeEmployees.length;
                         
                         // Count unmapped employees
-                        const unmapped = employees.filter(e => !e.connecteam_user_id || e.connecteam_user_id === '').length;
+                        const unmapped = activeEmployees.filter(e => !e.connecteam_user_id || e.connecteam_user_id === '').length;
                         document.getElementById('unmappedCount').textContent = unmapped;
                         
-                        // Count active today
-                        const activeToday = employees.filter(e => e.is_active).length;
+                        // Count active today (this might need adjustment based on your logic)
+                        const activeToday = activeEmployees.length;
                         document.getElementById('activeEmployeeCount').textContent = activeToday;
                         
-                        // Display employees in table
-                        window.displayEmployeeTable(employees);
+                        // Display only active employees in table
+                        window.displayEmployeeTable(activeEmployees);
                     } else {
-                        console.log('No employees in response:', response); // Add this line
+                        console.log('No employees in response:', response);
                     }
                 } catch (error) {
                     console.error('Error loading employee data:', error);
@@ -1947,46 +2704,87 @@
             };
 
             window.displayEmployeeTable = function(employees) {  // Add window. prefix
-                const tbody = document.getElementById('employeeTableBody');
-                if (!tbody) return;
+            const tbody = document.getElementById('employeeTableBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = employees.map(emp => {
+                // Split emails by comma and create formatted display
+                const podfactoryEmailsDisplay = emp.podfactory_emails 
+                    ? emp.podfactory_emails.split(',').map(email => 
+                        `<div style="padding: 2px 0;">${email.trim()}</div>`
+                    ).join('')
+                    : '<span style="color: #fbbf24;">Not mapped</span>';
                 
-                tbody.innerHTML = employees.map(emp => `
+                return `
                     <tr>
                         <td style="padding: 12px;">${emp.id}</td>
                         <td style="padding: 12px;">${emp.name}</td>
                         <td style="padding: 12px;">${emp.email || '-'}</td>
                         <td style="padding: 12px;">${emp.connecteam_user_id || '<span style="color: #fbbf24;">Not mapped</span>'}</td>
-                        <td style="padding: 12px;">${emp.podfactory_emails || '<span style="color: #fbbf24;">Not mapped</span>'}</td>
+                        <td style="padding: 12px;">${podfactoryEmailsDisplay}</td>
                         <td style="padding: 12px;"><span class="badge ${emp.is_active ? 'badge-success' : 'badge-danger'}" style="background: ${emp.is_active ? '#22c55e' : '#ef4444'}; padding: 4px 12px; border-radius: 12px;">${emp.is_active ? 'Active' : 'Inactive'}</span></td>
-                        <td style="padding: 12px;">
-                            <button class="btn btn-sm btn-primary" onclick="editEmployee(${emp.id})" style="padding: 5px 10px; background: #3498db; color: white; border: none; border-radius: 5px; margin-right: 5px;">Edit</button>
-                            <button class="btn btn-sm btn-warning" onclick="mapEmployee(${emp.id})" style="padding: 5px 10px; background: #9b59b6; color: white; border: none; border-radius: 5px;">Map</button>
+                        <td style="padding: 12px; position: relative;">
+                            <button onclick="toggleDropdown(${emp.id})" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                Actions ▼
+                            </button>
+                            <div id="dropdown-${emp.id}" style="display: none; position: absolute; right: 0; top: 100%; background: #2a2a2a; min-width: 120px; box-shadow: 0px 8px 16px rgba(0,0,0,0.2); z-index: 1000; border-radius: 5px; margin-top: 5px;">
+                                <a href="#" onclick="editEmployee(${emp.id}); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">✏️ Edit</a>
+                                <a href="#" onclick="mapEmployee(${emp.id}); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">🔗 Map</a>
+                                <a href="#" onclick="archiveEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: #ef4444; padding: 10px 15px; text-decoration: none; display: block;">🗑️ Archive</a>
+                            </div>
                         </td>
                     </tr>
-                `).join('');
+                `;
+            }).join('');
+        };
+
+            // Add this function right after displayEmployeeTable
+            window.toggleDropdown = function(id) {
+                const dropdown = document.getElementById(`dropdown-${id}`);
+                // Close all other dropdowns first
+                document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
+                    if (d.id !== `dropdown-${id}`) d.style.display = 'none';
+                });
+                dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
             };
+
+            // Add this event listener to close dropdowns when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!event.target.matches('[onclick*="toggleDropdown"]')) {
+                    document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
+                        d.style.display = 'none';
+                    });
+                }
+            });
 
 
             window.showEmpTab = function(tab) {
-                // Hide all tabs
-                document.querySelectorAll('.emp-tab-content').forEach(t => t.style.display = 'none');
-                
-                // Remove active class from all buttons
-                document.querySelectorAll('.emp-nav-link').forEach(link => {
-                    link.classList.remove('active');
-                });
-                
-                // Show selected tab
-                const tabElement = document.getElementById('empTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
-                if (tabElement) {
-                    tabElement.style.display = 'block';
-                }
-                
-                // Add active class to clicked button
-                if (event && event.target) {
-                    event.target.classList.add('active');
-                }
-            };
+            // Hide all tabs
+            document.querySelectorAll('.emp-tab-content').forEach(t => t.style.display = 'none');
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.emp-nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected tab
+            const tabElement = document.getElementById('empTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+            if (tabElement) {
+                tabElement.style.display = 'block';
+            }
+            
+            // Add active class to clicked button
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+            
+            // Load data for the tab
+            if (tab === 'payrates') {
+                loadPayratesData();
+            } else if (tab === 'archived') {
+                loadArchivedEmployees();
+            }
+        };
 
             window.filterEmployees = function() {
                 const searchText = document.getElementById('empSearchInput').value.toLowerCase();
@@ -1996,6 +2794,266 @@
                     const text = row.textContent.toLowerCase();
                     row.style.display = text.includes(searchText) ? '' : 'none';
                 });
+            };
+
+            // Store original payrates data
+            let allPayratesData = [];
+            let hourlySortAsc = true;
+
+            window.loadPayratesData = async function() {
+                try {
+                    const response = await api.request('/dashboard/employees/payrates');
+                    if (response && response.payrates) {
+                        allPayratesData = response.payrates;
+                        displayFilteredPayrates();
+                    }
+                } catch (error) {
+                    console.error('Error loading payrates:', error);
+                }
+            };
+
+            window.displayFilteredPayrates = function() {
+                let filtered = [...allPayratesData];
+                
+                // Apply search filter
+                const searchText = document.getElementById('payrateSearchInput')?.value?.toLowerCase() || '';
+                if (searchText) {
+                    filtered = filtered.filter(emp => 
+                        emp.name.toLowerCase().includes(searchText)
+                    );
+                }
+                
+                // Apply sorting
+                const sortBy = document.getElementById('payrateSortBy')?.value || 'name';
+                switch(sortBy) {
+                    case 'name':
+                        filtered.sort((a, b) => a.name.localeCompare(b.name));
+                        break;
+                    case 'no_rate':
+                        filtered.sort((a, b) => {
+                            const aRate = parseFloat(a.pay_rate || 0);
+                            const bRate = parseFloat(b.pay_rate || 0);
+                            if (aRate === 0 && bRate !== 0) return -1;
+                            if (aRate !== 0 && bRate === 0) return 1;
+                            return a.name.localeCompare(b.name);
+                        });
+                        break;
+                    case 'hourly_asc':
+                        filtered.sort((a, b) => {
+                            const aHourly = parseFloat(a.hourly_equivalent || 0);
+                            const bHourly = parseFloat(b.hourly_equivalent || 0);
+                            return aHourly - bHourly;
+                        });
+                        break;
+                    case 'hourly_desc':
+                        filtered.sort((a, b) => {
+                            const aHourly = parseFloat(a.hourly_equivalent || 0);
+                            const bHourly = parseFloat(b.hourly_equivalent || 0);
+                            return bHourly - aHourly;
+                        });
+                        break;
+                }
+                
+                displayPayratesTable(filtered);
+            };
+
+            window.toggleHourlySort = function() {
+                hourlySortAsc = !hourlySortAsc;
+                document.getElementById('payrateSortBy').value = hourlySortAsc ? 'hourly_asc' : 'hourly_desc';
+                displayFilteredPayrates();
+            };
+
+            window.displayPayratesTable = function(payrates) {
+                const tbody = document.getElementById('payrateTableBody');
+                const noResults = document.getElementById('payrateNoResults');
+                
+                if (!tbody) return;
+                
+                if (payrates.length === 0) {
+                    tbody.style.display = 'none';
+                    if (noResults) noResults.style.display = 'block';
+                    return;
+                }
+                
+                tbody.style.display = '';
+                if (noResults) noResults.style.display = 'none';
+                
+                tbody.innerHTML = payrates.map(emp => {
+                    const hasNoRate = !emp.pay_rate || parseFloat(emp.pay_rate) === 0;
+                    const rowStyle = hasNoRate ? 'background: rgba(239, 68, 68, 0.1);' : '';
+                    const hourlyRate = parseFloat(emp.hourly_equivalent || 0);
+                    const rateDisplay = hasNoRate ? 
+                        '<span style="color: #ef4444; font-weight: bold;">NO RATE</span>' : 
+                        `<strong style="font-size: 1.1em;">$${hourlyRate.toFixed(2)}</strong>/hr`;
+                    
+                    return `
+                        <tr style="${rowStyle}">
+                            <td style="padding: 12px; font-weight: 600;">
+                                ${emp.name}
+                                ${hasNoRate ? '<span style="color: #ef4444; margin-left: 10px;">⚠️</span>' : ''}
+                            </td>
+                            <td style="padding: 12px; text-align: center;">
+                                <select id="paytype-${emp.id}" style="background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); padding: 5px; border-radius: 5px;">
+                                    <option value="hourly" ${emp.pay_type === 'hourly' ? 'selected' : ''}>Hourly</option>
+                                    <option value="salary" ${emp.pay_type === 'salary' ? 'selected' : ''}>Salary</option>
+                                </select>
+                            </td>
+                            <td style="padding: 12px; text-align: center;">
+                                $<input type="number" id="payrate-${emp.id}" value="${emp.pay_rate || 0}" 
+                                    step="0.01" min="0" 
+                                    style="width: 80px; background: ${hasNoRate ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.1)'}; color: #e0e0e0; border: 1px solid ${hasNoRate ? '#ef4444' : 'rgba(255,255,255,0.2)'}; padding: 5px; border-radius: 5px;">
+                            </td>
+                            <td style="padding: 12px; text-align: center; color: ${hasNoRate ? '#ef4444' : '#667eea'};">
+                                ${rateDisplay}
+                            </td>
+                            <td style="padding: 12px;">
+                                <input type="text" id="notes-${emp.id}" value="${emp.notes || ''}" 
+                                    placeholder="Notes..." 
+                                    style="width: 150px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); padding: 5px; border-radius: 5px;">
+                            </td>
+                            <td style="padding: 12px; text-align: center;">
+                                <button onclick="savePayrate(${emp.id})" style="padding: 5px 15px; background: ${hasNoRate ? '#ef4444' : '#22c55e'}; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                    ${hasNoRate ? 'Set Rate' : 'Save'}
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                // Show count of employees without rates
+                const noRateCount = payrates.filter(emp => !emp.pay_rate || parseFloat(emp.pay_rate) === 0).length;
+                if (noRateCount > 0) {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.style.cssText = 'padding: 10px; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 8px; margin-top: 10px;';
+                    alertDiv.innerHTML = `<i class="fas fa-exclamation-triangle" style="color: #ef4444; margin-right: 10px;"></i><strong>${noRateCount} employees</strong> have no pay rate set`;
+                    const container = tbody.parentElement.parentElement;
+                    const existingAlert = container.querySelector('.no-rate-alert');
+                    if (existingAlert) existingAlert.remove();
+                    alertDiv.className = 'no-rate-alert';
+                    container.appendChild(alertDiv);
+                }
+            };
+
+            window.filterPayrates = function() {
+                displayFilteredPayrates();
+            };
+
+            window.sortPayrates = function() {
+                displayFilteredPayrates();
+            };
+
+            window.savePayrate = async function(employeeId) {
+                const payType = document.getElementById(`paytype-${employeeId}`).value;
+                const payRate = document.getElementById(`payrate-${employeeId}`).value;
+                const notes = document.getElementById(`notes-${employeeId}`).value;
+                
+                try {
+                    const response = await fetch(`http://localhost:5000/api/dashboard/employees/${employeeId}/payrate`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': 'dev-api-key-123'
+                        },
+                        body: JSON.stringify({
+                            pay_rate: parseFloat(payRate),
+                            pay_type: payType,
+                            notes: notes
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        // Show success feedback
+                        const row = document.getElementById(`payrate-${employeeId}`).closest('tr');
+                        row.style.background = 'rgba(34, 197, 94, 0.1)';
+                        setTimeout(() => {
+                            row.style.background = '';
+                            loadPayratesData(); // Reload to show updated hourly equivalent
+                        }, 1000);
+                    } else {
+                        alert('Error saving payrate');
+                    }
+                } catch (error) {
+                    alert('Failed to save payrate');
+                }
+            };
+            window.loadArchivedEmployees = async function() {
+                try {
+                    const response = await fetch('http://localhost:5000/api/dashboard/employees/archived', {
+                        headers: {'X-API-Key': 'dev-api-key-123'}
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        displayArchivedTable(data.archived);
+                    }
+                } catch (error) {
+                    console.error('Error loading archived employees:', error);
+                }
+            };
+
+            window.displayArchivedTable = function(archived) {
+                const tbody = document.getElementById('archivedTableBody');
+                if (!tbody) return;
+                
+                if (!archived || archived.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #808080;">No archived employees</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = archived.map(emp => `
+                    <tr>
+                        <td style="padding: 12px;">${emp.name}</td>
+                        <td style="padding: 12px;">${emp.email || '-'}</td>
+                        <td style="padding: 12px;">${new Date(emp.archived_at).toLocaleDateString()}</td>
+                        <td style="padding: 12px;">
+                            <button onclick="restoreEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')" style="padding: 5px 10px; background: #27ae60; color: white; border: none; border-radius: 5px;">Restore</button>
+                        </td>
+                    </tr>
+                `).join('');
+            };
+
+            window.restoreEmployee = async function(id, name) {
+                if (!confirm(`Restore ${name} to active employees?`)) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`http://localhost:5000/api/dashboard/employees/${id}/restore`, {
+                        method: 'POST',
+                        headers: {'X-API-Key': 'dev-api-key-123'}
+                    });
+                    
+                    if (response.ok) {
+                        alert('Employee restored successfully');
+                        loadArchivedEmployees();
+                        loadEmployeeManagementData();
+                    }
+                } catch (error) {
+                    alert('Failed to restore employee');
+                }
+            };
+
+            window.archiveEmployee = async function(id, name) {
+                if (!confirm(`Are you sure you want to archive ${name}? They will be hidden from all active views.`)) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`http://localhost:5000/api/dashboard/employees/${id}/archive`, {
+                        method: 'POST',
+                        headers: {'X-API-Key': 'dev-api-key-123'}
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Employee archived successfully');
+                        loadEmployeeManagementData(); // Reload the list
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                } catch (error) {
+                    alert('Failed to archive employee');
+                }
             };
 
             window.editEmployee = function(id) {

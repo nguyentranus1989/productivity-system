@@ -1,4 +1,17 @@
-const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000/api' : '/api';
+// Dynamic API URL based on environment
+const API_BASE_URL = (() => {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:5000/api';
+    } else if (hostname === '134.199.194.237') {
+        return 'http://134.199.194.237:5000/api';
+    } else {
+        // Fallback for any other domain
+        return `http://${hostname}:5000/api`;
+    }
+})();
+
+console.log('API configured for:', API_BASE_URL);
 const API_KEY = 'dev-api-key-123';
 
 // Main API class

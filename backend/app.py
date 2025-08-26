@@ -14,9 +14,10 @@ from flask_cors import CORS
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from apscheduler.schedulers.background import BackgroundScheduler
+from api.system_control import system_control_bp
 
 # Import configuration
-from config import config, CONNECTEAM_CONFIG
+from config import config
 
 # Import API blueprints
 from api.activities import activity_bp
@@ -50,10 +51,10 @@ def init_schedulers(app):
     background_scheduler = BackgroundScheduler()
     
     # Connecteam sync scheduler (if enabled)
-    if CONNECTEAM_CONFIG.get('ENABLE_AUTO_SYNC', False):
+    if getattr(config, 'ENABLE_AUTO_SYNC', False):
         connecteam_sync = ConnecteamSync(
-            CONNECTEAM_CONFIG['API_KEY'],
-            CONNECTEAM_CONFIG['CLOCK_ID']
+            config.CONNECTEAM_API_KEY,
+            config.CONNECTEAM_CLOCK_ID
         )
         
         # Sync current shifts every 5 minutes
@@ -88,7 +89,7 @@ def create_app(config_name=None):
         config_name = os.getenv('FLASK_ENV', 'development')
     
     app = Flask(__name__)
-    app.config.from_object(config[config_name])
+    app.config.from_object(config)
     
     # Enable CORS
     CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type", "X-API-Key"]}})
@@ -144,6 +145,7 @@ def register_blueprints(app):
     app.register_blueprint(employee_auth_bp)
     app.register_blueprint(admin_auth_bp)
     app.register_blueprint(schedule_bp)
+    app.register_blueprint(system_control_bp)  # No url_prefix needed as routes include /api/system
     app.logger.info("All blueprints registered successfully")
 
 def register_error_handlers(app):
@@ -236,9 +238,9 @@ def scheduler_status():
 def connecteam_status():
     """Get Connecteam integration status"""
     return jsonify({
-        'enabled': CONNECTEAM_CONFIG.get('ENABLE_AUTO_SYNC', False),
-        'sync_interval': CONNECTEAM_CONFIG.get('SYNC_INTERVAL', 300),
-        'clock_id': CONNECTEAM_CONFIG.get('CLOCK_ID')
+        'enabled': getattr(config, 'ENABLE_AUTO_SYNC', False),
+        'sync_interval': getattr(config, 'SYNC_INTERVAL', 300),
+        'clock_id': config.CONNECTEAM_CLOCK_ID
     })
 
 
