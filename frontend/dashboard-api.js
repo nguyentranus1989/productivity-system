@@ -7,7 +7,7 @@ const API_BASE_URL = (() => {
         return 'http://134.199.194.237:5000/api';
     } else {
         // Fallback for any other domain
-        return `http://${hostname}:5000/api`;
+        return "/api";
     }
 })();
 

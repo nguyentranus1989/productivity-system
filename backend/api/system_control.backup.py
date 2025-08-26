@@ -16,6 +16,7 @@ import mysql.connector
 
 # Add these imports that were missing
 from database.db_manager import DatabaseManager
+from auth.auth_decorator import require_api_key
 from config import config
 
 logger = logging.getLogger(__name__)
@@ -56,8 +57,6 @@ def require_admin_auth(f):
 @require_admin_auth
 def get_system_health():
     """Get overall system health status"""
-    conn = None
-    cursor = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -69,7 +68,7 @@ def get_system_health():
             'database': {'status': 'unknown'}
         }
         
-        # Check Connecteam sync - FIXED: changed to 'shifts' instead of 'time_entries'
+        # Check Connecteam sync
         cursor.execute("""
             SELECT 
                 sync_type,
@@ -78,7 +77,7 @@ def get_system_health():
                 TIMESTAMPDIFF(MINUTE, MAX(created_at), NOW()) as minutes_ago,
                 COUNT(*) as sync_count
             FROM connecteam_sync_log
-            WHERE sync_type = 'shifts'
+            WHERE sync_type = 'time_entries'
             AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
             GROUP BY sync_type
             ORDER BY MAX(created_at) DESC
@@ -86,9 +85,7 @@ def get_system_health():
         """)
         
         connecteam = cursor.fetchone()
-        # Consume any remaining results
-        while cursor.nextset():
-            pass
+        cursor.fetchall()  # Clear any remaining results
         
         if connecteam:
             health['syncs']['connecteam'] = {
@@ -99,7 +96,11 @@ def get_system_health():
                 'records': connecteam['sync_count']
             }
         
-        # Check PodFactory sync - with proper error handling
+        # Close and reopen cursor for next query
+        cursor.close()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check PodFactory sync
         try:
             cursor.execute("""
                 SELECT 
@@ -108,15 +109,11 @@ def get_system_health():
                     TIMESTAMPDIFF(MINUTE, MAX(created_at), NOW()) as minutes_ago,
                     COUNT(*) as items_count
                 FROM activity_logs
-                WHERE scan_type = 'item_scan'
+                WHERE activity_type LIKE '%scan%'
                 AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
             """)
             
             podfactory = cursor.fetchone()
-            # Consume any remaining results
-            while cursor.nextset():
-                pass
-                
             if podfactory and podfactory['last_sync']:
                 health['syncs']['podfactory'] = {
                     'status': 'healthy' if podfactory['minutes_ago'] < 60 else 
@@ -143,11 +140,13 @@ def get_system_health():
         
         # Check database connection
         cursor.execute("SELECT 1")
-        cursor.fetchone()
         health['database']['status'] = 'connected'
         
-        # Show services status
+        # For Windows development, just show services as online
         health['services']['flask-backend'] = {'status': 'online'}
+        
+        cursor.close()
+        conn.close()
         
         return jsonify(health)
         
@@ -157,12 +156,6 @@ def get_system_health():
             'error': 'Failed to get system health',
             'timestamp': datetime.now().isoformat()
         }), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
 @system_control_bp.route('/api/system/pm2-status', methods=['GET'])
 @require_admin_auth  
 def get_pm2_status():

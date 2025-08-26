@@ -42,6 +42,8 @@ class Config:
     # Connecteam API - REMOVE HARDCODED VALUES
     CONNECTEAM_API_KEY = os.getenv('CONNECTEAM_API_KEY')
     CONNECTEAM_CLOCK_ID = int(os.getenv('CONNECTEAM_CLOCK_ID', 0)) if os.getenv('CONNECTEAM_CLOCK_ID') else None
+    ENABLE_AUTO_SYNC = os.getenv('ENABLE_AUTO_SYNC', 'false').lower() == 'true'
+    SYNC_INTERVAL = int(os.getenv('SYNC_INTERVAL', 300))
     CONNECTEAM_BASE_URL = os.getenv('CONNECTEAM_BASE_URL', 'https://api.connecteam.com/v1')
     
     # PodFactory settings

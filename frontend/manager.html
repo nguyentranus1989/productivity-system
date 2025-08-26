@@ -1723,7 +1723,7 @@
         // Update system health status
         async function updateSystemHealth() {
             try {
-                const response = await fetch('http://localhost:5000/api/system/health', {
+                const response = await fetch('/api/system/health', {
                     headers: { 'X-API-Key': 'dev-api-key-123' }
                 });
                 
@@ -1819,7 +1819,7 @@
         async function loadSystemDetails() {
             try {
                 // Get PM2 status
-                const pm2Response = await fetch('http://localhost:5000/api/system/pm2-status', {
+                const pm2Response = await fetch('/api/system/pm2-status', {
                     headers: { 'X-API-Key': 'dev-api-key-123' }
                 });
                 
@@ -1840,7 +1840,7 @@
                 }
                 
                 // Get system health for sync details
-                const healthResponse = await fetch('http://localhost:5000/api/system/health', {
+                const healthResponse = await fetch('/api/system/health', {
                     headers: { 'X-API-Key': 'dev-api-key-123' }
                 });
                 
@@ -1898,7 +1898,7 @@
             }
             
             try {
-                const response = await fetch('http://localhost:5000/api/system/restart-service', {
+                const response = await fetch('/api/system/restart-service', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1933,7 +1933,7 @@
             }
             
             try {
-                const response = await fetch('http://localhost:5000/api/system/force-sync', {
+                const response = await fetch('/api/system/force-sync', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1963,7 +1963,7 @@
             }
             
             try {
-                const response = await fetch('http://localhost:5000/api/system/clear-sync-logs', {
+                const response = await fetch('/api/system/clear-sync-logs', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1987,7 +1987,7 @@
         // Test database connection
         async function testDatabaseConnection() {
             try {
-                const response = await fetch('http://localhost:5000/api/system/test-connection', {
+                const response = await fetch('/api/system/test-connection', {
                     headers: { 'X-API-Key': 'dev-api-key-123' }
                 });
                 
@@ -2015,7 +2015,7 @@
             }
             
             try {
-                const response = await fetch('http://localhost:5000/api/system/reset-connection-pool', {
+                const response = await fetch('/api/system/reset-connection-pool', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2047,7 +2047,7 @@
             }
             
             try {
-                const response = await fetch('http://localhost:5000/api/system/restart-all', {
+                const response = await fetch('/api/system/restart-all', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2948,7 +2948,7 @@
                 const notes = document.getElementById(`notes-${employeeId}`).value;
                 
                 try {
-                    const response = await fetch(`http://localhost:5000/api/dashboard/employees/${employeeId}/payrate`, {
+                    const response = await fetch(`/api/dashboard/employees/${employeeId}/payrate`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -2978,7 +2978,7 @@
             };
             window.loadArchivedEmployees = async function() {
                 try {
-                    const response = await fetch('http://localhost:5000/api/dashboard/employees/archived', {
+                    const response = await fetch('/api/dashboard/employees/archived', {
                         headers: {'X-API-Key': 'dev-api-key-123'}
                     });
                     
@@ -3018,7 +3018,7 @@
                 }
                 
                 try {
-                    const response = await fetch(`http://localhost:5000/api/dashboard/employees/${id}/restore`, {
+                    const response = await fetch(`/api/dashboard/employees/${id}/restore`, {
                         method: 'POST',
                         headers: {'X-API-Key': 'dev-api-key-123'}
                     });
@@ -3039,7 +3039,7 @@
                 }
                 
                 try {
-                    const response = await fetch(`http://localhost:5000/api/dashboard/employees/${id}/archive`, {
+                    const response = await fetch(`/api/dashboard/employees/${id}/archive`, {
                         method: 'POST',
                         headers: {'X-API-Key': 'dev-api-key-123'}
                     });
@@ -3066,7 +3066,7 @@
                 const employeeName = row.querySelectorAll('td')[1].textContent;
                 
                 // Fetch unmapped PodFactory emails and Connecteam users
-                const unmappedData = await fetch('http://localhost:5000/api/dashboard/unmapped-users', {
+                const unmappedData = await fetch('/api/dashboard/unmapped-users', {
                     headers: {'X-API-Key': 'dev-api-key-123'}
                 }).then(r => r.json());
                 
@@ -3137,7 +3137,7 @@
                 }
                 
                 try {
-                    const response = await fetch(`http://localhost:5000/api/dashboard/employees/${employeeId}/mapping`, {
+                    const response = await fetch(`/api/dashboard/employees/${employeeId}/mapping`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -3166,7 +3166,7 @@
                 if (!confirm('Sync all employees from Connecteam? This may take a moment.')) return;
                 
                 try {
-                    const response = await fetch('http://localhost:5000/api/connecteam/sync/employees', {
+                    const response = await fetch('/api/connecteam/sync/employees', {
                         method: 'POST',
                         headers: {'X-API-Key': 'dev-api-key-123'}
                     });
