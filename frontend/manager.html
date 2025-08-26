@@ -1221,7 +1221,7 @@
                             <th style="padding: 12px; text-align: center;">Items</th>
                             <th style="padding: 12px; text-align: center;">$/Item (True)</th>
                             <th style="padding: 12px; text-align: center; color: #22c55e;">$/Item (Active)</th>
-                            <th style="padding: 12px; text-align: center;">Efficiency</th>
+                            
                             <th style="padding: 12px; text-align: center;">Status</th>
                         </tr>
                     </thead>
@@ -1316,13 +1316,6 @@
                     <div class="metric-label">Total Employees</div>
                 </div>
                 
-                <div class="metric-card">
-                    <div class="metric-icon green">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="metric-value" id="activeEmployeeCount">-</div>
-                    <div class="metric-label">Active Today</div>
-                </div>
                 
                 <div class="metric-card">
                     <div class="metric-icon yellow">
@@ -2306,7 +2299,7 @@
             } else {
                 // Fallback to calculating from leaderboard
                 const activeEmployees = leaderboard.filter(e => e.is_clocked_in).length;
-                document.getElementById('activeEmployees').textContent = activeEmployees;
+                document.getElementById('activeEmployeeCount').textContent = activeEmployees;
                 
                 const totalItems = leaderboard.reduce((sum, emp) => sum + (emp.items_today || 0), 0);
                 document.getElementById('itemsProcessed').textContent = totalItems.toLocaleString();
@@ -3890,7 +3883,7 @@
                                     <small style="opacity: 0.7;">(${nonActivePercent.toFixed(0)}%)</small>
                                 </td>
                                 <td style="padding: 12px; text-align: center;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
                                         <div style="width: 100px; height: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden;">
                                             <div style="width: ${emp.utilization_rate || 0}%; height: 100%; background: ${(emp.utilization_rate || 0) > 70 ? '#22c55e' : (emp.utilization_rate || 0) > 50 ? '#3b82f6' : '#f59e0b'};"></div>
                                         </div>
@@ -3907,7 +3900,6 @@
                                 <td style="padding: 12px; text-align: center;">${emp.items_processed || 0}</td>
                                 <td style="padding: 12px; text-align: center;">$${parseFloat(emp.cost_per_item_true || emp.cost_per_item || 0).toFixed(3)}</td>
                                 <td style="padding: 12px; text-align: center; color: #22c55e;">$${parseFloat(emp.cost_per_item_active || 0).toFixed(3)}</td>
-                                <td style="padding: 12px; text-align: center;">${parseFloat(emp.efficiency || 0).toFixed(1)}</td>
                                 <td style="padding: 12px; text-align: center;">
                                     <span class="status-badge" style="background: ${emp.status_color || '#6b7280'}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px;">
                                         ${emp.status || 'UNKNOWN'}
@@ -4030,8 +4022,6 @@
                                     </div>
                                 </div>
                                 <div style="text-align: right;">
-                                    <div style="font-size: 0.85em; color: #808080;">Efficiency</div>
-                                    <div class="champion-value">${efficiency.toFixed(1)}</div>
                                 </div>
                             </div>
                         `;
