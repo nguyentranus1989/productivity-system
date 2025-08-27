@@ -191,7 +191,7 @@ class ProductivityScheduler:
                 
                 # Create alerts for severely idle employees (2x threshold)
                 for idle_emp in idle_employees:
-                    if idle_emp['idle_minutes'] > idle_emp['threshold'] * 2:
+                    if idle_emp['idle_minutes'] > float(idle_emp['threshold']) * 2:
                         self._create_severe_idle_alert(idle_emp)
             else:
                 logger.info("No idle employees detected")
