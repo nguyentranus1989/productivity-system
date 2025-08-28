@@ -1094,6 +1094,24 @@
         <div class="charts-grid" style="margin-top: 30px;">
             <div class="chart-card">
                 <h3 class="chart-title"><i class="fas fa-users"></i> Available Workers</h3>
+                <!-- ADD THIS SEARCH BAR HERE -->
+                <div style="padding: 10px 0;">
+                    <input type="text" 
+                        id="availableWorkersSearch" 
+                        placeholder="🔍 Search workers by name or station..." 
+                        onkeyup="filterAvailableWorkers(this.value)"
+                        style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); 
+                                color: #e0e0e0; border: 1px solid rgba(255,255,255,0.1); 
+                                border-radius: 8px; font-size: 14px;">
+                </div>
+                
+                <div id="availableWorkers">
+                    <div class="no-data">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading worker data...</p>
+                    </div>
+                </div>
+            </div>
                 <div id="availableWorkers">
                     <div class="no-data">
                         <i class="fas fa-spinner fa-spin"></i>
@@ -2572,7 +2590,68 @@
                 </div>
             `;
         }
-        
+
+        // Filter Available Workers function
+        window.filterAvailableWorkers = function(searchValue) {
+            const searchTerm = searchValue.toLowerCase().trim();
+            const workersContainer = document.getElementById('availableWorkers');
+            
+            // Check if container has actual worker data
+            if (workersContainer.innerHTML.includes('no-data') || workersContainer.innerHTML.includes('spinner')) {
+                return;
+            }
+            
+            // Get all station groups
+            const stationGroups = workersContainer.querySelectorAll('.station-group');
+            
+            stationGroups.forEach(group => {
+                // Get all worker divs within this station group
+                const workerDivs = group.querySelectorAll('[style*="padding: 8px"]');
+                let visibleInGroup = 0;
+                
+                workerDivs.forEach(workerDiv => {
+                    const workerText = workerDiv.textContent.toLowerCase();
+                    
+                    // Check if search term matches
+                    if (searchTerm === '' || workerText.includes(searchTerm)) {
+                        workerDiv.style.display = '';
+                        visibleInGroup++;
+                    } else {
+                        workerDiv.style.display = 'none';
+                    }
+                });
+                
+                // Hide the entire station group if no workers match
+                if (visibleInGroup === 0 && searchTerm !== '') {
+                    group.style.display = 'none';
+                } else {
+                    group.style.display = '';
+                    // Update the count badge
+                    const countBadge = group.querySelector('[style*="rgba(102,126,234,0.2)"]');
+                    if (countBadge && searchTerm !== '') {
+                        countBadge.textContent = visibleInGroup;
+                    }
+                }
+            });
+            
+            // Check if any results are visible
+            const visibleGroups = Array.from(stationGroups).filter(g => g.style.display !== 'none');
+            
+            // Remove any existing no results message
+            const existingNoResults = document.getElementById('noSearchResults');
+            if (existingNoResults) {
+                existingNoResults.remove();
+            }
+            
+            // Show no results message if needed
+            if (visibleGroups.length === 0 && searchTerm !== '') {
+                const noResultsDiv = document.createElement('div');
+                noResultsDiv.id = 'noSearchResults';
+                noResultsDiv.style.cssText = 'text-align: center; padding: 20px; color: #808080;';
+                noResultsDiv.innerHTML = `<i class="fas fa-search"></i><p>No workers found matching "${searchTerm}"</p>`;
+                workersContainer.appendChild(noResultsDiv);
+            }
+        };
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Initializing manager dashboard...');
@@ -3591,7 +3670,7 @@
 
             function updateBottleneckDisplay(data) {
                 // Update alert
-                    if (data.primary_bottleneck && data.primary_bottleneck.status !== 'complete') {
+                if (data.primary_bottleneck && data.primary_bottleneck.status !== 'complete') {
                     document.getElementById('bottleneckAlert').style.display = 'flex';
                     document.getElementById('bottleneckMessage').textContent = 
                         `BOTTLENECK: ${data.primary_bottleneck.station} - Queue building at ${data.primary_bottleneck.queue_growth} items/hr`;
@@ -3631,39 +3710,154 @@
                         <td style="padding: 15px; text-align: center;">${station.estimated_queue}</td>
                         <td style="padding: 15px; text-align: center;">
                             ${station.status_level === 'critical' ? '🚨 Critical' : 
-                              station.status_level === 'warning' ? '⚠️ Warning' : '✅ Good'}
+                            station.status_level === 'warning' ? '⚠️ Warning' : '✅ Good'}
                         </td>
                     </tr>
                 `).join('');
                 
-                // Update available workers
+                // Update available workers - GROUPED BY STATION
                 const workersContainer = document.getElementById('availableWorkers');
                 if (data.available_workers && data.available_workers.length > 0) {
-                    workersContainer.innerHTML = data.available_workers.map(worker => `
-                        <div style="padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 10px;">
-                            <strong>${worker.name}</strong><br>
-                            Currently at: ${worker.current_station}<br>
-                            <small>Skills: ${worker.skills.join(', ')}</small>
-                        </div>
-                    `).join('');
+                    // Group workers by station
+                    const workersByStation = {};
+                    
+                    data.available_workers.forEach(worker => {
+                        // Normalize station names
+                        let station = worker.current_station;
+                        if (station === 'QC Passed') {
+                            station = 'Shipping';
+                        }
+                        if (station === 'In Production') {
+                            station = 'Heat Press';
+                        }
+                        station = station || 'Unknown';
+                        
+                        if (!workersByStation[station]) {
+                            workersByStation[station] = [];
+                        }
+                        workersByStation[station].push(worker);
+                    });
+                    
+                    // Build grouped HTML
+                    let html = '';
+                    const stationIcons = {
+                        'Shipping': '📦',
+                        'Heat Press': '🔥',
+                        'Picking': '🎯',
+                        'Labeling': '🏷️',
+                        'Film Matching': '🎬',
+                        'Unknown': '❓'
+                    };
+                    
+                    // Define station order
+                    const stationOrder = ['Shipping', 'Heat Press', 'Picking', 'Labeling', 'Film Matching', 'Unknown'];
+                    
+                    // Sort stations by defined order
+                    const sortedStations = Object.keys(workersByStation).sort((a, b) => {
+                        const indexA = stationOrder.indexOf(a);
+                        const indexB = stationOrder.indexOf(b);
+                        return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+                    });
+                    
+                    for (const station of sortedStations) {
+                        const workers = workersByStation[station];
+                        const icon = stationIcons[station] || '📍';
+                        
+                        html += `
+                            <div class="station-group" style="margin-bottom: 15px; background: rgba(255,255,255,0.02); border-radius: 8px; padding: 10px;">
+                                <div style="display: flex; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer;" 
+                                    onclick="toggleStationGroup('${station}')">
+                                    <span style="font-size: 20px; margin-right: 10px;">${icon}</span>
+                                    <strong style="flex: 1;">${station}</strong>
+                                    <span style="background: rgba(102,126,234,0.2); padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 10px;">${workers.length}</span>
+                                    <span id="arrow-${station}" style="transition: transform 0.2s;">▼</span>
+                                </div>
+                                <div id="station-workers-${station}" style="padding-left: 10px; display: block;">
+                                    ${workers.map(worker => `
+                                        <div style="padding: 8px; margin: 5px 0; background: rgba(255,255,255,0.05); border-radius: 6px;">
+                                            <strong>${worker.name}</strong><br>
+                                            <small style="color: #808080;">📍 Currently at: ${station === 'Unknown' ? 'Unknown' : station}</small>
+                                            ${worker.skills && worker.skills.length > 0 ? `<br><small style="color: #667eea;">Skills: ${worker.skills.join(', ')}</small>` : ''}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    workersContainer.innerHTML = html;
                 } else {
                     workersContainer.innerHTML = '<p style="color: #808080;">No available workers</p>';
                 }
-                
-                // Update recommendations
+                // Update recommendations with action buttons
                 const recsContainer = document.getElementById('recommendations');
                 if (data.recommendations && data.recommendations.length > 0) {
                     recsContainer.innerHTML = data.recommendations.map(rec => `
                         <div style="padding: 10px; background: rgba(102,126,234,0.1); border-radius: 8px; margin-bottom: 10px;">
                             <strong>Move ${rec.worker}</strong><br>
                             From: ${rec.from} → To: ${rec.to}<br>
-                            <small>${rec.reason}</small>
+                            <small>${rec.reason}</small><br>
+                            <button onclick="executeReassignment('${rec.worker}', '${rec.from}', '${rec.to}')" 
+                                    style="margin-top: 8px; padding: 5px 12px; background: #667eea; color: white; 
+                                        border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                Execute Move
+                            </button>
                         </div>
                     `).join('');
                 } else {
                     recsContainer.innerHTML = '<p style="color: #808080;">System is balanced</p>';
                 }
             }
+            // Toggle station group visibility
+            window.toggleStationGroup = function(station) {
+                const element = document.getElementById(`station-workers-${station}`);
+                const arrow = document.getElementById(`arrow-${station}`);
+                if (element) {
+                    if (element.style.display === 'none') {
+                        element.style.display = 'block';
+                        arrow.style.transform = 'rotate(0deg)';
+                    } else {
+                        element.style.display = 'none';
+                        arrow.style.transform = 'rotate(-90deg)';
+                    }
+                }
+            };
+            // Add this reassign function right after updateBottleneckDisplay
+            window.reassignWorker = function(workerName, currentStation, newStation) {
+                if (!confirm(`Move ${workerName} from ${currentStation} to ${newStation}?`)) {
+                    return;
+                }
+                executeReassignment(workerName, currentStation, newStation);
+            };
+
+            // Add the execute reassignment function
+            window.executeReassignment = async function(workerName, fromStation, toStation) {
+                try {
+                    const response = await fetch('/api/dashboard/reassign-worker', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': 'dev-api-key-123'
+                        },
+                        body: JSON.stringify({
+                            worker_name: workerName,
+                            from_station: fromStation,
+                            to_station: toStation,
+                            timestamp: new Date().toISOString()
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        alert(`${workerName} reassigned to ${toStation}`);
+                        loadBottleneckData();
+                    } else {
+                        alert('Failed to reassign worker');
+                    }
+                } catch (error) {
+                    console.error('Error reassigning worker:', error);
+                    alert('Error reassigning worker');
+                }
+            };
 
             // Auto-refresh bottleneck data when on that section
             setInterval(() => {
@@ -3672,7 +3866,6 @@
                     loadBottleneckData();
                 }
             }, 30000); // Every 30 seconds
-
             // ========== COST ANALYSIS FUNCTIONS ==========
 
                 // Load Cost Analysis Data
