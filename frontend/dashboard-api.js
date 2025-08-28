@@ -40,7 +40,7 @@ class ProductivityAPI {
             throw error;
         }
     }
-        // Add this helper method
+    // Add this helper method
     getCentralDate() {
         // Get current time
         const now = new Date();
@@ -58,6 +58,39 @@ class ProductivityAPI {
         return `${year}-${month}-${day}`;
     }
 
+    /**
+     * Convert Central Time date to UTC boundaries for database queries
+     * @param {string} ctDate - Date in 'YYYY-MM-DD' format
+     * @returns {object} {utc_start: 'YYYY-MM-DD HH:MM:SS', utc_end: 'YYYY-MM-DD HH:MM:SS'}
+     */
+    getUTCBoundariesForCTDate(ctDate) {
+        const [year, month, day] = ctDate.split('-').map(Number);
+        
+        // Check if date is in DST (rough approximation for Central Time)
+        // CDT runs March - November
+        const isDST = (month >= 3 && month <= 11);
+        const offsetHours = isDST ? 5 : 6; // CDT = UTC-5, CST = UTC-6
+        
+        // Format date strings for SQL
+        const pad = (n) => String(n).padStart(2, '0');
+        
+        // Start: midnight CT on the given date
+        const utcStart = `${year}-${pad(month)}-${pad(day)} ${pad(offsetHours)}:00:00`;
+        
+        // End: 23:59:59 CT on the given date
+        const nextDay = new Date(year, month - 1, day + 1);
+        const endYear = nextDay.getFullYear();
+        const endMonth = nextDay.getMonth() + 1;
+        const endDay = nextDay.getDate();
+        const utcEnd = `${endYear}-${pad(endMonth)}-${pad(endDay)} ${pad(offsetHours - 1)}:59:59`;
+        
+        return {
+            utc_start: utcStart,
+            utc_end: utcEnd,
+            ct_date: ctDate,
+            is_dst: isDST
+        };
+    }
 
     // Dashboard endpoints
     async getDepartmentStats() {
@@ -65,12 +98,17 @@ class ProductivityAPI {
     }
 
     async getLeaderboardRange(startDate, endDate) {
-        return this.request(`/dashboard/analytics/date-range?start_date=${startDate}&end_date=${endDate}`);
+        const startBoundaries = this.getUTCBoundariesForCTDate(startDate);
+        const endBoundaries = this.getUTCBoundariesForCTDate(endDate);
+    
+        return this.request(`/dashboard/analytics/date-range?start_date=${startDate}&end_date=${endDate}&utc_start=${encodeURIComponent(startBoundaries.utc_start)}&utc_end=${encodeURIComponent(endBoundaries.utc_end)}`);
     }
 
     async getLeaderboard(date = null) {
         const targetDate = date || this.getCentralDate();
-        return this.request(`/dashboard/leaderboard?date=${targetDate}`);
+        const boundaries = this.getUTCBoundariesForCTDate(targetDate);
+        
+        return this.request(`/dashboard/leaderboard?date=${targetDate}&utc_start=${encodeURIComponent(boundaries.utc_start)}&utc_end=${encodeURIComponent(boundaries.utc_end)}`);
     }
 
     async getRecentActivities(limit = 10) {
@@ -83,9 +121,11 @@ class ProductivityAPI {
 
     async getHourlyProductivity(date = null) {
         const targetDate = date || this.getCentralDate();
-        return this.request(`/dashboard/analytics/hourly?date=${targetDate}`);
+        const boundaries = this.getUTCBoundariesForCTDate(targetDate);
+        
+        return this.request(`/dashboard/analytics/hourly?date=${targetDate}&utc_start=${encodeURIComponent(boundaries.utc_start)}&utc_end=${encodeURIComponent(boundaries.utc_end)}`);
     }
-    
+
     // Add a method to get current Central Time
     getCurrentCentralTime() {
         const now = new Date();
@@ -151,15 +191,21 @@ class ProductivityAPI {
     }
     async getCostAnalysis(startDate = null, endDate = null) {
         let params = '';
+        
         if (startDate && endDate) {
-            params = `?start_date=${startDate}&end_date=${endDate}`;
+            const startBoundaries = this.getUTCBoundariesForCTDate(startDate);
+            const endBoundaries = this.getUTCBoundariesForCTDate(endDate);
+            params = `?start_date=${startDate}&end_date=${endDate}&utc_start=${encodeURIComponent(startBoundaries.utc_start)}&utc_end=${encodeURIComponent(endBoundaries.utc_end)}`;
         } else if (startDate) {
-            params = `?start_date=${startDate}&end_date=${startDate}`;
+            const boundaries = this.getUTCBoundariesForCTDate(startDate);
+            params = `?start_date=${startDate}&end_date=${startDate}&utc_start=${encodeURIComponent(boundaries.utc_start)}&utc_end=${encodeURIComponent(boundaries.utc_end)}`;
         } else {
             // No dates provided, use today
             const today = this.getCentralDate();
-            params = `?start_date=${today}&end_date=${today}`;
+            const boundaries = this.getUTCBoundariesForCTDate(today);
+            params = `?start_date=${today}&end_date=${today}&utc_start=${encodeURIComponent(boundaries.utc_start)}&utc_end=${encodeURIComponent(boundaries.utc_end)}`;
         }
+        
         return this.request(`/dashboard/cost-analysis${params}`);
     }
 

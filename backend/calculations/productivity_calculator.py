@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple
 import logging
 from collections import defaultdict
 import pytz  # ADD THIS IMPORT
-
+from utils.timezone_helpers import TimezoneHelper
 from database.db_manager import get_db, DatabaseManager  # FIX: Import DatabaseManager
 from models import Employee, RoleConfig, ActivityLog, DailyScore
 
@@ -18,6 +18,7 @@ class ProductivityCalculator:
         self._role_cache = {}
         self._load_role_configs()
         self.central_tz = pytz.timezone('America/Chicago')  # ADD: Store timezone
+        self.tz_helper = TimezoneHelper()
         
     def get_central_date(self):
         """Get current date in Central Time"""
@@ -61,6 +62,9 @@ class ProductivityCalculator:
         else:
             process_date = process_date.date()
         
+        # Get UTC boundaries for the Central Time date
+        utc_start, utc_end = self.tz_helper.ct_date_to_utc_range(process_date)
+        
         clock_data = self.db.execute_one(
             """
             SELECT 
@@ -69,9 +73,10 @@ class ProductivityCalculator:
                 TIMESTAMPDIFF(MINUTE, MIN(clock_in), MAX(COALESCE(clock_out, NOW()))) as total_minutes
             FROM clock_times
             WHERE employee_id = %s 
-            AND DATE(clock_in) = %s
+            AND clock_in >= %s
+            AND clock_in < %s
             """,
-            (employee_id, process_date)
+            (employee_id, utc_start, utc_end)
         )
         
         if not clock_data or not clock_data['total_minutes']:
@@ -214,6 +219,9 @@ class ProductivityCalculator:
             process_date = self.get_central_date()
             
         try:
+            # Get UTC boundaries for the Central Time date (if not already done)
+            utc_start, utc_end = self.tz_helper.ct_date_to_utc_range(process_date)
+            
             # Get employee data (removed role_id join since it's activity-based now)
             employee_data = self.db.execute_one(
                 """
@@ -233,25 +241,26 @@ class ProductivityCalculator:
                 """
                 SELECT * FROM activity_logs 
                 WHERE employee_id = %s 
-                AND DATE(window_start) = %s
+                AND window_start >= %s
+                AND window_start < %s
                 ORDER BY window_start
                 """,
-                (employee_id, process_date)
+                (employee_id, utc_start, utc_end)
             )
             
-            # CHANGE: Get clock times for the day with timezone conversion
             clock_data = self.db.execute_one(
                 """
                 SELECT 
                     MIN(clock_in) as first_clock_in,
                     MAX(COALESCE(clock_out, NOW())) as last_clock_out,
-                    SUM(TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, NOW()))) as total_minutes,
-                    SUM(break_minutes) as total_break_minutes
+                    SUM(total_minutes) as total_minutes,  -- USE THE EXISTING COLUMN!
+                    SUM(COALESCE(break_minutes, 0)) as total_break_minutes
                 FROM clock_times
                 WHERE employee_id = %s 
-                AND DATE(clock_in) = %s
+                AND clock_in >= %s
+                AND clock_in < %s
                 """,
-                (employee_id, process_date)
+                (employee_id, utc_start, utc_end)
             )
             
             # Calculate metrics
@@ -453,20 +462,23 @@ class ProductivityCalculator:
     
     def process_all_employees_for_date(self, process_date: date = None) -> Dict:
         """Process all active employees for a specific date"""
-        # CHANGE: Use dynamic date if not provided
         if process_date is None:
             process_date = self.get_central_date()
-            
-        # Get all active employees who worked today
+        
+        # Get UTC boundaries for the Central Time date
+        utc_start, utc_end = self.tz_helper.ct_date_to_utc_range(process_date)
+        
+        # Get all active employees who worked on this Central Time date
         employees = self.db.execute_query(
             """
             SELECT DISTINCT e.id, e.name 
             FROM employees e
             JOIN clock_times ct ON ct.employee_id = e.id
             WHERE e.is_active = TRUE
-            AND DATE(ct.clock_in) = %s
+            AND ct.clock_in >= %s
+            AND ct.clock_in < %s
             """,
-            (process_date,)
+            (utc_start, utc_end)
         )
         
         results = {

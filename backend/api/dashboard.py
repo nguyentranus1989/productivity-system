@@ -237,24 +237,42 @@ def get_department_stats():
 @require_api_key
 @cached_endpoint(ttl_seconds=10)
 def get_leaderboard():
-    
     """Get employee leaderboard with comprehensive data"""
     date = request.args.get('date', get_central_date().strftime('%Y-%m-%d'))
+    
+    # Get UTC boundaries from request
+    utc_start = request.args.get('utc_start')
+    utc_end = request.args.get('utc_end')
+    
+    # If UTC boundaries not provided, calculate them (fallback for backwards compatibility)
+    if not utc_start or not utc_end:
+        year, month, day = map(int, date.split('-'))
+        # Simple DST check (CDT runs March - November)
+        is_dst = 3 <= month <= 11
+        offset_hours = 5 if is_dst else 6
+        
+        # Calculate UTC boundaries
+        utc_start = f"{date} {offset_hours:02d}:00:00"
+        
+        # Next day for end boundary
+        from datetime import datetime, timedelta
+        next_day = datetime(year, month, day) + timedelta(days=1)
+        utc_end = f"{next_day.strftime('%Y-%m-%d')} {offset_hours-1:02d}:59:59"
     
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
-        # Fixed query with activity type aggregation instead of role aggregation
+        # Updated query using UTC boundaries
         query = """
         WITH activity_aggregates AS (
-            -- Aggregate items by employee and activity type
+            -- Aggregate items by employee and activity type using UTC boundaries
             SELECT 
                 al.employee_id,
                 al.activity_type,
                 SUM(al.items_count) as total_items
             FROM activity_logs al
-            WHERE DATE(al.window_start) = %s
+            WHERE al.window_start >= %s AND al.window_start <= %s
             AND al.source = 'podfactory'
             GROUP BY al.employee_id, al.activity_type
             HAVING total_items > 0
@@ -301,13 +319,13 @@ def get_leaderboard():
                 FROM activity_aggregates aa
                 WHERE aa.employee_id = e.id
             ) as activity_breakdown,
-            -- Get primary role based on most items
+            -- Get primary role based on most items using UTC boundaries
             (
                 SELECT rc.role_name
                 FROM activity_logs al2
                 JOIN role_configs rc ON rc.id = al2.role_id
                 WHERE al2.employee_id = e.id
-                AND DATE(al2.window_start) = %s
+                AND al2.window_start >= %s AND al2.window_start <= %s
                 GROUP BY al2.role_id, rc.role_name
                 ORDER BY SUM(al2.items_count) DESC
                 LIMIT 1
@@ -315,13 +333,13 @@ def get_leaderboard():
         FROM employees e
         LEFT JOIN daily_scores ds ON ds.employee_id = e.id AND ds.score_date = %s
         LEFT JOIN (
-            -- Clock times calculated independently
+            -- Clock times using UTC boundaries
             SELECT 
                 employee_id,
                 SUM(total_minutes) as total_minutes,
                 MAX(CASE WHEN clock_out IS NULL THEN 1 ELSE 0 END) as is_clocked_in
             FROM clock_times
-            WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = %s
+            WHERE clock_in >= %s AND clock_in <= %s
             GROUP BY employee_id
         ) ct ON ct.employee_id = e.id
         WHERE e.is_active = 1
@@ -329,10 +347,11 @@ def get_leaderboard():
         ORDER BY COALESCE(ds.points_earned, 0) DESC
         """
         
-        cursor.execute(query, (date, date, date, date))
+        # Execute with UTC boundaries instead of date
+        cursor.execute(query, (utc_start, utc_end, utc_start, utc_end, date, utc_start, utc_end))
         leaderboard = cursor.fetchall()
         
-        # Process and format the data
+        # Process and format the data (rest remains the same)
         for idx, emp in enumerate(leaderboard):
             emp['rank'] = idx + 1
             emp['score'] = round(float(emp['score'] or 0), 2)
@@ -341,10 +360,6 @@ def get_leaderboard():
             
             # Format time worked properly
             total_mins = int(emp.get('total_minutes', 0) or 0)
-            
-            # Cap at 12 hours if needed
-            # Removed cap: if total_mins > 720:
-            #     total_mins = 720
             
             hours = total_mins // 60
             minutes = total_mins % 60
@@ -2742,10 +2757,9 @@ def test_bottleneck():
 @dashboard_bp.route('/cost-analysis', methods=['GET'])
 @cached_endpoint(ttl_seconds=30)
 def get_cost_analysis():
-    
     """Get comprehensive cost analysis data with support for date ranges"""
     try:
-        from datetime import datetime
+        from datetime import datetime, timedelta
         from database.db_manager import DatabaseManager
         db_manager = DatabaseManager()
         
@@ -2759,13 +2773,37 @@ def get_cost_analysis():
             start_date = request.args.get('start_date', datetime.now().strftime('%Y-%m-%d'))
             end_date = request.args.get('end_date', start_date)
         
-        # ADD THIS LINE - Define is_date_range variable
+        # Get UTC boundaries from request
+        utc_start = request.args.get('utc_start')
+        utc_end = request.args.get('utc_end')
+        
+        # If UTC boundaries not provided, calculate them (fallback)
+        if not utc_start or not utc_end:
+            # Parse dates
+            start_year, start_month, start_day = map(int, start_date.split('-'))
+            end_year, end_month, end_day = map(int, end_date.split('-'))
+            
+            # Check DST
+            is_dst_start = 3 <= start_month <= 11
+            is_dst_end = 3 <= end_month <= 11
+            
+            offset_start = 5 if is_dst_start else 6
+            offset_end = 5 if is_dst_end else 6
+            
+            # Calculate UTC boundaries
+            utc_start = f"{start_date} {offset_start:02d}:00:00"
+            
+            # End date needs next day for boundary
+            end_next = datetime(end_year, end_month, end_day) + timedelta(days=1)
+            utc_end = f"{end_next.strftime('%Y-%m-%d')} {offset_end-1:02d}:59:59"
+        
+        # Define is_date_range variable
         is_date_range = (start_date != end_date)
         
         # Log for debugging
-        logger.info(f"Cost analysis for: {start_date} to {end_date} (is_range: {is_date_range})")
+        logger.info(f"Cost analysis for: {start_date} to {end_date} (UTC: {utc_start} to {utc_end})")
                
-        # Get employee costs for the date range
+        # Get employee costs for the date range - UPDATE ALL QUERIES TO USE UTC BOUNDARIES
         employee_costs_query = """
         WITH employee_hours AS (
             -- Get actual clocked hours for ALL employees who worked
@@ -2782,27 +2820,27 @@ def get_cost_analysis():
                     (SELECT SUM(TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, NOW()))) / 60.0 
                     FROM clock_times 
                     WHERE employee_id = e.id 
-                    AND DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s),
+                    AND clock_in >= %s AND clock_in <= %s),
                     0
                 ) as clocked_hours,
                 COALESCE(
-                    (SELECT COUNT(DISTINCT DATE(clock_in)) 
+                    (SELECT COUNT(DISTINCT DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago'))) 
                     FROM clock_times 
                     WHERE employee_id = e.id 
-                    AND DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s),
+                    AND clock_in >= %s AND clock_in <= %s),
                     0
                 ) as days_worked,
                 (SELECT MIN(clock_in) 
                 FROM clock_times 
                 WHERE employee_id = e.id 
-                AND DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s) as first_clock_in
+                AND clock_in >= %s AND clock_in <= %s) as first_clock_in
             FROM employees e
             LEFT JOIN employee_payrates ep ON e.id = ep.employee_id
             WHERE e.is_active = 1
             AND EXISTS (
                 SELECT 1 FROM clock_times ct2 
                 WHERE ct2.employee_id = e.id 
-                AND DATE(CONVERT_TZ(ct2.clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
+                AND ct2.clock_in >= %s AND ct2.clock_in <= %s
             )
         ),
         employee_activities AS (
@@ -2868,13 +2906,49 @@ def get_cost_analysis():
         ORDER BY eh.name
         """
 
+        # Use UTC boundaries instead of dates
         employee_costs = db_manager.execute_query(
             employee_costs_query, 
-            (start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date,  # employee_hours CTE
-            start_date, end_date,  # employee_activities CTE
-            start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date)  # main SELECT
+            (utc_start, utc_end, utc_start, utc_end, utc_start, utc_end, utc_start, utc_end,  # employee_hours CTE
+            start_date, end_date,  # employee_activities CTE (keep dates for daily_scores)
+            start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date)  # main SELECT (keep dates for daily_scores)
         )
-        # Calculate additional metrics for each employee
+        
+        # Get activity breakdown for each employee
+        for emp in employee_costs:
+            activity_breakdown_query = """
+            SELECT 
+                activity_type,
+                SUM(items_count) as total_items
+            FROM activity_logs
+            WHERE employee_id = %s
+            AND window_start >= %s
+            AND window_start <= %s
+            AND source = 'podfactory'
+            GROUP BY activity_type
+            """
+            
+            breakdown_result = db_manager.execute_query(activity_breakdown_query, 
+                (emp['id'], utc_start, utc_end))
+            
+            # Transform into a dictionary
+            activity_breakdown = {
+                'picking': 0,
+                'labeling': 0,
+                'film_matching': 0,
+                'in_production': 0,
+                'qc_passed': 0
+            }
+            
+            for row in breakdown_result:
+                if row and row['activity_type']:
+                    activity_type = row['activity_type'].lower().replace(' ', '_')
+                    if activity_type in activity_breakdown:
+                        activity_breakdown[activity_type] = row['total_items'] or 0
+            
+            emp['activity_breakdown'] = activity_breakdown
+        
+        # Calculate additional metrics for each employee (rest of the code remains the same)
         for emp in employee_costs:
             try:
                 total_cost = float(emp.get('total_cost', 0) or 0)
@@ -2914,7 +2988,7 @@ def get_cost_analysis():
             except (TypeError, ValueError, ZeroDivisionError) as e:
                 logger.error(f"Error calculating metrics for {emp.get('name', 'Unknown')}: {str(e)}")
 
-        # Get department costs for date range
+        # Get department costs for date range - UPDATE TO USE UTC BOUNDARIES
         department_costs_query = """
         SELECT 
             al.department,
@@ -2931,25 +3005,26 @@ def get_cost_analysis():
         FROM activity_logs al
         JOIN employees e ON al.employee_id = e.id
         LEFT JOIN employee_payrates ep ON e.id = ep.employee_id
-        WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
+        WHERE al.window_start >= %s AND al.window_start <= %s
         AND al.source = 'podfactory'
         GROUP BY al.department
         ORDER BY total_cost DESC
         """
         
-        department_costs = db_manager.execute_query(department_costs_query, (start_date, end_date))
+        department_costs = db_manager.execute_query(department_costs_query, (utc_start, utc_end))
 
-        # Get QC Passed items for date range
+        # Get QC Passed items for date range - UPDATE TO USE UTC BOUNDARIES
         qc_passed_query = """
         SELECT COALESCE(SUM(items_count), 0) as qc_passed_items
         FROM activity_logs 
-        WHERE DATE(window_start) BETWEEN %s AND %s
+        WHERE window_start >= %s AND window_start <= %s
         AND activity_type = 'QC Passed'
         AND source = 'podfactory'
         """
-        qc_passed_result = db_manager.execute_query(qc_passed_query, (start_date, end_date))
+        qc_passed_result = db_manager.execute_query(qc_passed_query, (utc_start, utc_end))
         qc_passed_items = int(qc_passed_result[0]['qc_passed_items']) if qc_passed_result else 0
 
+        # Rest of the function remains the same...
         # Calculate totals
         totals = {
             'active_employees': len(employee_costs),
@@ -3006,7 +3081,7 @@ def get_cost_analysis():
             'daily_avg_cost': round(totals['total_labor_cost'] / days_in_range, 2) if is_date_range else totals['total_labor_cost'],
             'daily_avg_items': round(qc_passed_items / days_in_range, 0) if is_date_range else qc_passed_items,
             'top_performers': top_performers[:5],
-            'is_range': is_date_range  # Also include at top level for compatibility
+            'is_range': is_date_range
         })
         
     except Exception as e:

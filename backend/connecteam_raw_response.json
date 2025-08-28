@@ -1,0 +1,575 @@
+{
+  "requestId": "f2991380-ff2c-4a5e-8d2e-c79711830fc7",
+  "data": {
+    "timeActivitiesByUsers": [
+      {
+        "userId": 7458273,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 7616815,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 7616817,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 8736499,
+        "shifts": [
+          {
+            "id": "68aee58ce7ecb88be1d2ce9d",
+            "start": {
+              "timestamp": 1756292492,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1765, San Antonio, United States, 78219",
+                "longitude": -98.42917170558053,
+                "latitude": 29.449352189397988
+              }
+            },
+            "createdAt": 1756292492,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 8736501,
+        "shifts": [
+          {
+            "id": "68af050636456893ff58afc8",
+            "start": {
+              "timestamp": 1756300550,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1751, San Antonio, United States, 78219",
+                "longitude": -98.42875985437857,
+                "latitude": 29.449471626458177
+              }
+            },
+            "createdAt": 1756300550,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 8736529,
+        "shifts": [
+          {
+            "id": "68aeba6740568c7d39902d13",
+            "start": {
+              "timestamp": 1756281447,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1765, San Antonio, United States, 78219",
+                "longitude": -98.42896894255065,
+                "latitude": 29.449232135219525
+              }
+            },
+            "end": {
+              "timestamp": 1756304917,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1765, San Antonio, United States, 78219",
+                "longitude": -98.42905064688271,
+                "latitude": 29.449331380383647
+              }
+            },
+            "createdAt": 1756281447,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 8736685,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 8822503,
+        "shifts": [
+          {
+            "id": "68af16c6a134560e1ecf013d",
+            "start": {
+              "timestamp": 1756305094,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1751, San Antonio, United States, 78219",
+                "longitude": -98.42903443699007,
+                "latitude": 29.449727074548974
+              }
+            },
+            "createdAt": 1756305094,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 8845667,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 8976351,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 9011637,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 9075792,
+        "shifts": [
+          {
+            "id": "68aec0e9dd81aa30a0f972ef",
+            "start": {
+              "timestamp": 1756283113,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1751, Th\u00e0nh ph\u1ed1 San Antonio, Hi\u1ec7p Ch\u1ee7ng Qu\u1ed1c Hoa K\u1ef3, 78219",
+                "longitude": -98.42911348811619,
+                "latitude": 29.44953641263682
+              }
+            },
+            "createdAt": 1756283113,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 9224315,
+        "shifts": [
+          {
+            "id": "68af050b20513fd17ef71c68",
+            "start": {
+              "timestamp": 1756300555,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1751, Th\u00e0nh ph\u1ed1 San Antonio, Hi\u1ec7p Ch\u1ee7ng Qu\u1ed1c Hoa K\u1ef3, 78219",
+                "longitude": -98.42878416189777,
+                "latitude": 29.449578495723614
+              }
+            },
+            "createdAt": 1756300555,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 9283744,
+        "shifts": [
+          {
+            "id": "68af12b3fe0bdafcd31b46cc",
+            "start": {
+              "timestamp": 1756304051,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Drive, 1769, San Antonio, United States, 78219",
+                "longitude": -98.4291361,
+                "latitude": 29.4492256
+              }
+            },
+            "createdAt": 1756304051,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 9306892,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 9306893,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 9557936,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 9692638,
+        "shifts": [
+          {
+            "id": "68aef1a11db648ec19ec62ff",
+            "start": {
+              "timestamp": 1756295585,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Drive, 1769, San Antonio, United States, 78219",
+                "longitude": -98.4290668,
+                "latitude": 29.4495322
+              }
+            },
+            "createdAt": 1756295585,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 9697806,
+        "shifts": [
+          {
+            "id": "68aefe9c56f65c384def6e7e",
+            "start": {
+              "timestamp": 1756298908,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Drive, 1765, San Antonio, United States, 78219",
+                "longitude": -98.4287816,
+                "latitude": 29.4497135
+              }
+            },
+            "createdAt": 1756298908,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 9910275,
+        "shifts": [
+          {
+            "id": "68aefc7e3be751f72c87534a",
+            "start": {
+              "timestamp": 1756298366,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1751, San Antonio, United States, 78219",
+                "longitude": -98.42874015690612,
+                "latitude": 29.449814446297893
+              }
+            },
+            "createdAt": 1756298366,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 9946282,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 10036025,
+        "shifts": [
+          {
+            "id": "68aed7fe43c120faa8cbd61b",
+            "start": {
+              "timestamp": 1756289022,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Drive, 1765, San Antonio, United States, 78219",
+                "longitude": -98.4289456,
+                "latitude": 29.4495401
+              }
+            },
+            "createdAt": 1756289022,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 10318909,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 11311426,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 11311428,
+        "shifts": [
+          {
+            "id": "68aee2aa4f204a2b9cfb6281",
+            "start": {
+              "timestamp": 1756291754,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1751, San Antonio, United States, 78219",
+                "longitude": -98.4288436785128,
+                "latitude": 29.449795136496494
+              }
+            },
+            "createdAt": 1756291754,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 11311429,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 11356004,
+        "shifts": [
+          {
+            "id": "68af05dc880f01638ed74919",
+            "start": {
+              "timestamp": 1756300764,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Drive, 1769, San Antonio, United States, 78219",
+                "longitude": -98.4290807,
+                "latitude": 29.4492146
+              }
+            },
+            "createdAt": 1756300764,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 11356005,
+        "shifts": [
+          {
+            "id": "68af008cad212fa096673694",
+            "start": {
+              "timestamp": 1756299404,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Drive, 1769, San Antonio, United States, 78219",
+                "longitude": -98.4290914,
+                "latitude": 29.449232
+              }
+            },
+            "createdAt": 1756299404,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 11356006,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 11418414,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 11736642,
+        "shifts": [
+          {
+            "id": "68af009020513fd17ef71b34",
+            "start": {
+              "timestamp": 1756299408,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1765, San Antonio, United States, 78219",
+                "longitude": -98.42882949491018,
+                "latitude": 29.449151162161385
+              }
+            },
+            "end": {
+              "timestamp": 1756307729,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1765, San Antonio, United States, 78219",
+                "longitude": -98.42901761392544,
+                "latitude": 29.449328356824967
+              }
+            },
+            "createdAt": 1756299408,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          },
+          {
+            "id": "68af268865e1020cc0021b3a",
+            "start": {
+              "timestamp": 1756309128,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1765, San Antonio, United States, 78219",
+                "longitude": -98.42907214133827,
+                "latitude": 29.449211153624848
+              }
+            },
+            "createdAt": 1756309128,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 12132089,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 12132090,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 12139511,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 12305662,
+        "shifts": [
+          {
+            "id": "68aee40f5ef3b8a41c4b9612",
+            "start": {
+              "timestamp": 1756292111,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1765, San Antonio, United States, 78219",
+                "longitude": -98.42912537158601,
+                "latitude": 29.44924707238545
+              }
+            },
+            "createdAt": 1756292111,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 12370642,
+        "shifts": [
+          {
+            "id": "68af12431885fdc26af92ee9",
+            "start": {
+              "timestamp": 1756303939,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1765, San Antonio, United States, 78219",
+                "longitude": -98.42907892174243,
+                "latitude": 29.449192629685147
+              }
+            },
+            "createdAt": 1756303939,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 12393420,
+        "shifts": [],
+        "manualBreaks": [],
+        "timeOffs": []
+      },
+      {
+        "userId": 12393566,
+        "shifts": [
+          {
+            "id": "68af1493fe0bdafcd31b46fd",
+            "start": {
+              "timestamp": 1756304531,
+              "timezone": "America/Chicago",
+              "locationData": {
+                "address": "Shipman Dr, 1765, San Antonio, United States, 78219",
+                "longitude": -98.42907732771279,
+                "latitude": 29.449442574092608
+              }
+            },
+            "createdAt": 1756304531,
+            "jobId": "a429b1a5-c54e-8993-f885-873d8a154320",
+            "shiftAttachments": [],
+            "isAutoClockOut": false
+          }
+        ],
+        "manualBreaks": [],
+        "timeOffs": []
+      }
+    ]
+  }
+}

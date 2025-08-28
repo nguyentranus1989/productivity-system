@@ -243,13 +243,6 @@ def connecteam_status():
         'clock_id': config.CONNECTEAM_CLOCK_ID
     })
 
-
-# ============= STATION ASSIGNMENT ROUTES =============
-
-
-# ============= STATION ASSIGNMENT ROUTES =============
-
-
 # ============= STATION ASSIGNMENT ROUTES =============
 @app.route('/api/station-performance', methods=['GET'])
 def get_station_performance():
