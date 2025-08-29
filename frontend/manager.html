@@ -1134,8 +1134,8 @@
     <!-- Cost Analysis Section -->
     <div id="cost-section" class="section-content">
         <!-- Cost Overview Cards -->
-        <div class="metrics-grid" style="margin-bottom: 30px;">
-            <div class="metric-card">
+        <div class="metrics-grid" style="margin-bottom: 30px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
+            <div class="metric-card" style="padding: 20px;">
                 <div class="metric-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
                     <i class="fas fa-dollar-sign"></i>
                 </div>
@@ -1148,7 +1148,7 @@
                 </div>
             </div>
 
-            <div class="metric-card">
+            <div class="metric-card" style="padding: 20px;">
                 <div class="metric-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
                     <i class="fas fa-box"></i>
                 </div>
@@ -1161,7 +1161,7 @@
                 </div>
             </div>
 
-            <div class="metric-card">
+            <div class="metric-card" style="padding: 20px;">
                 <div class="metric-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
                     <i class="fas fa-chart-line"></i>
                 </div>
@@ -1174,7 +1174,7 @@
                 </div>
             </div>
 
-            <div class="metric-card" style="border: 2px solid #ef4444;">
+            <div class="metric-card" style="padding: 20px; border: 2px solid #ef4444;">
                 <div class="metric-icon" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
                     <i class="fas fa-clock"></i>
                 </div>
@@ -1187,7 +1187,7 @@
                 </div>
             </div>
 
-            <div class="metric-card">
+            <div class="metric-card" style="padding: 20px;">
                 <div class="metric-icon" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
                     <i class="fas fa-users"></i>
                 </div>
@@ -4487,7 +4487,7 @@ function applyDateFilter() {
             // Update the dashboard title
             const titleElement = document.querySelector('.dashboard-title p');
             if (startDate === endDate) {
-                const dateObj = new Date(startDate + 'T12:00:00');
+                const dateObj = new Date(startDate + 'T12:00:00');f
                 titleElement.textContent = `Data for ${dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
             } else {
                 titleElement.textContent = `Data from ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`;
