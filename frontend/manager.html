@@ -1190,11 +1190,12 @@
         </div>
 
         <!-- Employee Cost Analysis Table -->
-        <div class="chart-card" style="margin-bottom: 30px;">
-            <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div class="chart-container">
+            <div class="chart-header">
                 <h3 class="chart-title"><i class="fas fa-users"></i> Employee Cost Analysis</h3>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <select id="costSortBy" style="background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); padding: 8px; border-radius: 8px;">
+                        <option value="name">Sort by Name</option>
                         <option value="utilization">Sort by Utilization</option>
                         <option value="cost_per_item">Sort by Cost/Item</option>
                         <option value="total_cost">Sort by Total Cost</option>
@@ -1206,6 +1207,13 @@
                         <span>Export</span>
                     </button>
                 </div>
+            </div>
+            <div style="padding: 15px 20px 10px 20px;">
+                <input type="text" id="costSearchInput" placeholder="Search by name..." 
+                       style="width: 100%; max-width: 400px; padding: 10px; background: rgba(255,255,255,0.05); 
+                              color: #e0e0e0; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+                              font-size: 14px;" 
+                       oninput="filterCostTable()">
             </div>
             <div style="overflow-x: auto;">
                 <table style="width: 100%; color: #e0e0e0; border-collapse: collapse;">
@@ -1219,6 +1227,7 @@
                             <th style="padding: 12px; text-align: center;">Utilization</th>
                             <th style="padding: 12px; text-align: center;">Labor Cost</th>
                             <th style="padding: 12px; text-align: center;">Items</th>
+                            <th style="padding: 12px; text-align: left;">Items Breakdown</th>
                             <th style="padding: 12px; text-align: center;">$/Item (True)</th>
                             <th style="padding: 12px; text-align: center; color: #22c55e;">$/Item (Active)</th>
                             
@@ -3753,20 +3762,64 @@
                         }
                         
                         // Fix the champions error
-                        if (response.top_performers) {
-                            updateCostChampions(response.top_performers);
+                            if (response.top_performers) {
+                                updateCostChampions(response.top_performers);
+                            }
+                            
+                        } catch (error) {
+                            console.error('Error loading cost data:', error);
+                            showCostErrorState();
+                        }
+                    }
+
+                    // Format items breakdown for display
+                    function formatItemsBreakdown(breakdown) {
+                        if (!breakdown) return '<span style="color: #999; font-style: italic; font-size: 11px;">No activities</span>';
+                        
+                        const activities = [
+                            { key: 'picking', label: 'Picking', icon: '🎯' },
+                            { key: 'labeling', label: 'Labeling', icon: '🏷️' },
+                            { key: 'film_matching', label: 'Film', icon: '🎬' },
+                            { key: 'in_production', label: 'Pressing', icon: '🔥' },
+                            { key: 'qc_passed', label: 'Shipping', icon: '📦' }
+                        ];
+                        
+                        let html = '<div style="display: flex; flex-direction: column; gap: 3px; font-size: 12px;">';
+                        let hasAnyItems = false;
+                        
+                        activities.forEach(activity => {
+                            const count = breakdown[activity.key] || 0;
+                            if (count > 0) {
+                                hasAnyItems = true;
+                                const colors = {
+                                    'picking': '#4CAF50',
+                                    'labeling': '#2196F3', 
+                                    'film_matching': '#FF9800',
+                                    'in_production': '#9C27B0',
+                                    'qc_passed': '#00BCD4'
+                                };
+                                html += `
+                                    <div style="display: flex; align-items: center; padding: 2px 4px; background: rgba(103, 126, 234, 0.05); border-radius: 4px; border-left: 2px solid ${colors[activity.key]};">
+                                        <span style="margin-right: 4px;">${activity.icon}</span>
+                                        <span style="font-weight: 500; margin-right: 4px; min-width: 50px;">${activity.label}:</span>
+                                        <span style="font-weight: 600; color: #e0e0e0; margin-left: auto;">${count.toLocaleString()}</span>
+                                    </div>
+                                `;
+                            }
+                        });
+                        
+                        if (!hasAnyItems) {
+                            html += '<span style="color: #999; font-style: italic; font-size: 11px;">No activities</span>';
                         }
                         
-                    } catch (error) {
-                        console.error('Error loading cost data:', error);
-                        showCostErrorState();
+                        html += '</div>';
+                        return html;
                     }
-                }
 
-                // Update Cost Metrics with dual metrics
-                function updateCostMetrics(data) {
-                    // Total Labor Cost
-                    document.getElementById('totalLaborCost').textContent = `$${parseFloat(data.total_labor_cost || 0).toFixed(2)}`;
+                    // Update Cost Metrics with dual metrics
+                    function updateCostMetrics(data) {
+                        // Total Labor Cost
+                        document.getElementById('totalLaborCost').textContent = `$${parseFloat(data.total_labor_cost || 0).toFixed(2)}`;
                     
                     // Average Cost per Item (True and Active) - now based on QC Passed items
                     document.getElementById('avgCostPerItem').textContent = `$${parseFloat(data.avg_cost_per_item || 0).toFixed(3)}`;
@@ -3819,6 +3872,37 @@
                         document.getElementById('highCostAlert').style.display = 'none';
                     }
                 }
+                // Filter cost table by search input
+                function filterCostTable() {
+                    const searchInput = document.getElementById('costSearchInput');
+                    const searchValue = searchInput ? searchInput.value.toLowerCase().trim() : '';
+                    
+                    // Get the table body
+                    const tbody = document.getElementById('costTableBody');
+                    if (!tbody) return;
+                    
+                    // Get all rows
+                    const rows = tbody.querySelectorAll('tr');
+                    
+                    // Filter rows
+                    rows.forEach(row => {
+                        // Get the employee name from first cell
+                        const nameCell = row.querySelector('td:first-child');
+                        if (!nameCell) return;
+                        
+                        const name = nameCell.textContent.toLowerCase();
+                        
+                        // Show or hide based on search
+                        if (searchValue === '' || name.includes(searchValue)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                }
+                
+                // Make filterCostTable available globally
+                window.filterCostTable = filterCostTable;
 
                 // Update Cost Table with all new columns
                 function updateCostTable() {
@@ -3850,6 +3934,9 @@
                     // Sort employees
                     let sortedEmployees = [...costData.employee_costs];
                     switch(sortBy) {
+                        case 'name':
+                            sortedEmployees.sort((a, b) => a.name.localeCompare(b.name));
+                            break;
                         case 'utilization':
                             sortedEmployees.sort((a, b) => (b.utilization_rate || 0) - (a.utilization_rate || 0));
                             break;
@@ -3898,6 +3985,9 @@
                                     </div>
                                 </td>
                                 <td style="padding: 12px; text-align: center;">${emp.items_processed || 0}</td>
+                                <td style="padding: 12px; text-align: left;">
+                                    ${formatItemsBreakdown(emp.activity_breakdown)}
+                                </td>
                                 <td style="padding: 12px; text-align: center;">$${parseFloat(emp.cost_per_item_true || emp.cost_per_item || 0).toFixed(3)}</td>
                                 <td style="padding: 12px; text-align: center; color: #22c55e;">$${parseFloat(emp.cost_per_item_active || 0).toFixed(3)}</td>
                                 <td style="padding: 12px; text-align: center;">
