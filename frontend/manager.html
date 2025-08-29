@@ -1208,7 +1208,7 @@
         </div>
 
         <!-- Employee Cost Analysis Table -->
-        <div class="chart-container">
+        <div class="chart-card" style="padding: 20px;">
             <div class="chart-header">
                 <h3 class="chart-title"><i class="fas fa-users"></i> Employee Cost Analysis</h3>
                 <div style="display: flex; gap: 10px; align-items: center;">
@@ -1217,8 +1217,6 @@
                         <option value="utilization">Sort by Utilization</option>
                         <option value="cost_per_item">Sort by Cost/Item</option>
                         <option value="total_cost">Sort by Total Cost</option>
-                        <option value="efficiency">Sort by Efficiency</option>
-                        <option value="non_active">Sort by Idle Time</option>
                     </select>
                     <button class="btn-action btn-secondary" id="exportCostBtn" style="padding: 8px 16px;">
                         <i class="fas fa-download"></i>
@@ -1228,27 +1226,21 @@
             </div>
             <div style="padding: 15px 20px 10px 20px;">
                 <input type="text" id="costSearchInput" placeholder="Search by name..." 
-                       style="width: 100%; max-width: 400px; padding: 10px; background: rgba(255,255,255,0.05); 
-                              color: #e0e0e0; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
-                              font-size: 14px;" 
-                       oninput="filterCostTable()">
+                    style="width: 100%; max-width: 400px; padding: 10px; background: rgba(255,255,255,0.05); 
+                            color: #e0e0e0; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+                            font-size: 14px;" 
+                    oninput="filterCostTable()">
             </div>
             <div style="overflow-x: auto;">
-                <table style="width: 100%; color: #e0e0e0; border-collapse: collapse;">
+                <table style="width: 100%; min-width: 600px; color: #e0e0e0; border-collapse: collapse;">
                     <thead>
                         <tr style="border-bottom: 2px solid rgba(255,255,255,0.2);">
                             <th style="padding: 12px; text-align: left;">Employee</th>
-                            <th style="padding: 12px; text-align: center;">Rate/Hr</th>
-                            <th style="padding: 12px; text-align: center;">Clocked</th>
-                            <th style="padding: 12px; text-align: center; color: #22c55e;">Active</th>
-                            <th style="padding: 12px; text-align: center; color: #ef4444;">Non-Active</th>
-                            <th style="padding: 12px; text-align: center;">Utilization</th>
+                            <th style="padding: 12px; text-align: center;">Hours<br><small style="opacity: 0.7; font-size: 10px;">Clock/Active</small></th>
+                            <th style="padding: 12px; text-align: center;">Util%</th>
                             <th style="padding: 12px; text-align: center;">Labor Cost</th>
                             <th style="padding: 12px; text-align: center;">Items</th>
-                            <th style="padding: 12px; text-align: left;">Items Breakdown</th>
-                            <th style="padding: 12px; text-align: center;">$/Item (True)</th>
-                            <th style="padding: 12px; text-align: center; color: #22c55e;">$/Item (Active)</th>
-                            
+                            <th style="padding: 12px; text-align: center;">$/Item</th>
                             <th style="padding: 12px; text-align: center;">Status</th>
                         </tr>
                     </thead>
@@ -1258,16 +1250,11 @@
                     <tfoot style="border-top: 2px solid rgba(255,255,255,0.2);">
                         <tr style="font-weight: 600;">
                             <td style="padding: 12px;">TOTAL</td>
-                            <td style="padding: 12px; text-align: center;" id="footerAvgRate">-</td>
-                            <td style="padding: 12px; text-align: center;" id="footerTotalClocked">-</td>
-                            <td style="padding: 12px; text-align: center; color: #22c55e;" id="footerTotalActive">-</td>
-                            <td style="padding: 12px; text-align: center; color: #ef4444;" id="footerTotalNonActive">-</td>
+                            <td style="padding: 12px; text-align: center;" id="footerTotalHours">-</td>
                             <td style="padding: 12px; text-align: center;" id="footerAvgUtilization">-</td>
                             <td style="padding: 12px; text-align: center;" id="footerTotalCost">-</td>
                             <td style="padding: 12px; text-align: center;" id="footerTotalItems">-</td>
                             <td style="padding: 12px; text-align: center;" id="footerAvgCostPerItem">-</td>
-                            <td style="padding: 12px; text-align: center; color: #22c55e;" id="footerAvgCostPerItemActive">-</td>
-                            <td style="padding: 12px; text-align: center;" id="footerAvgEfficiency">-</td>
                             <td style="padding: 12px; text-align: center;">-</td>
                         </tr>
                     </tfoot>
@@ -3561,6 +3548,8 @@
                                 </tbody>
                             </table>
                         </div>
+                            </table>
+                        </div>
                     </div>
                 `;
                 
@@ -4097,29 +4086,14 @@
                 // Make filterCostTable available globally
                 window.filterCostTable = filterCostTable;
 
-                // Update Cost Table with all new columns
+                // Update Cost Table with condensed columns
                 function updateCostTable() {
                     console.log('updateCostTable called with costData:', costData);
                     
-                    if (!costData) {
-                        console.error('No cost data available');
+                    if (!costData || !costData.employee_costs || costData.employee_costs.length === 0) {
                         showCostErrorState();
                         return;
                     }
-                    
-                    if (!costData.employee_costs) {
-                        console.error('No employee_costs in costData');
-                        showCostErrorState();
-                        return;
-                    }
-                    
-                    if (costData.employee_costs.length === 0) {
-                        console.error('Empty employee_costs array');
-                        showCostErrorState();
-                        return;
-                    }
-                    
-                    console.log('Processing', costData.employee_costs.length, 'employees');
                     
                     const sortBy = document.getElementById('costSortBy').value;
                     const tbody = document.getElementById('costTableBody');
@@ -4139,53 +4113,44 @@
                         case 'total_cost':
                             sortedEmployees.sort((a, b) => b.total_cost - a.total_cost);
                             break;
-                        case 'efficiency':
-                            sortedEmployees.sort((a, b) => b.efficiency - a.efficiency);
-                            break;
-                        case 'non_active':
-                            sortedEmployees.sort((a, b) => (b.non_active_hours || 0) - (a.non_active_hours || 0));
-                            break;
                     }
                     
-                    // Populate table
+                    // Populate table with condensed structure
                     tbody.innerHTML = sortedEmployees.map(emp => {
-                        const nonActivePercent = (emp.non_active_hours / emp.clocked_hours * 100) || 0;
-                        const nonActiveColor = nonActivePercent > 50 ? '#ef4444' : (nonActivePercent > 30 ? '#f59e0b' : '#22c55e');
+                        const utilization = parseFloat(emp.utilization_rate || 0);
+                        const utilizationColor = utilization > 70 ? '#22c55e' : utilization > 50 ? '#3b82f6' : '#ef4444';
+                        const costPerItem = parseFloat(emp.cost_per_item || 0);
+                        const costPerItemColor = costPerItem < 1.5 ? '#22c55e' : costPerItem < 2.5 ? '#fbbf24' : '#ef4444';
                         
                         return `
                             <tr>
-                                <td style="padding: 12px;">${emp.name}</td>
-                                <td style="padding: 12px; text-align: center;">$${parseFloat(emp.hourly_rate || 0).toFixed(2)}</td>
-                                <td style="padding: 12px; text-align: center;">${parseFloat(emp.clocked_hours || 0).toFixed(1)}</td>
-                                <td style="padding: 12px; text-align: center; color: #22c55e;">${parseFloat(emp.active_hours || 0).toFixed(1)}</td>
-                                <td style="padding: 12px; text-align: center; color: ${nonActiveColor}; font-weight: bold;">
-                                    ${parseFloat(emp.non_active_hours || 0).toFixed(1)}
-                                    <small style="opacity: 0.7;">(${nonActivePercent.toFixed(0)}%)</small>
+                                <td style="padding: 12px; font-size: 14px;">
+                                    <strong>${emp.name}</strong>
+                                    ${emp.hourly_rate ? `<br><small style="opacity: 0.6;">$${parseFloat(emp.hourly_rate).toFixed(2)}/hr</small>` : ''}
+                                </td>
+                                <td style="padding: 12px; text-align: center; font-size: 13px;">
+                                    ${parseFloat(emp.clocked_hours || 0).toFixed(1)}/<span style="color: #22c55e;">${parseFloat(emp.active_hours || 0).toFixed(1)}</span>
                                 </td>
                                 <td style="padding: 12px; text-align: center;">
-                                    <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
-                                        <div style="width: 100px; height: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden;">
-                                            <div style="width: ${emp.utilization_rate || 0}%; height: 100%; background: ${(emp.utilization_rate || 0) > 70 ? '#22c55e' : (emp.utilization_rate || 0) > 50 ? '#3b82f6' : '#f59e0b'};"></div>
+                                    <div style="display: inline-block;">
+                                        <div style="width: 40px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 2px;">
+                                            <div style="width: ${utilization}%; height: 100%; background: ${utilizationColor};"></div>
                                         </div>
-                                        <span>${parseFloat(emp.utilization_rate || 0).toFixed(1)}%</span>
+                                        <span style="font-size: 12px; color: ${utilizationColor};">${utilization.toFixed(0)}%</span>
                                     </div>
                                 </td>
-                                <td style="padding: 12px; text-align: center;">
+                                <td style="padding: 12px; text-align: center; font-weight: 600; font-size: 14px;">
                                     $${parseFloat(emp.total_cost || 0).toFixed(2)}
-                                    <div style="font-size: 0.8em; margin-top: 2px;">
-                                        <span style="color: #22c55e;">Active: $${parseFloat(emp.active_cost || 0).toFixed(2)}</span><br>
-                                        <span style="color: #ef4444;">Idle: $${parseFloat(emp.non_active_cost || 0).toFixed(2)}</span>
-                                    </div>
                                 </td>
-                                <td style="padding: 12px; text-align: center;">${emp.items_processed || 0}</td>
-                                <td style="padding: 12px; text-align: left;">
-                                    ${formatItemsBreakdown(emp.activity_breakdown)}
+                                <td style="padding: 12px; text-align: center; font-size: 14px;">
+                                    ${emp.items_processed || 0}
                                 </td>
-                                <td style="padding: 12px; text-align: center;">$${parseFloat(emp.cost_per_item_true || emp.cost_per_item || 0).toFixed(3)}</td>
-                                <td style="padding: 12px; text-align: center; color: #22c55e;">$${parseFloat(emp.cost_per_item_active || 0).toFixed(3)}</td>
+                                <td style="padding: 12px; text-align: center; font-weight: 600; color: ${costPerItemColor}; font-size: 14px;">
+                                    $${costPerItem.toFixed(3)}
+                                </td>
                                 <td style="padding: 12px; text-align: center;">
-                                    <span class="status-badge" style="background: ${emp.status_color || '#6b7280'}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px;">
-                                        ${emp.status || 'UNKNOWN'}
+                                    <span style="background: ${emp.status === 'ACTIVE' ? '#22c55e' : '#6b7280'}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: 600;">
+                                        ${emp.status || 'IDLE'}
                                     </span>
                                 </td>
                             </tr>
@@ -4196,20 +4161,18 @@
                     const totals = sortedEmployees.reduce((acc, emp) => {
                         acc.clocked += parseFloat(emp.clocked_hours || 0);
                         acc.active += parseFloat(emp.active_hours || 0);
-                        acc.nonActive += parseFloat(emp.non_active_hours || 0);
                         acc.cost += parseFloat(emp.total_cost || 0);
-                        acc.activeCost += parseFloat(emp.active_cost || 0);
                         acc.items += parseInt(emp.items_processed || 0);
                         acc.count++;
                         return acc;
-                    }, { clocked: 0, active: 0, nonActive: 0, cost: 0, activeCost: 0, items: 0, count: 0 });
+                    }, { clocked: 0, active: 0, cost: 0, items: 0, count: 0 });
 
-                    document.getElementById('footerAvgRate').textContent = totals.clocked > 0 ? `$${(totals.cost / totals.clocked).toFixed(2)}` : '-';
-                    document.getElementById('footerTotalClocked').textContent = totals.clocked.toFixed(1);
-                    document.getElementById('footerTotalActive').textContent = totals.active.toFixed(1);
-                    document.getElementById('footerTotalNonActive').textContent = totals.nonActive.toFixed(1);
-                    document.getElementById('footerAvgUtilization').textContent = totals.clocked > 0 ? `${(totals.active / totals.clocked * 100).toFixed(1)}%` : '-';
+                    document.getElementById('footerTotalHours').textContent = `${totals.clocked.toFixed(1)}/${totals.active.toFixed(1)}`;
+                    document.getElementById('footerAvgUtilization').textContent = totals.clocked > 0 ? `${(totals.active / totals.clocked * 100).toFixed(0)}%` : '-';
                     document.getElementById('footerTotalCost').textContent = `$${totals.cost.toFixed(2)}`;
+                    document.getElementById('footerTotalItems').textContent = totals.items.toLocaleString();
+                    document.getElementById('footerAvgCostPerItem').textContent = totals.items > 0 ? `$${(totals.cost / totals.items).toFixed(3)}` : '-';
+                }
                     // Show both total items and QC passed items
                     document.getElementById('footerTotalItems').innerHTML = `
                         ${totals.items.toLocaleString()}
