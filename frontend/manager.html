@@ -1094,24 +1094,6 @@
         <div class="charts-grid" style="margin-top: 30px;">
             <div class="chart-card">
                 <h3 class="chart-title"><i class="fas fa-users"></i> Available Workers</h3>
-                <!-- ADD THIS SEARCH BAR HERE -->
-                <div style="padding: 10px 0;">
-                    <input type="text" 
-                        id="availableWorkersSearch" 
-                        placeholder="🔍 Search workers by name or station..." 
-                        onkeyup="filterAvailableWorkers(this.value)"
-                        style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); 
-                                color: #e0e0e0; border: 1px solid rgba(255,255,255,0.1); 
-                                border-radius: 8px; font-size: 14px;">
-                </div>
-                
-                <div id="availableWorkers">
-                    <div class="no-data">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p>Loading worker data...</p>
-                    </div>
-                </div>
-            </div>
                 <div id="availableWorkers">
                     <div class="no-data">
                         <i class="fas fa-spinner fa-spin"></i>
@@ -1208,15 +1190,16 @@
         </div>
 
         <!-- Employee Cost Analysis Table -->
-        <div class="chart-card" style="padding: 20px;">
-            <div class="chart-header">
+        <div class="chart-card" style="margin-bottom: 30px;">
+            <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h3 class="chart-title"><i class="fas fa-users"></i> Employee Cost Analysis</h3>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <select id="costSortBy" style="background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); padding: 8px; border-radius: 8px;">
-                        <option value="name">Sort by Name</option>
                         <option value="utilization">Sort by Utilization</option>
                         <option value="cost_per_item">Sort by Cost/Item</option>
                         <option value="total_cost">Sort by Total Cost</option>
+                        <option value="efficiency">Sort by Efficiency</option>
+                        <option value="non_active">Sort by Idle Time</option>
                     </select>
                     <button class="btn-action btn-secondary" id="exportCostBtn" style="padding: 8px 16px;">
                         <i class="fas fa-download"></i>
@@ -1224,23 +1207,21 @@
                     </button>
                 </div>
             </div>
-            <div style="padding: 15px 20px 10px 20px;">
-                <input type="text" id="costSearchInput" placeholder="Search by name..." 
-                    style="width: 100%; max-width: 400px; padding: 10px; background: rgba(255,255,255,0.05); 
-                            color: #e0e0e0; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
-                            font-size: 14px;" 
-                    oninput="filterCostTable()">
-            </div>
             <div style="overflow-x: auto;">
-                <table style="width: 100%; min-width: 600px; color: #e0e0e0; border-collapse: collapse;">
+                <table style="width: 100%; color: #e0e0e0; border-collapse: collapse;">
                     <thead>
                         <tr style="border-bottom: 2px solid rgba(255,255,255,0.2);">
                             <th style="padding: 12px; text-align: left;">Employee</th>
-                            <th style="padding: 12px; text-align: center;">Hours<br><small style="opacity: 0.7; font-size: 10px;">Clock/Active</small></th>
-                            <th style="padding: 12px; text-align: center;">Util%</th>
+                            <th style="padding: 12px; text-align: center;">Rate/Hr</th>
+                            <th style="padding: 12px; text-align: center;">Clocked</th>
+                            <th style="padding: 12px; text-align: center; color: #22c55e;">Active</th>
+                            <th style="padding: 12px; text-align: center; color: #ef4444;">Non-Active</th>
+                            <th style="padding: 12px; text-align: center;">Utilization</th>
                             <th style="padding: 12px; text-align: center;">Labor Cost</th>
                             <th style="padding: 12px; text-align: center;">Items</th>
-                            <th style="padding: 12px; text-align: center;">$/Item</th>
+                            <th style="padding: 12px; text-align: center;">$/Item (True)</th>
+                            <th style="padding: 12px; text-align: center; color: #22c55e;">$/Item (Active)</th>
+                            
                             <th style="padding: 12px; text-align: center;">Status</th>
                         </tr>
                     </thead>
@@ -1250,11 +1231,16 @@
                     <tfoot style="border-top: 2px solid rgba(255,255,255,0.2);">
                         <tr style="font-weight: 600;">
                             <td style="padding: 12px;">TOTAL</td>
-                            <td style="padding: 12px; text-align: center;" id="footerTotalHours">-</td>
+                            <td style="padding: 12px; text-align: center;" id="footerAvgRate">-</td>
+                            <td style="padding: 12px; text-align: center;" id="footerTotalClocked">-</td>
+                            <td style="padding: 12px; text-align: center; color: #22c55e;" id="footerTotalActive">-</td>
+                            <td style="padding: 12px; text-align: center; color: #ef4444;" id="footerTotalNonActive">-</td>
                             <td style="padding: 12px; text-align: center;" id="footerAvgUtilization">-</td>
                             <td style="padding: 12px; text-align: center;" id="footerTotalCost">-</td>
                             <td style="padding: 12px; text-align: center;" id="footerTotalItems">-</td>
                             <td style="padding: 12px; text-align: center;" id="footerAvgCostPerItem">-</td>
+                            <td style="padding: 12px; text-align: center; color: #22c55e;" id="footerAvgCostPerItemActive">-</td>
+                            <td style="padding: 12px; text-align: center;" id="footerAvgEfficiency">-</td>
                             <td style="padding: 12px; text-align: center;">-</td>
                         </tr>
                     </tfoot>
@@ -2577,68 +2563,7 @@
                 </div>
             `;
         }
-
-        // Filter Available Workers function
-        window.filterAvailableWorkers = function(searchValue) {
-            const searchTerm = searchValue.toLowerCase().trim();
-            const workersContainer = document.getElementById('availableWorkers');
-            
-            // Check if container has actual worker data
-            if (workersContainer.innerHTML.includes('no-data') || workersContainer.innerHTML.includes('spinner')) {
-                return;
-            }
-            
-            // Get all station groups
-            const stationGroups = workersContainer.querySelectorAll('.station-group');
-            
-            stationGroups.forEach(group => {
-                // Get all worker divs within this station group
-                const workerDivs = group.querySelectorAll('[style*="padding: 8px"]');
-                let visibleInGroup = 0;
-                
-                workerDivs.forEach(workerDiv => {
-                    const workerText = workerDiv.textContent.toLowerCase();
-                    
-                    // Check if search term matches
-                    if (searchTerm === '' || workerText.includes(searchTerm)) {
-                        workerDiv.style.display = '';
-                        visibleInGroup++;
-                    } else {
-                        workerDiv.style.display = 'none';
-                    }
-                });
-                
-                // Hide the entire station group if no workers match
-                if (visibleInGroup === 0 && searchTerm !== '') {
-                    group.style.display = 'none';
-                } else {
-                    group.style.display = '';
-                    // Update the count badge
-                    const countBadge = group.querySelector('[style*="rgba(102,126,234,0.2)"]');
-                    if (countBadge && searchTerm !== '') {
-                        countBadge.textContent = visibleInGroup;
-                    }
-                }
-            });
-            
-            // Check if any results are visible
-            const visibleGroups = Array.from(stationGroups).filter(g => g.style.display !== 'none');
-            
-            // Remove any existing no results message
-            const existingNoResults = document.getElementById('noSearchResults');
-            if (existingNoResults) {
-                existingNoResults.remove();
-            }
-            
-            // Show no results message if needed
-            if (visibleGroups.length === 0 && searchTerm !== '') {
-                const noResultsDiv = document.createElement('div');
-                noResultsDiv.id = 'noSearchResults';
-                noResultsDiv.style.cssText = 'text-align: center; padding: 20px; color: #808080;';
-                noResultsDiv.innerHTML = `<i class="fas fa-search"></i><p>No workers found matching "${searchTerm}"</p>`;
-                workersContainer.appendChild(noResultsDiv);
-            }
-        };
+        
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Initializing manager dashboard...');
@@ -3548,8 +3473,6 @@
                                 </tbody>
                             </table>
                         </div>
-                            </table>
-                        </div>
                     </div>
                 `;
                 
@@ -3659,7 +3582,7 @@
 
             function updateBottleneckDisplay(data) {
                 // Update alert
-                if (data.primary_bottleneck && data.primary_bottleneck.status !== 'complete') {
+                    if (data.primary_bottleneck && data.primary_bottleneck.status !== 'complete') {
                     document.getElementById('bottleneckAlert').style.display = 'flex';
                     document.getElementById('bottleneckMessage').textContent = 
                         `BOTTLENECK: ${data.primary_bottleneck.station} - Queue building at ${data.primary_bottleneck.queue_growth} items/hr`;
@@ -3699,154 +3622,39 @@
                         <td style="padding: 15px; text-align: center;">${station.estimated_queue}</td>
                         <td style="padding: 15px; text-align: center;">
                             ${station.status_level === 'critical' ? '🚨 Critical' : 
-                            station.status_level === 'warning' ? '⚠️ Warning' : '✅ Good'}
+                              station.status_level === 'warning' ? '⚠️ Warning' : '✅ Good'}
                         </td>
                     </tr>
                 `).join('');
                 
-                // Update available workers - GROUPED BY STATION
+                // Update available workers
                 const workersContainer = document.getElementById('availableWorkers');
                 if (data.available_workers && data.available_workers.length > 0) {
-                    // Group workers by station
-                    const workersByStation = {};
-                    
-                    data.available_workers.forEach(worker => {
-                        // Normalize station names
-                        let station = worker.current_station;
-                        if (station === 'QC Passed') {
-                            station = 'Shipping';
-                        }
-                        if (station === 'In Production') {
-                            station = 'Heat Press';
-                        }
-                        station = station || 'Unknown';
-                        
-                        if (!workersByStation[station]) {
-                            workersByStation[station] = [];
-                        }
-                        workersByStation[station].push(worker);
-                    });
-                    
-                    // Build grouped HTML
-                    let html = '';
-                    const stationIcons = {
-                        'Shipping': '📦',
-                        'Heat Press': '🔥',
-                        'Picking': '🎯',
-                        'Labeling': '🏷️',
-                        'Film Matching': '🎬',
-                        'Unknown': '❓'
-                    };
-                    
-                    // Define station order
-                    const stationOrder = ['Shipping', 'Heat Press', 'Picking', 'Labeling', 'Film Matching', 'Unknown'];
-                    
-                    // Sort stations by defined order
-                    const sortedStations = Object.keys(workersByStation).sort((a, b) => {
-                        const indexA = stationOrder.indexOf(a);
-                        const indexB = stationOrder.indexOf(b);
-                        return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
-                    });
-                    
-                    for (const station of sortedStations) {
-                        const workers = workersByStation[station];
-                        const icon = stationIcons[station] || '📍';
-                        
-                        html += `
-                            <div class="station-group" style="margin-bottom: 15px; background: rgba(255,255,255,0.02); border-radius: 8px; padding: 10px;">
-                                <div style="display: flex; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer;" 
-                                    onclick="toggleStationGroup('${station}')">
-                                    <span style="font-size: 20px; margin-right: 10px;">${icon}</span>
-                                    <strong style="flex: 1;">${station}</strong>
-                                    <span style="background: rgba(102,126,234,0.2); padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 10px;">${workers.length}</span>
-                                    <span id="arrow-${station}" style="transition: transform 0.2s;">▼</span>
-                                </div>
-                                <div id="station-workers-${station}" style="padding-left: 10px; display: block;">
-                                    ${workers.map(worker => `
-                                        <div style="padding: 8px; margin: 5px 0; background: rgba(255,255,255,0.05); border-radius: 6px;">
-                                            <strong>${worker.name}</strong><br>
-                                            <small style="color: #808080;">📍 Currently at: ${station === 'Unknown' ? 'Unknown' : station}</small>
-                                            ${worker.skills && worker.skills.length > 0 ? `<br><small style="color: #667eea;">Skills: ${worker.skills.join(', ')}</small>` : ''}
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
-                    workersContainer.innerHTML = html;
+                    workersContainer.innerHTML = data.available_workers.map(worker => `
+                        <div style="padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 10px;">
+                            <strong>${worker.name}</strong><br>
+                            Currently at: ${worker.current_station}<br>
+                            <small>Skills: ${worker.skills.join(', ')}</small>
+                        </div>
+                    `).join('');
                 } else {
                     workersContainer.innerHTML = '<p style="color: #808080;">No available workers</p>';
                 }
-                // Update recommendations with action buttons
+                
+                // Update recommendations
                 const recsContainer = document.getElementById('recommendations');
                 if (data.recommendations && data.recommendations.length > 0) {
                     recsContainer.innerHTML = data.recommendations.map(rec => `
                         <div style="padding: 10px; background: rgba(102,126,234,0.1); border-radius: 8px; margin-bottom: 10px;">
                             <strong>Move ${rec.worker}</strong><br>
                             From: ${rec.from} → To: ${rec.to}<br>
-                            <small>${rec.reason}</small><br>
-                            <button onclick="executeReassignment('${rec.worker}', '${rec.from}', '${rec.to}')" 
-                                    style="margin-top: 8px; padding: 5px 12px; background: #667eea; color: white; 
-                                        border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
-                                Execute Move
-                            </button>
+                            <small>${rec.reason}</small>
                         </div>
                     `).join('');
                 } else {
                     recsContainer.innerHTML = '<p style="color: #808080;">System is balanced</p>';
                 }
             }
-            // Toggle station group visibility
-            window.toggleStationGroup = function(station) {
-                const element = document.getElementById(`station-workers-${station}`);
-                const arrow = document.getElementById(`arrow-${station}`);
-                if (element) {
-                    if (element.style.display === 'none') {
-                        element.style.display = 'block';
-                        arrow.style.transform = 'rotate(0deg)';
-                    } else {
-                        element.style.display = 'none';
-                        arrow.style.transform = 'rotate(-90deg)';
-                    }
-                }
-            };
-            // Add this reassign function right after updateBottleneckDisplay
-            window.reassignWorker = function(workerName, currentStation, newStation) {
-                if (!confirm(`Move ${workerName} from ${currentStation} to ${newStation}?`)) {
-                    return;
-                }
-                executeReassignment(workerName, currentStation, newStation);
-            };
-
-            // Add the execute reassignment function
-            window.executeReassignment = async function(workerName, fromStation, toStation) {
-                try {
-                    const response = await fetch('/api/dashboard/reassign-worker', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-API-Key': 'dev-api-key-123'
-                        },
-                        body: JSON.stringify({
-                            worker_name: workerName,
-                            from_station: fromStation,
-                            to_station: toStation,
-                            timestamp: new Date().toISOString()
-                        })
-                    });
-                    
-                    if (response.ok) {
-                        alert(`${workerName} reassigned to ${toStation}`);
-                        loadBottleneckData();
-                    } else {
-                        alert('Failed to reassign worker');
-                    }
-                } catch (error) {
-                    console.error('Error reassigning worker:', error);
-                    alert('Error reassigning worker');
-                }
-            };
 
             // Auto-refresh bottleneck data when on that section
             setInterval(() => {
@@ -3855,6 +3663,7 @@
                     loadBottleneckData();
                 }
             }, 30000); // Every 30 seconds
+
             // ========== COST ANALYSIS FUNCTIONS ==========
 
                 // Load Cost Analysis Data
@@ -3944,64 +3753,20 @@
                         }
                         
                         // Fix the champions error
-                            if (response.top_performers) {
-                                updateCostChampions(response.top_performers);
-                            }
-                            
-                        } catch (error) {
-                            console.error('Error loading cost data:', error);
-                            showCostErrorState();
-                        }
-                    }
-
-                    // Format items breakdown for display
-                    function formatItemsBreakdown(breakdown) {
-                        if (!breakdown) return '<span style="color: #999; font-style: italic; font-size: 11px;">No activities</span>';
-                        
-                        const activities = [
-                            { key: 'picking', label: 'Picking', icon: '🎯' },
-                            { key: 'labeling', label: 'Labeling', icon: '🏷️' },
-                            { key: 'film_matching', label: 'Film', icon: '🎬' },
-                            { key: 'in_production', label: 'Pressing', icon: '🔥' },
-                            { key: 'qc_passed', label: 'Shipping', icon: '📦' }
-                        ];
-                        
-                        let html = '<div style="display: flex; flex-direction: column; gap: 3px; font-size: 12px;">';
-                        let hasAnyItems = false;
-                        
-                        activities.forEach(activity => {
-                            const count = breakdown[activity.key] || 0;
-                            if (count > 0) {
-                                hasAnyItems = true;
-                                const colors = {
-                                    'picking': '#4CAF50',
-                                    'labeling': '#2196F3', 
-                                    'film_matching': '#FF9800',
-                                    'in_production': '#9C27B0',
-                                    'qc_passed': '#00BCD4'
-                                };
-                                html += `
-                                    <div style="display: flex; align-items: center; padding: 2px 4px; background: rgba(103, 126, 234, 0.05); border-radius: 4px; border-left: 2px solid ${colors[activity.key]};">
-                                        <span style="margin-right: 4px;">${activity.icon}</span>
-                                        <span style="font-weight: 500; margin-right: 4px; min-width: 50px;">${activity.label}:</span>
-                                        <span style="font-weight: 600; color: #e0e0e0; margin-left: auto;">${count.toLocaleString()}</span>
-                                    </div>
-                                `;
-                            }
-                        });
-                        
-                        if (!hasAnyItems) {
-                            html += '<span style="color: #999; font-style: italic; font-size: 11px;">No activities</span>';
+                        if (response.top_performers) {
+                            updateCostChampions(response.top_performers);
                         }
                         
-                        html += '</div>';
-                        return html;
+                    } catch (error) {
+                        console.error('Error loading cost data:', error);
+                        showCostErrorState();
                     }
+                }
 
-                    // Update Cost Metrics with dual metrics
-                    function updateCostMetrics(data) {
-                        // Total Labor Cost
-                        document.getElementById('totalLaborCost').textContent = `$${parseFloat(data.total_labor_cost || 0).toFixed(2)}`;
+                // Update Cost Metrics with dual metrics
+                function updateCostMetrics(data) {
+                    // Total Labor Cost
+                    document.getElementById('totalLaborCost').textContent = `$${parseFloat(data.total_labor_cost || 0).toFixed(2)}`;
                     
                     // Average Cost per Item (True and Active) - now based on QC Passed items
                     document.getElementById('avgCostPerItem').textContent = `$${parseFloat(data.avg_cost_per_item || 0).toFixed(3)}`;
@@ -4054,46 +3819,30 @@
                         document.getElementById('highCostAlert').style.display = 'none';
                     }
                 }
-                // Filter cost table by search input
-                function filterCostTable() {
-                    const searchInput = document.getElementById('costSearchInput');
-                    const searchValue = searchInput ? searchInput.value.toLowerCase().trim() : '';
-                    
-                    // Get the table body
-                    const tbody = document.getElementById('costTableBody');
-                    if (!tbody) return;
-                    
-                    // Get all rows
-                    const rows = tbody.querySelectorAll('tr');
-                    
-                    // Filter rows
-                    rows.forEach(row => {
-                        // Get the employee name from first cell
-                        const nameCell = row.querySelector('td:first-child');
-                        if (!nameCell) return;
-                        
-                        const name = nameCell.textContent.toLowerCase();
-                        
-                        // Show or hide based on search
-                        if (searchValue === '' || name.includes(searchValue)) {
-                            row.style.display = '';
-                        } else {
-                            row.style.display = 'none';
-                        }
-                    });
-                }
-                
-                // Make filterCostTable available globally
-                window.filterCostTable = filterCostTable;
 
-                // Update Cost Table with condensed columns
+                // Update Cost Table with all new columns
                 function updateCostTable() {
                     console.log('updateCostTable called with costData:', costData);
                     
-                    if (!costData || !costData.employee_costs || costData.employee_costs.length === 0) {
+                    if (!costData) {
+                        console.error('No cost data available');
                         showCostErrorState();
                         return;
                     }
+                    
+                    if (!costData.employee_costs) {
+                        console.error('No employee_costs in costData');
+                        showCostErrorState();
+                        return;
+                    }
+                    
+                    if (costData.employee_costs.length === 0) {
+                        console.error('Empty employee_costs array');
+                        showCostErrorState();
+                        return;
+                    }
+                    
+                    console.log('Processing', costData.employee_costs.length, 'employees');
                     
                     const sortBy = document.getElementById('costSortBy').value;
                     const tbody = document.getElementById('costTableBody');
@@ -4101,9 +3850,6 @@
                     // Sort employees
                     let sortedEmployees = [...costData.employee_costs];
                     switch(sortBy) {
-                        case 'name':
-                            sortedEmployees.sort((a, b) => a.name.localeCompare(b.name));
-                            break;
                         case 'utilization':
                             sortedEmployees.sort((a, b) => (b.utilization_rate || 0) - (a.utilization_rate || 0));
                             break;
@@ -4113,44 +3859,50 @@
                         case 'total_cost':
                             sortedEmployees.sort((a, b) => b.total_cost - a.total_cost);
                             break;
+                        case 'efficiency':
+                            sortedEmployees.sort((a, b) => b.efficiency - a.efficiency);
+                            break;
+                        case 'non_active':
+                            sortedEmployees.sort((a, b) => (b.non_active_hours || 0) - (a.non_active_hours || 0));
+                            break;
                     }
                     
-                    // Populate table with condensed structure
+                    // Populate table
                     tbody.innerHTML = sortedEmployees.map(emp => {
-                        const utilization = parseFloat(emp.utilization_rate || 0);
-                        const utilizationColor = utilization > 70 ? '#22c55e' : utilization > 50 ? '#3b82f6' : '#ef4444';
-                        const costPerItem = parseFloat(emp.cost_per_item || 0);
-                        const costPerItemColor = costPerItem < 1.5 ? '#22c55e' : costPerItem < 2.5 ? '#fbbf24' : '#ef4444';
+                        const nonActivePercent = (emp.non_active_hours / emp.clocked_hours * 100) || 0;
+                        const nonActiveColor = nonActivePercent > 50 ? '#ef4444' : (nonActivePercent > 30 ? '#f59e0b' : '#22c55e');
                         
                         return `
                             <tr>
-                                <td style="padding: 12px; font-size: 14px;">
-                                    <strong>${emp.name}</strong>
-                                    ${emp.hourly_rate ? `<br><small style="opacity: 0.6;">$${parseFloat(emp.hourly_rate).toFixed(2)}/hr</small>` : ''}
-                                </td>
-                                <td style="padding: 12px; text-align: center; font-size: 13px;">
-                                    ${parseFloat(emp.clocked_hours || 0).toFixed(1)}/<span style="color: #22c55e;">${parseFloat(emp.active_hours || 0).toFixed(1)}</span>
+                                <td style="padding: 12px;">${emp.name}</td>
+                                <td style="padding: 12px; text-align: center;">$${parseFloat(emp.hourly_rate || 0).toFixed(2)}</td>
+                                <td style="padding: 12px; text-align: center;">${parseFloat(emp.clocked_hours || 0).toFixed(1)}</td>
+                                <td style="padding: 12px; text-align: center; color: #22c55e;">${parseFloat(emp.active_hours || 0).toFixed(1)}</td>
+                                <td style="padding: 12px; text-align: center; color: ${nonActiveColor}; font-weight: bold;">
+                                    ${parseFloat(emp.non_active_hours || 0).toFixed(1)}
+                                    <small style="opacity: 0.7;">(${nonActivePercent.toFixed(0)}%)</small>
                                 </td>
                                 <td style="padding: 12px; text-align: center;">
-                                    <div style="display: inline-block;">
-                                        <div style="width: 40px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 2px;">
-                                            <div style="width: ${utilization}%; height: 100%; background: ${utilizationColor};"></div>
+                                    <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                                        <div style="width: 100px; height: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden;">
+                                            <div style="width: ${emp.utilization_rate || 0}%; height: 100%; background: ${(emp.utilization_rate || 0) > 70 ? '#22c55e' : (emp.utilization_rate || 0) > 50 ? '#3b82f6' : '#f59e0b'};"></div>
                                         </div>
-                                        <span style="font-size: 12px; color: ${utilizationColor};">${utilization.toFixed(0)}%</span>
+                                        <span>${parseFloat(emp.utilization_rate || 0).toFixed(1)}%</span>
                                     </div>
                                 </td>
-                                <td style="padding: 12px; text-align: center; font-weight: 600; font-size: 14px;">
-                                    $${parseFloat(emp.total_cost || 0).toFixed(2)}
-                                </td>
-                                <td style="padding: 12px; text-align: center; font-size: 14px;">
-                                    ${emp.items_processed || 0}
-                                </td>
-                                <td style="padding: 12px; text-align: center; font-weight: 600; color: ${costPerItemColor}; font-size: 14px;">
-                                    $${costPerItem.toFixed(3)}
-                                </td>
                                 <td style="padding: 12px; text-align: center;">
-                                    <span style="background: ${emp.status === 'ACTIVE' ? '#22c55e' : '#6b7280'}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: 600;">
-                                        ${emp.status || 'IDLE'}
+                                    $${parseFloat(emp.total_cost || 0).toFixed(2)}
+                                    <div style="font-size: 0.8em; margin-top: 2px;">
+                                        <span style="color: #22c55e;">Active: $${parseFloat(emp.active_cost || 0).toFixed(2)}</span><br>
+                                        <span style="color: #ef4444;">Idle: $${parseFloat(emp.non_active_cost || 0).toFixed(2)}</span>
+                                    </div>
+                                </td>
+                                <td style="padding: 12px; text-align: center;">${emp.items_processed || 0}</td>
+                                <td style="padding: 12px; text-align: center;">$${parseFloat(emp.cost_per_item_true || emp.cost_per_item || 0).toFixed(3)}</td>
+                                <td style="padding: 12px; text-align: center; color: #22c55e;">$${parseFloat(emp.cost_per_item_active || 0).toFixed(3)}</td>
+                                <td style="padding: 12px; text-align: center;">
+                                    <span class="status-badge" style="background: ${emp.status_color || '#6b7280'}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px;">
+                                        ${emp.status || 'UNKNOWN'}
                                     </span>
                                 </td>
                             </tr>
@@ -4161,18 +3913,33 @@
                     const totals = sortedEmployees.reduce((acc, emp) => {
                         acc.clocked += parseFloat(emp.clocked_hours || 0);
                         acc.active += parseFloat(emp.active_hours || 0);
+                        acc.nonActive += parseFloat(emp.non_active_hours || 0);
                         acc.cost += parseFloat(emp.total_cost || 0);
+                        acc.activeCost += parseFloat(emp.active_cost || 0);
                         acc.items += parseInt(emp.items_processed || 0);
                         acc.count++;
                         return acc;
-                    }, { clocked: 0, active: 0, cost: 0, items: 0, count: 0 });
+                    }, { clocked: 0, active: 0, nonActive: 0, cost: 0, activeCost: 0, items: 0, count: 0 });
 
-                    document.getElementById('footerTotalHours').textContent = `${totals.clocked.toFixed(1)}/${totals.active.toFixed(1)}`;
-                    document.getElementById('footerAvgUtilization').textContent = totals.clocked > 0 ? `${(totals.active / totals.clocked * 100).toFixed(0)}%` : '-';
+                    document.getElementById('footerAvgRate').textContent = totals.clocked > 0 ? `$${(totals.cost / totals.clocked).toFixed(2)}` : '-';
+                    document.getElementById('footerTotalClocked').textContent = totals.clocked.toFixed(1);
+                    document.getElementById('footerTotalActive').textContent = totals.active.toFixed(1);
+                    document.getElementById('footerTotalNonActive').textContent = totals.nonActive.toFixed(1);
+                    document.getElementById('footerAvgUtilization').textContent = totals.clocked > 0 ? `${(totals.active / totals.clocked * 100).toFixed(1)}%` : '-';
                     document.getElementById('footerTotalCost').textContent = `$${totals.cost.toFixed(2)}`;
-                    document.getElementById('footerTotalItems').textContent = totals.items.toLocaleString();
-                    document.getElementById('footerAvgCostPerItem').textContent = totals.items > 0 ? `$${(totals.cost / totals.items).toFixed(3)}` : '-';
-                }
+                    // Show both total items and QC passed items
+                    document.getElementById('footerTotalItems').innerHTML = `
+                        ${totals.items.toLocaleString()}
+                        <small style="display: block; opacity: 0.7; font-size: 0.8em;">
+                            QC: ${costData.qc_passed_items || 'N/A'}
+                        </small>
+                    `;
+                    // Use QC passed items for footer cost calculations too
+                    const qcItems = costData.qc_passed_items || totals.items;
+                    document.getElementById('footerAvgCostPerItem').textContent = qcItems > 0 ? `$${(totals.cost / qcItems).toFixed(3)}` : '-';
+                    document.getElementById('footerAvgCostPerItemActive').textContent = qcItems > 0 ? `$${(totals.activeCost / qcItems).toFixed(3)}` : '-';
+                    document.getElementById('footerAvgEfficiency').textContent = totals.cost > 0 ? (totals.items / totals.cost).toFixed(1) : '-';
+                    }
 
                 // Update Department Costs
                 function updateDepartmentCosts(deptCosts) {
