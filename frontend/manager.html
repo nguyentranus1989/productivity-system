@@ -4173,19 +4173,6 @@
                     document.getElementById('footerTotalItems').textContent = totals.items.toLocaleString();
                     document.getElementById('footerAvgCostPerItem').textContent = totals.items > 0 ? `$${(totals.cost / totals.items).toFixed(3)}` : '-';
                 }
-                    // Show both total items and QC passed items
-                    document.getElementById('footerTotalItems').innerHTML = `
-                        ${totals.items.toLocaleString()}
-                        <small style="display: block; opacity: 0.7; font-size: 0.8em;">
-                            QC: ${costData.qc_passed_items || 'N/A'}
-                        </small>
-                    `;
-                    // Use QC passed items for footer cost calculations too
-                    const qcItems = costData.qc_passed_items || totals.items;
-                    document.getElementById('footerAvgCostPerItem').textContent = qcItems > 0 ? `$${(totals.cost / qcItems).toFixed(3)}` : '-';
-                    document.getElementById('footerAvgCostPerItemActive').textContent = qcItems > 0 ? `$${(totals.activeCost / qcItems).toFixed(3)}` : '-';
-                    document.getElementById('footerAvgEfficiency').textContent = totals.cost > 0 ? (totals.items / totals.cost).toFixed(1) : '-';
-                    }
 
                 // Update Department Costs
                 function updateDepartmentCosts(deptCosts) {
