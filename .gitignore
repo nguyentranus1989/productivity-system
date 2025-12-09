@@ -2,6 +2,8 @@
 *.tar.gz
 *.sql
 .env
+.env.local
+.env.production
 backend/.env
 backend/venv/
 __pycache__/
@@ -9,3 +11,21 @@ __pycache__/
 logs/
 *.log
 .pids
+
+# Backup files
+*.backup
+*.backup.*
+*.ORIGINAL
+*.broken
+*_backup*
+*_temp*
+backups/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code
+.claude/

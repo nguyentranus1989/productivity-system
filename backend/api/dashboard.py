@@ -12,14 +12,14 @@ def cached_endpoint(ttl_seconds=10):
         def wrapper(*args, **kwargs):
             from flask import request
             cache_key = f"{func.__name__}:{request.full_path}"
-            
+
             if cache_key in _endpoint_cache:
                 data, timestamp = _endpoint_cache[cache_key]
                 if time.time() - timestamp < ttl_seconds:
-                    print(f"CACHE HIT: {func.__name__}", flush=True)
+                    # Removed print for Windows compatibility
                     return data
-            
-            print(f"CACHE MISS: {func.__name__}", flush=True)
+
+            # Removed print for Windows compatibility
             result = func(*args, **kwargs)
             _endpoint_cache[cache_key] = (result, time.time())
             return result
@@ -38,22 +38,22 @@ def cached_endpoint(ttl_seconds=10):
         def wrapper(*args, **kwargs):
             from flask import request
             cache_key = f"{func.__name__}:{request.full_path}"
-            
+
             # Check cache
             if cache_key in _endpoint_cache:
                 data, timestamp = _endpoint_cache[cache_key]
                 if time.time() - timestamp < ttl_seconds:
-                    print(f"CACHE HIT: {func.__name__}", flush=True)
+                    # Removed print for Windows compatibility
                     return data
-            
-            print(f"CACHE MISS: {func.__name__} - fetching from DB...", flush=True)
+
+            # Removed print for Windows compatibility
             result = func(*args, **kwargs)
             _endpoint_cache[cache_key] = (result, time.time())
-            
+
             # Clean old entries
             if len(_endpoint_cache) > 50:
                 _endpoint_cache.clear()
-            
+
             return result
         wrapper.__name__ = func.__name__
         return wrapper
@@ -2704,10 +2704,537 @@ def restore_employee(employee_id):
         conn.close()
         
         return jsonify({'success': True, 'message': 'Employee restored successfully'})
-        
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-    
+
+# ============= PENDING VERIFICATION ENDPOINTS =============
+
+@dashboard_bp.route('/employees/pending-verification', methods=['GET'])
+@require_api_key
+def get_pending_verifications():
+    """Get all unverified PodFactory email mappings for manager review"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Get unverified mappings with employee info and recent activity count
+        cursor.execute("""
+            SELECT
+                m.id as mapping_id,
+                m.employee_id,
+                e.name as employee_name,
+                e.connecteam_user_id,
+                m.podfactory_email,
+                m.podfactory_name,
+                m.similarity_score,
+                m.confidence_level,
+                m.created_at,
+                (SELECT COUNT(*) FROM activity_logs al
+                 WHERE al.employee_id = m.employee_id
+                 AND al.window_end > DATE_SUB(NOW(), INTERVAL 7 DAY)) as recent_activity_count
+            FROM employee_podfactory_mapping_v2 m
+            JOIN employees e ON m.employee_id = e.id
+            WHERE m.is_verified = 0
+            AND e.is_active = 1
+            ORDER BY m.created_at DESC
+        """)
+        pending = cursor.fetchall()
+
+        # Convert datetime objects to strings for JSON
+        for item in pending:
+            if item.get('created_at'):
+                item['created_at'] = item['created_at'].isoformat()
+            if item.get('similarity_score'):
+                item['similarity_score'] = float(item['similarity_score'])
+
+        # Get count of unmapped Connecteam employees (no podfactory emails at all)
+        cursor.execute("""
+            SELECT COUNT(*) as unmapped_count
+            FROM employees e
+            LEFT JOIN employee_podfactory_mapping_v2 m ON e.id = m.employee_id
+            WHERE e.is_active = 1
+            AND e.connecteam_user_id IS NOT NULL
+            AND m.id IS NULL
+        """)
+        unmapped = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'pending': pending,
+            'pending_count': len(pending),
+            'unmapped_connecteam_count': unmapped['unmapped_count'] if unmapped else 0
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting pending verifications: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@dashboard_bp.route('/employees/mapping/<int:mapping_id>/verify', methods=['POST'])
+@require_api_key
+def verify_mapping(mapping_id):
+    """Approve or reject a pending mapping"""
+    try:
+        data = request.json
+        action = data.get('action')  # 'approve' or 'reject'
+        verified_by = data.get('verified_by', 'manager')
+
+        if action not in ['approve', 'reject']:
+            return jsonify({'success': False, 'error': 'Invalid action'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        if action == 'approve':
+            # Mark as verified
+            cursor.execute("""
+                UPDATE employee_podfactory_mapping_v2
+                SET is_verified = 1,
+                    verified_by = %s,
+                    verified_at = NOW(),
+                    confidence_level = 'MANUAL'
+                WHERE id = %s
+            """, (verified_by, mapping_id))
+        else:
+            # Reject - delete the mapping
+            cursor.execute("""
+                DELETE FROM employee_podfactory_mapping_v2
+                WHERE id = %s
+            """, (mapping_id,))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'Mapping {action}d successfully'
+        })
+
+    except Exception as e:
+        logger.error(f"Error verifying mapping: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@dashboard_bp.route('/employees/mapping/<int:mapping_id>/reassign', methods=['POST'])
+@require_api_key
+def reassign_mapping(mapping_id):
+    """Reassign a PodFactory email to a different employee"""
+    try:
+        data = request.json
+        new_employee_id = data.get('employee_id')
+        verified_by = data.get('verified_by', 'manager')
+
+        if not new_employee_id:
+            return jsonify({'success': False, 'error': 'Employee ID required'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Update the mapping to new employee and mark verified
+        cursor.execute("""
+            UPDATE employee_podfactory_mapping_v2
+            SET employee_id = %s,
+                is_verified = 1,
+                verified_by = %s,
+                verified_at = NOW(),
+                confidence_level = 'MANUAL',
+                notes = CONCAT(IFNULL(notes, ''), ' Reassigned from original auto-mapping')
+            WHERE id = %s
+        """, (new_employee_id, verified_by, mapping_id))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Mapping reassigned successfully'
+        })
+
+    except Exception as e:
+        logger.error(f"Error reassigning mapping: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@dashboard_bp.route('/employees/bulk-verify', methods=['POST'])
+@require_api_key
+def bulk_verify_mappings():
+    """Bulk approve all mappings where names match exactly"""
+    try:
+        data = request.json
+        verified_by = data.get('verified_by', 'manager')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Approve all where employee name matches podfactory name (case insensitive)
+        # Using COLLATE to handle different table collations
+        cursor.execute("""
+            UPDATE employee_podfactory_mapping_v2 m
+            JOIN employees e ON m.employee_id = e.id
+            SET m.is_verified = 1,
+                m.verified_by = %s,
+                m.verified_at = NOW(),
+                m.confidence_level = 'HIGH'
+            WHERE m.is_verified = 0
+            AND LOWER(TRIM(e.name)) COLLATE utf8mb4_unicode_ci = LOWER(TRIM(m.podfactory_name)) COLLATE utf8mb4_unicode_ci
+        """, (verified_by,))
+
+        approved_count = cursor.rowcount
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'Bulk verified {approved_count} matching mappings'
+        })
+
+    except Exception as e:
+        logger.error(f"Error bulk verifying: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@dashboard_bp.route('/employees/mapping-recommendations', methods=['GET'])
+@require_api_key
+def get_mapping_recommendations():
+    """Get pending PodFactory mappings with recommended employee matches based on name similarity"""
+    try:
+        from difflib import SequenceMatcher
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Get pending mappings (is_verified = 0) that need review
+        # These were auto-created during sync and need manager approval
+        cursor.execute("""
+            SELECT DISTINCT
+                m.id as mapping_id,
+                m.podfactory_email as user_email,
+                m.podfactory_name as user_name,
+                m.employee_id as current_employee_id,
+                e.name as current_employee_name,
+                m.similarity_score as auto_similarity_score,
+                m.confidence_level,
+                m.created_at
+            FROM employee_podfactory_mapping_v2 m
+            LEFT JOIN employees e ON m.employee_id = e.id
+            WHERE m.is_verified = 0
+            AND m.podfactory_email IS NOT NULL
+            AND m.podfactory_email != ''
+            ORDER BY m.created_at DESC
+        """)
+        unmapped_pf_users = cursor.fetchall()
+
+        # Get all active employees
+        cursor.execute("""
+            SELECT id, name, email
+            FROM employees
+            WHERE is_active = 1
+            ORDER BY name
+        """)
+        employees = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        def calculate_similarity(name1, name2):
+            """Calculate similarity score between two names"""
+            if not name1 or not name2:
+                return 0.0
+            name1 = name1.lower().strip()
+            name2 = name2.lower().strip()
+            return SequenceMatcher(None, name1, name2).ratio()
+
+        def get_recommendations(pf_name, employees, top_n=3):
+            """Get top N employee recommendations for a PodFactory name"""
+            if not pf_name:
+                return []
+
+            scores = []
+            for emp in employees:
+                emp_name = emp['name']
+                score = calculate_similarity(pf_name, emp_name)
+
+                # Also check if first/last names match
+                pf_parts = pf_name.lower().split()
+                emp_parts = emp_name.lower().split()
+
+                # Boost score if first or last name matches exactly
+                for pf_part in pf_parts:
+                    for emp_part in emp_parts:
+                        if pf_part == emp_part and len(pf_part) > 2:
+                            score = min(1.0, score + 0.2)
+
+                if score > 0.3:  # Only include if there's some similarity
+                    scores.append({
+                        'employee_id': emp['id'],
+                        'employee_name': emp['name'],
+                        'employee_email': emp['email'],
+                        'similarity_score': round(score, 2)
+                    })
+
+            # Sort by score descending and return top N
+            scores.sort(key=lambda x: x['similarity_score'], reverse=True)
+            return scores[:top_n]
+
+        # Build recommendations for each pending mapping
+        recommendations = []
+        for pf_user in unmapped_pf_users:
+            matches = get_recommendations(pf_user['user_name'], employees)
+
+            # Convert datetime to string for JSON serialization
+            created_at = pf_user.get('created_at')
+            if created_at:
+                created_at = created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at)
+
+            recommendations.append({
+                'mapping_id': pf_user['mapping_id'],
+                'podfactory_email': pf_user['user_email'],
+                'podfactory_name': pf_user['user_name'],
+                'current_employee_id': pf_user['current_employee_id'],
+                'current_employee_name': pf_user['current_employee_name'],
+                'auto_similarity_score': float(pf_user['auto_similarity_score']) if pf_user.get('auto_similarity_score') else 0,
+                'confidence_level': pf_user['confidence_level'],
+                'created_at': created_at,
+                'recommended_matches': matches
+            })
+
+        return jsonify({
+            'success': True,
+            'unmapped_count': len(recommendations),
+            'recommendations': recommendations,
+            'all_employees': [{'id': e['id'], 'name': e['name']} for e in employees]
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting mapping recommendations: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@dashboard_bp.route('/employees/create-mapping', methods=['POST'])
+@require_api_key
+def create_manual_mapping():
+    """Create a new employee-to-PodFactory mapping (manual, verified)"""
+    try:
+        data = request.json
+        employee_id = data.get('employee_id')
+        podfactory_email = data.get('podfactory_email')
+        podfactory_name = data.get('podfactory_name')
+        verified_by = data.get('verified_by', 'manager')
+
+        if not employee_id or not podfactory_email:
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if mapping already exists
+        cursor.execute("""
+            SELECT id FROM employee_podfactory_mapping_v2
+            WHERE podfactory_email = %s
+        """, (podfactory_email,))
+
+        existing = cursor.fetchone()
+        if existing:
+            # Update existing mapping
+            cursor.execute("""
+                UPDATE employee_podfactory_mapping_v2
+                SET employee_id = %s,
+                    podfactory_name = %s,
+                    is_verified = 1,
+                    verified_by = %s,
+                    verified_at = NOW(),
+                    confidence_level = 'MANUAL'
+                WHERE podfactory_email = %s
+            """, (employee_id, podfactory_name, verified_by, podfactory_email))
+        else:
+            # Create new mapping
+            cursor.execute("""
+                INSERT INTO employee_podfactory_mapping_v2
+                (employee_id, podfactory_email, podfactory_name, similarity_score, confidence_level, is_verified, verified_by, verified_at, created_at)
+                VALUES (%s, %s, %s, 1.0, 'MANUAL', 1, %s, NOW(), NOW())
+            """, (employee_id, podfactory_email, podfactory_name, verified_by))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'Mapping created: {podfactory_email} -> Employee ID {employee_id}'
+        })
+
+    except Exception as e:
+        logger.error(f"Error creating mapping: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============= UNIFIED NEEDS ATTENTION ENDPOINT =============
+
+@dashboard_bp.route('/employees/needs-attention', methods=['GET'])
+@require_api_key
+def get_employees_needs_attention():
+    """Get unified view of all employees needing attention (Connecteam mapping, pending verifications, etc.)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        result = {
+            'success': True,
+            'no_connecteam': [],
+            'pending_verification': [],
+            'summary': {
+                'no_connecteam_count': 0,
+                'pending_verification_count': 0,
+                'total_attention_needed': 0
+            }
+        }
+
+        # Check if is_contractor column exists
+        cursor.execute("""
+            SELECT COUNT(*) as cnt FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'employees'
+            AND COLUMN_NAME = 'is_contractor'
+        """)
+        col_check = cursor.fetchone()
+        has_contractor_col = col_check['cnt'] > 0 if col_check else False
+
+        # 1. Get employees without Connecteam ID (excluding contractors if column exists)
+        if has_contractor_col:
+            cursor.execute("""
+                SELECT
+                    e.id,
+                    e.name,
+                    e.email,
+                    e.is_contractor,
+                    GROUP_CONCAT(DISTINCT m.podfactory_email) as podfactory_emails,
+                    (SELECT COUNT(*) FROM activity_logs al
+                     WHERE al.employee_id = e.id
+                     AND al.window_start >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as recent_activity_count
+                FROM employees e
+                LEFT JOIN employee_podfactory_mapping_v2 m ON e.id = m.employee_id AND m.is_verified = 1
+                WHERE e.is_active = 1
+                    AND (e.connecteam_user_id IS NULL OR e.connecteam_user_id = '')
+                    AND (e.is_contractor IS NULL OR e.is_contractor = 0)
+                GROUP BY e.id
+                ORDER BY recent_activity_count DESC, e.name
+            """)
+        else:
+            cursor.execute("""
+                SELECT
+                    e.id,
+                    e.name,
+                    e.email,
+                    0 as is_contractor,
+                    GROUP_CONCAT(DISTINCT m.podfactory_email) as podfactory_emails,
+                    (SELECT COUNT(*) FROM activity_logs al
+                     WHERE al.employee_id = e.id
+                     AND al.window_start >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as recent_activity_count
+                FROM employees e
+                LEFT JOIN employee_podfactory_mapping_v2 m ON e.id = m.employee_id AND m.is_verified = 1
+                WHERE e.is_active = 1
+                    AND (e.connecteam_user_id IS NULL OR e.connecteam_user_id = '')
+                GROUP BY e.id
+                ORDER BY recent_activity_count DESC, e.name
+            """)
+        no_connecteam = cursor.fetchall()
+
+        # Categorize no_connecteam employees
+        system_keywords = ['admin', 'factory', 'presser', 'labeler', 'picker', 'printer',
+                          'production', 'quality', 'shipper', 'test', 'worker', 'control']
+
+        for emp in no_connecteam:
+            name_lower = emp['name'].lower()
+            emp['is_system_account'] = any(kw in name_lower for kw in system_keywords)
+            emp['category'] = 'system' if emp['is_system_account'] else 'needs_linking'
+
+        result['no_connecteam'] = no_connecteam
+        result['summary']['no_connecteam_count'] = len(no_connecteam)
+
+        # 2. Get pending PodFactory verifications
+        cursor.execute("""
+            SELECT
+                m.id as mapping_id,
+                m.employee_id,
+                e.name as employee_name,
+                m.podfactory_email,
+                m.podfactory_name,
+                m.similarity_score,
+                m.confidence_level,
+                m.created_at,
+                (SELECT COUNT(*) FROM activity_logs al
+                 WHERE al.employee_id = m.employee_id
+                 AND al.window_start >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as recent_activity_count
+            FROM employee_podfactory_mapping_v2 m
+            JOIN employees e ON m.employee_id = e.id
+            WHERE m.is_verified = 0 AND e.is_active = 1
+            ORDER BY m.similarity_score DESC, m.created_at DESC
+        """)
+        pending = cursor.fetchall()
+        result['pending_verification'] = pending
+        result['summary']['pending_verification_count'] = len(pending)
+
+        result['summary']['total_attention_needed'] = len(no_connecteam) + len(pending)
+
+        cursor.close()
+        conn.close()
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error getting needs-attention: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@dashboard_bp.route('/employees/<int:employee_id>/mark-contractor', methods=['POST'])
+@require_api_key
+def mark_employee_contractor(employee_id):
+    """Mark employee as contractor (exempt from Connecteam time tracking)"""
+    try:
+        data = request.json or {}
+        is_contractor = data.get('is_contractor', True)
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Ensure is_contractor column exists (use try/except to handle if it already exists)
+        try:
+            cursor.execute("""
+                ALTER TABLE employees ADD COLUMN is_contractor TINYINT(1) DEFAULT 0
+            """)
+            conn.commit()
+        except Exception:
+            # Column already exists, that's fine
+            pass
+
+        cursor.execute("""
+            UPDATE employees
+            SET is_contractor = %s
+            WHERE id = %s
+        """, (1 if is_contractor else 0, employee_id))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'Employee {employee_id} marked as {"contractor" if is_contractor else "regular employee"}'
+        })
+
+    except Exception as e:
+        logger.error(f"Error marking contractor: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @dashboard_bp.route('/bottleneck/test', methods=['GET'])
 @require_api_key
 def test_bottleneck():

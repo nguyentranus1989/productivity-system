@@ -409,10 +409,10 @@ class ProductivityScheduler:
         self.db.execute_update(
             """
             INSERT INTO alerts (employee_id, alert_type, severity, message, created_at)
-            VALUES (%s, 'idle_detected', 'critical', %s, %s)
+            VALUES (%s, 'idle_detected', 'critical', %s, %s) AS new_values
             ON DUPLICATE KEY UPDATE
-                message = VALUES(message),
-                created_at = VALUES(created_at)
+                message = new_values.message,
+                created_at = new_values.created_at
             """,
             (idle_info['employee_id'], message, current_time)
         )

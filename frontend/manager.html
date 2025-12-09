@@ -1337,20 +1337,23 @@
                 </div>
                 
                 
-                <div class="metric-card">
+                <div class="metric-card" style="cursor: pointer;" onclick="showEmpTab('attention')">
                     <div class="metric-icon yellow">
                         <i class="fas fa-exclamation-triangle"></i>
                     </div>
-                    <div class="metric-value" id="unmappedCount">-</div>
-                    <div class="metric-label">Need Mapping</div>
+                    <div class="metric-value" id="needsAttentionCount">-</div>
+                    <div class="metric-label">Needs Attention</div>
                 </div>
             </div>
 
             <!-- Tab Navigation -->
-            <div style="margin-bottom: 20px; display: flex; gap: 10px; padding: 0 20px;">
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; padding: 0 20px; flex-wrap: wrap;">
                 <button class="btn-action btn-secondary emp-nav-link active" onclick="showEmpTab('list')">All Employees</button>
+                <button class="btn-action btn-secondary emp-nav-link" onclick="showEmpTab('attention')" id="needsAttentionTab" style="position: relative;">
+                    Needs Attention
+                    <span id="attentionBadge" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; min-width: 20px; height: 20px; font-size: 11px; display: none; align-items: center; justify-content: center; padding: 0 5px;">0</span>
+                </button>
                 <button class="btn-action btn-secondary emp-nav-link" onclick="showEmpTab('payrates')">Payrates</button>
-                <button class="btn-action btn-secondary emp-nav-link" onclick="showEmpTab('mapping')">Email Mapping</button>
                 <button class="btn-action btn-secondary emp-nav-link" onclick="showEmpTab('add')">Add Employee</button>
                 <button class="btn-action btn-secondary emp-nav-link" onclick="showEmpTab('archived')">Archived</button>
             </div>
@@ -1385,6 +1388,70 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Needs Attention Tab (Unified) -->
+            <div id="empTabAttention" class="emp-tab-content" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h3 style="margin: 0; color: #e0e0e0;">
+                            <i class="fas fa-tasks" style="color: #fbbf24; margin-right: 10px;"></i>
+                            Employee Issues Queue
+                        </h3>
+                        <p style="color: #808080; margin: 5px 0 0 0; font-size: 0.9em;">
+                            Resolve employee data issues: missing Connecteam links, pending email verifications
+                        </p>
+                    </div>
+                    <button class="btn-action btn-secondary" onclick="loadNeedsAttention()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+
+                <!-- Summary Cards -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                    <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 10px; padding: 15px;">
+                        <div style="color: #ef4444; font-size: 0.85em; margin-bottom: 5px;">
+                            <i class="fas fa-unlink"></i> No Connecteam Link
+                        </div>
+                        <div id="noConnecteamSummary" style="color: #e0e0e0; font-size: 1.5em; font-weight: 600;">-</div>
+                    </div>
+                    <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 10px; padding: 15px;">
+                        <div style="color: #fbbf24; font-size: 0.85em; margin-bottom: 5px;">
+                            <i class="fas fa-clock"></i> Pending Verification
+                        </div>
+                        <div id="pendingVerifSummary" style="color: #e0e0e0; font-size: 1.5em; font-weight: 600;">-</div>
+                    </div>
+                </div>
+
+                <!-- No Connecteam Section -->
+                <div id="noConnecteamSection" style="margin-bottom: 30px;">
+                    <h4 style="color: #ef4444; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-unlink"></i> Employees Without Connecteam Link
+                        <span style="font-size: 0.8em; font-weight: normal; color: #808080;">(Cannot calculate productivity hours)</span>
+                    </h4>
+                    <div id="noConnecteamList" style="display: grid; gap: 10px;">
+                        <p style="color: #808080; text-align: center; padding: 20px;">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Pending Verifications Section -->
+                <div id="pendingVerifSection" style="margin-bottom: 30px;">
+                    <h4 style="color: #fbbf24; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-clock"></i> Pending Email Verifications
+                        <span style="font-size: 0.8em; font-weight: normal; color: #808080;">(Auto-matched, needs approval)</span>
+                    </h4>
+                    <div id="pendingVerificationList" style="display: grid; gap: 15px;">
+                        <p style="color: #808080; text-align: center; padding: 20px;">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- All Clear State -->
+                <div id="allClearState" style="display: none; text-align: center; padding: 60px 20px; background: rgba(34, 197, 94, 0.1); border-radius: 12px; border: 1px dashed rgba(34, 197, 94, 0.3);">
+                    <i class="fas fa-check-circle" style="font-size: 4em; color: #22c55e; margin-bottom: 20px;"></i>
+                    <h3 style="color: #22c55e; margin-bottom: 10px;">All Clear!</h3>
+                    <p style="color: #808080;">No employee issues need attention</p>
+                </div>
+            </div>
+
             <!-- Payrates Tab -->
             <div id="empTabPayrates" class="emp-tab-content" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -1425,13 +1492,6 @@
                 <div id="payrateNoResults" style="display: none; text-align: center; padding: 40px; color: #808080;">
                     <i class="fas fa-search" style="font-size: 2em; margin-bottom: 10px;"></i>
                     <p>No employees found matching your search</p>
-                </div>
-            </div>
-            <!-- Email Mapping Tab -->
-            <div id="empTabMapping" class="emp-tab-content" style="display: none;">
-                <h3 style="margin-bottom: 20px;">Email Mapping Configuration</h3>
-                <div id="unmappedEmployeesList">
-                    <p style="color: #808080;">Loading unmapped employees...</p>
                 </div>
             </div>
 
@@ -1707,6 +1767,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.1/dist/chart.umd.min.js"></script>
     <script src="dashboard-api.js"></script>
     <script>
+        // API base for inline fetch calls (uses same logic as dashboard-api.js)
+        const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:5000' : '';
+
         // Mobile sidebar toggle function
         function toggleSidebar() {
             const sidebar = document.getElementById("sidebar");
@@ -1736,7 +1800,7 @@
         // Update system health status
         async function updateSystemHealth() {
             try {
-                const response = await fetch('/api/system/health', {
+                const response = await fetch(`${API_BASE}/api/system/health`, {
                     headers: { 'X-API-Key': 'dev-api-key-123' }
                 });
                 
@@ -1832,7 +1896,7 @@
         async function loadSystemDetails() {
             try {
                 // Get PM2 status
-                const pm2Response = await fetch('/api/system/pm2-status', {
+                const pm2Response = await fetch(`${API_BASE}/api/system/pm2-status`, {
                     headers: { 'X-API-Key': 'dev-api-key-123' }
                 });
                 
@@ -1853,7 +1917,7 @@
                 }
                 
                 // Get system health for sync details
-                const healthResponse = await fetch('/api/system/health', {
+                const healthResponse = await fetch(`${API_BASE}/api/system/health`, {
                     headers: { 'X-API-Key': 'dev-api-key-123' }
                 });
                 
@@ -1911,7 +1975,7 @@
             }
             
             try {
-                const response = await fetch('/api/system/restart-service', {
+                const response = await fetch(`${API_BASE}/api/system/restart-service`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1946,7 +2010,7 @@
             }
             
             try {
-                const response = await fetch('/api/system/force-sync', {
+                const response = await fetch(`${API_BASE}/api/system/force-sync`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1976,7 +2040,7 @@
             }
             
             try {
-                const response = await fetch('/api/system/clear-sync-logs', {
+                const response = await fetch(`${API_BASE}/api/system/clear-sync-logs`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2000,7 +2064,7 @@
         // Test database connection
         async function testDatabaseConnection() {
             try {
-                const response = await fetch('/api/system/test-connection', {
+                const response = await fetch(`${API_BASE}/api/system/test-connection`, {
                     headers: { 'X-API-Key': 'dev-api-key-123' }
                 });
                 
@@ -2028,7 +2092,7 @@
             }
             
             try {
-                const response = await fetch('/api/system/reset-connection-pool', {
+                const response = await fetch(`${API_BASE}/api/system/reset-connection-pool`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2060,7 +2124,7 @@
             }
             
             try {
-                const response = await fetch('/api/system/restart-all', {
+                const response = await fetch(`${API_BASE}/api/system/restart-all`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2747,30 +2811,43 @@
             window.loadEmployeeManagementData = async function() {
                 try {
                     console.log('Loading employee management data...');
-                    
+
+                    // Load employees
                     const response = await api.request('/dashboard/employees');
                     console.log('Response received:', response);
-                    
+
                     if (response && response.employees) {
                         // Filter out archived employees (is_active = 0)
                         const activeEmployees = response.employees.filter(e => e.is_active === 1 || e.is_active === true);
                         console.log('Active employees found:', activeEmployees.length);
-                        
+
                         // Update statistics
                         document.getElementById('totalEmployeeCount').textContent = activeEmployees.length;
-                        
-                        // Count unmapped employees
-                        const unmapped = activeEmployees.filter(e => !e.connecteam_user_id || e.connecteam_user_id === '').length;
-                        document.getElementById('unmappedCount').textContent = unmapped;
-                        
-                        // Count active today (this might need adjustment based on your logic)
-                        const activeToday = activeEmployees.length;
-                        document.getElementById('activeEmployeeCount').textContent = activeToday;
-                        
+
                         // Display only active employees in table
                         window.displayEmployeeTable(activeEmployees);
                     } else {
                         console.log('No employees in response:', response);
+                    }
+
+                    // Load needs-attention count
+                    try {
+                        const attentionResponse = await api.request('/dashboard/employees/needs-attention');
+                        if (attentionResponse.success) {
+                            const count = attentionResponse.summary.total_attention_needed;
+                            document.getElementById('needsAttentionCount').textContent = count;
+
+                            // Update badge
+                            const badge = document.getElementById('attentionBadge');
+                            if (count > 0) {
+                                badge.textContent = count;
+                                badge.style.display = 'flex';
+                            } else {
+                                badge.style.display = 'none';
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error loading needs-attention count:', e);
                     }
                 } catch (error) {
                     console.error('Error loading employee data:', error);
@@ -2835,28 +2912,567 @@
             window.showEmpTab = function(tab) {
             // Hide all tabs
             document.querySelectorAll('.emp-tab-content').forEach(t => t.style.display = 'none');
-            
+
             // Remove active class from all buttons
             document.querySelectorAll('.emp-nav-link').forEach(link => {
                 link.classList.remove('active');
             });
-            
+
             // Show selected tab
             const tabElement = document.getElementById('empTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
             if (tabElement) {
                 tabElement.style.display = 'block';
             }
-            
+
             // Add active class to clicked button
             if (event && event.target) {
                 event.target.classList.add('active');
             }
-            
+
             // Load data for the tab
             if (tab === 'payrates') {
                 loadPayratesData();
             } else if (tab === 'archived') {
                 loadArchivedEmployees();
+            } else if (tab === 'attention') {
+                loadNeedsAttention();
+            }
+        };
+
+        // ============= UNIFIED NEEDS ATTENTION FUNCTIONS =============
+
+        // Store employee list for reassignment dropdown
+        let allEmployeesList = [];
+
+        window.loadNeedsAttention = async function() {
+            const noConnecteamList = document.getElementById('noConnecteamList');
+            const pendingList = document.getElementById('pendingVerificationList');
+            const allClearState = document.getElementById('allClearState');
+            const noConnecteamSection = document.getElementById('noConnecteamSection');
+            const pendingSection = document.getElementById('pendingVerifSection');
+            const badge = document.getElementById('attentionBadge');
+
+            try {
+                const response = await api.request('/dashboard/employees/needs-attention');
+
+                if (response.success) {
+                    const { no_connecteam, pending_verification, summary } = response;
+
+                    // Update summary counts
+                    document.getElementById('noConnecteamSummary').textContent = summary.no_connecteam_count;
+                    document.getElementById('pendingVerifSummary').textContent = summary.pending_verification_count;
+                    document.getElementById('needsAttentionCount').textContent = summary.total_attention_needed;
+
+                    // Update badge
+                    if (summary.total_attention_needed > 0) {
+                        badge.textContent = summary.total_attention_needed;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+
+                    // Load employee list for reassignment
+                    const empResponse = await api.request('/dashboard/employees');
+                    if (empResponse.success) {
+                        allEmployeesList = empResponse.employees.filter(e => e.is_active === 1);
+                    }
+
+                    // Render No Connecteam list
+                    if (no_connecteam.length > 0) {
+                        noConnecteamSection.style.display = 'block';
+                        noConnecteamList.innerHTML = no_connecteam.map(emp => renderNoConnecteamCard(emp)).join('');
+                    } else {
+                        noConnecteamSection.style.display = 'none';
+                    }
+
+                    // Render Pending Verifications
+                    if (pending_verification.length > 0) {
+                        pendingSection.style.display = 'block';
+                        pendingList.innerHTML = pending_verification.map(item => renderPendingCard(item)).join('');
+                    } else {
+                        pendingSection.style.display = 'none';
+                    }
+
+                    // Show all clear if nothing needs attention
+                    if (summary.total_attention_needed === 0) {
+                        allClearState.style.display = 'block';
+                        noConnecteamSection.style.display = 'none';
+                        pendingSection.style.display = 'none';
+                    } else {
+                        allClearState.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading needs attention:', error);
+                noConnecteamList.innerHTML = '<p style="color: #ef4444; text-align: center;">Error loading data</p>';
+            }
+        };
+
+        function renderNoConnecteamCard(emp) {
+            const isSystem = emp.is_system_account;
+            const borderColor = isSystem ? 'rgba(107, 114, 128, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+            const bgColor = isSystem ? 'rgba(107, 114, 128, 0.1)' : 'rgba(239, 68, 68, 0.05)';
+
+            return `
+                <div style="
+                    background: ${bgColor};
+                    border: 1px solid ${borderColor};
+                    border-radius: 10px;
+                    padding: 15px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 15px;
+                    flex-wrap: wrap;
+                ">
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                            <span style="color: #e0e0e0; font-weight: 600;">${emp.name}</span>
+                            ${isSystem ? '<span style="background: #6b7280; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75em;">System Account</span>' : ''}
+                        </div>
+                        <div style="color: #808080; font-size: 0.85em;">
+                            ${emp.email || 'No email'}
+                            ${emp.podfactory_emails ? `| PodFactory: ${emp.podfactory_emails.split(',').length} email(s)` : ''}
+                        </div>
+                        <div style="color: #808080; font-size: 0.8em; margin-top: 3px;">
+                            ${emp.recent_activity_count || 0} activities (30 days)
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button onclick="openSmartMapping(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')"
+                                class="btn-action btn-primary" style="padding: 8px 12px; font-size: 0.85em;">
+                            <i class="fas fa-link"></i> Link to Connecteam
+                        </button>
+                        <button onclick="markAsContractor(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')"
+                                class="btn-action btn-secondary" style="padding: 8px 12px; font-size: 0.85em;">
+                            <i class="fas fa-user-tie"></i> Mark Contractor
+                        </button>
+                        <button onclick="archiveEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')"
+                                class="btn-action btn-secondary" style="padding: 8px 12px; font-size: 0.85em; background: rgba(107, 114, 128, 0.2);">
+                            <i class="fas fa-archive"></i> Archive
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.markAsContractor = async function(employeeId, employeeName) {
+            if (!confirm(`Mark "${employeeName}" as a contractor? This will exempt them from Connecteam time tracking.`)) return;
+
+            try {
+                const response = await api.request(`/dashboard/employees/${employeeId}/mark-contractor`, {
+                    method: 'POST',
+                    body: JSON.stringify({ is_contractor: true })
+                });
+
+                if (response.success) {
+                    showNotification(`${employeeName} marked as contractor`, 'success');
+                    loadNeedsAttention();
+                    loadEmployeeManagementData();
+                } else {
+                    showNotification(response.error || 'Failed to mark as contractor', 'error');
+                }
+            } catch (error) {
+                console.error('Error marking contractor:', error);
+                showNotification('Error marking contractor', 'error');
+            }
+        };
+
+        // ============= PENDING VERIFICATION FUNCTIONS =============
+
+        window.loadPendingVerifications = async function() {
+            const container = document.getElementById('pendingVerificationList');
+            const emptyState = document.getElementById('noPendingState');
+            const badge = document.getElementById('pendingBadge');
+
+            try {
+                const response = await api.request('/dashboard/employees/pending-verification');
+
+                if (response.success && response.pending.length > 0) {
+                    emptyState.style.display = 'none';
+                    container.style.display = 'grid';
+
+                    // Update badge
+                    badge.textContent = response.pending_count;
+                    badge.style.display = 'flex';
+
+                    // Load employee list for reassignment
+                    const empResponse = await api.request('/dashboard/employees');
+                    if (empResponse.success) {
+                        allEmployeesList = empResponse.employees.filter(e => e.is_active === 1);
+                    }
+
+                    // Render pending cards
+                    container.innerHTML = response.pending.map(item => renderPendingCard(item)).join('');
+                } else {
+                    container.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    badge.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading pending verifications:', error);
+                container.innerHTML = '<p style="color: #ef4444; text-align: center; padding: 40px;">Error loading pending verifications</p>';
+            }
+        };
+
+        function renderPendingCard(item) {
+            const namesMatch = item.employee_name.toLowerCase().trim() === (item.podfactory_name || '').toLowerCase().trim();
+            const matchIndicator = namesMatch
+                ? '<span style="color: #22c55e; font-size: 0.85em;"><i class="fas fa-check-circle"></i> Names match</span>'
+                : '<span style="color: #fbbf24; font-size: 0.85em;"><i class="fas fa-exclamation-triangle"></i> Names differ</span>';
+
+            return `
+                <div class="pending-card" style="
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid ${namesMatch ? 'rgba(34, 197, 94, 0.3)' : 'rgba(251, 191, 36, 0.3)'};
+                    border-radius: 12px;
+                    padding: 20px;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 20px; flex-wrap: wrap;">
+                        <!-- Left: Mapping Info -->
+                        <div style="flex: 1; min-width: 300px;">
+                            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                                <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2em;">
+                                    ${item.employee_name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase()}
+                                </div>
+                                <div>
+                                    <div style="color: #e0e0e0; font-weight: 600; font-size: 1.1em;">${item.employee_name}</div>
+                                    <div style="color: #808080; font-size: 0.85em;">Employee ID: ${item.employee_id}</div>
+                                </div>
+                            </div>
+
+                            <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                                <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 15px; font-size: 0.9em;">
+                                    <span style="color: #808080;">PodFactory Email:</span>
+                                    <span style="color: #667eea; font-weight: 500;">${item.podfactory_email}</span>
+
+                                    <span style="color: #808080;">PodFactory Name:</span>
+                                    <span style="color: #e0e0e0;">${item.podfactory_name || 'N/A'}</span>
+
+                                    <span style="color: #808080;">Match Score:</span>
+                                    <span style="color: ${item.similarity_score >= 0.9 ? '#22c55e' : item.similarity_score >= 0.7 ? '#fbbf24' : '#ef4444'};">
+                                        ${(item.similarity_score * 100).toFixed(0)}%
+                                    </span>
+
+                                    <span style="color: #808080;">Recent Activity:</span>
+                                    <span style="color: #e0e0e0;">${item.recent_activity_count} logs (7 days)</span>
+                                </div>
+                            </div>
+
+                            ${matchIndicator}
+                        </div>
+
+                        <!-- Right: Actions -->
+                        <div style="display: flex; flex-direction: column; gap: 10px; min-width: 200px;">
+                            <button onclick="approveMapping(${item.mapping_id})" class="btn-action btn-primary" style="width: 100%;">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                            <button onclick="rejectMapping(${item.mapping_id})" class="btn-action btn-secondary" style="width: 100%; background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5);">
+                                <i class="fas fa-times"></i> Reject
+                            </button>
+                            <div style="position: relative;">
+                                <select onchange="reassignMapping(${item.mapping_id}, this.value)" style="
+                                    width: 100%;
+                                    padding: 10px;
+                                    background: rgba(255,255,255,0.1);
+                                    color: #e0e0e0;
+                                    border: 1px solid rgba(255,255,255,0.2);
+                                    border-radius: 8px;
+                                    cursor: pointer;
+                                ">
+                                    <option value="">Reassign to...</option>
+                                    ${allEmployeesList.map(emp =>
+                                        `<option value="${emp.id}" ${emp.id === item.employee_id ? 'disabled' : ''}>${emp.name}</option>`
+                                    ).join('')}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.approveMapping = async function(mappingId) {
+            if (!confirm('Approve this email mapping?')) return;
+
+            try {
+                const response = await api.request(`/dashboard/employees/mapping/${mappingId}/verify`, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'approve', verified_by: 'manager' })
+                });
+
+                if (response.success) {
+                    showNotification('Mapping approved', 'success');
+                    loadPendingVerifications();
+                } else {
+                    showNotification(response.error || 'Failed to approve', 'error');
+                }
+            } catch (error) {
+                console.error('Error approving mapping:', error);
+                showNotification('Error approving mapping', 'error');
+            }
+        };
+
+        window.rejectMapping = async function(mappingId) {
+            if (!confirm('Reject this mapping? The email will need to be re-mapped manually.')) return;
+
+            try {
+                const response = await api.request(`/dashboard/employees/mapping/${mappingId}/verify`, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'reject', verified_by: 'manager' })
+                });
+
+                if (response.success) {
+                    showNotification('Mapping rejected', 'success');
+                    loadPendingVerifications();
+                } else {
+                    showNotification(response.error || 'Failed to reject', 'error');
+                }
+            } catch (error) {
+                console.error('Error rejecting mapping:', error);
+                showNotification('Error rejecting mapping', 'error');
+            }
+        };
+
+        window.reassignMapping = async function(mappingId, newEmployeeId) {
+            if (!newEmployeeId) return;
+
+            const emp = allEmployeesList.find(e => e.id == newEmployeeId);
+            if (!confirm(`Reassign this email to ${emp?.name || 'selected employee'}?`)) {
+                event.target.value = '';
+                return;
+            }
+
+            try {
+                const response = await api.request(`/dashboard/employees/mapping/${mappingId}/reassign`, {
+                    method: 'POST',
+                    body: JSON.stringify({ employee_id: parseInt(newEmployeeId), verified_by: 'manager' })
+                });
+
+                if (response.success) {
+                    showNotification('Mapping reassigned successfully', 'success');
+                    loadPendingVerifications();
+                } else {
+                    showNotification(response.error || 'Failed to reassign', 'error');
+                }
+            } catch (error) {
+                console.error('Error reassigning mapping:', error);
+                showNotification('Error reassigning mapping', 'error');
+            }
+        };
+
+        // Load pending count on page load for badge
+        async function updatePendingBadge() {
+            try {
+                const response = await api.request('/dashboard/employees/pending-verification');
+                const badge = document.getElementById('pendingBadge');
+                if (response.success && response.pending_count > 0) {
+                    badge.textContent = response.pending_count;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error updating pending badge:', error);
+            }
+        }
+
+        // Call on page load
+        setTimeout(updatePendingBadge, 2000);
+
+        // Store all employees for dropdown
+        let allEmployeesForMapping = [];
+
+        // Load mapping recommendations
+        window.loadMappingRecommendations = async function() {
+            const container = document.getElementById('mappingRecommendationsList');
+            const emptyState = document.getElementById('noMappingsState');
+            const summaryEl = document.getElementById('unmappedCountText');
+
+            try {
+                const response = await api.request('/dashboard/employees/mapping-recommendations');
+
+                if (!response.success) {
+                    container.innerHTML = '<p style="color: #ef4444; text-align: center;">Failed to load recommendations</p>';
+                    return;
+                }
+
+                allEmployeesForMapping = response.all_employees || [];
+                summaryEl.textContent = response.unmapped_count;
+
+                if (response.recommendations.length === 0) {
+                    container.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    document.getElementById('unmappedSummary').style.display = 'none';
+                    return;
+                }
+
+                container.style.display = 'grid';
+                emptyState.style.display = 'none';
+
+                container.innerHTML = response.recommendations.map((rec, idx) => {
+                    const hasRecommendations = rec.recommended_matches && rec.recommended_matches.length > 0;
+                    const topMatch = hasRecommendations ? rec.recommended_matches[0] : null;
+
+                    return `
+                        <div class="mapping-card" style="background: rgba(30, 30, 35, 0.9); border: 1px solid rgba(155, 89, 182, 0.3); border-radius: 12px; padding: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+                                <!-- PodFactory User Info -->
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                        <i class="fas fa-user" style="color: #9b59b6; font-size: 1.2em;"></i>
+                                        <span style="color: #e0e0e0; font-weight: 600; font-size: 1.1em;">${rec.podfactory_name || 'Unknown'}</span>
+                                    </div>
+                                    <div style="color: #808080; font-size: 0.9em; margin-bottom: 5px;">
+                                        <i class="fas fa-envelope" style="margin-right: 5px;"></i> ${rec.podfactory_email}
+                                    </div>
+                                    <div style="color: #808080; font-size: 0.85em;">
+                                        <i class="fas fa-briefcase" style="margin-right: 5px;"></i> ${rec.podfactory_role || 'N/A'}
+                                        <span style="margin-left: 10px;"><i class="fas fa-chart-bar" style="margin-right: 5px;"></i> ${rec.activity_count} activities</span>
+                                    </div>
+                                </div>
+
+                                <!-- Recommendation -->
+                                <div style="flex: 1; text-align: right;">
+                                    ${hasRecommendations ? `
+                                        <div style="margin-bottom: 10px;">
+                                            <span style="color: #808080; font-size: 0.85em;">Best Match:</span>
+                                            <div style="color: #22c55e; font-weight: 600;">${topMatch.employee_name}</div>
+                                            <div style="display: inline-block; padding: 2px 8px; background: ${topMatch.similarity_score >= 0.8 ? 'rgba(34, 197, 94, 0.2)' : topMatch.similarity_score >= 0.6 ? 'rgba(251, 191, 36, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; border-radius: 12px; font-size: 0.8em; color: ${topMatch.similarity_score >= 0.8 ? '#22c55e' : topMatch.similarity_score >= 0.6 ? '#fbbf24' : '#ef4444'};">
+                                                ${Math.round(topMatch.similarity_score * 100)}% match
+                                            </div>
+                                        </div>
+                                    ` : `
+                                        <div style="color: #fbbf24; font-size: 0.9em;">
+                                            <i class="fas fa-exclamation-triangle"></i> No automatic matches found
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; justify-content: flex-end; align-items: center;">
+                                ${hasRecommendations ? `
+                                    <button onclick="applyRecommendedMapping('${rec.podfactory_email}', '${rec.podfactory_name || ''}', ${topMatch.employee_id}, '${topMatch.employee_name}')"
+                                            class="btn-action btn-primary" style="padding: 8px 16px; font-size: 0.9em;">
+                                        <i class="fas fa-check"></i> Apply Match
+                                    </button>
+                                ` : ''}
+                                <button onclick="showManualMappingModal('${rec.podfactory_email}', '${rec.podfactory_name || ''}')"
+                                        class="btn-action btn-secondary" style="padding: 8px 16px; font-size: 0.9em;">
+                                    <i class="fas fa-search"></i> Choose Manually
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading mapping recommendations:', error);
+                container.innerHTML = '<p style="color: #ef4444; text-align: center;">Error loading recommendations</p>';
+            }
+        };
+
+        // Apply recommended mapping
+        window.applyRecommendedMapping = async function(pfEmail, pfName, employeeId, employeeName) {
+            if (!confirm(`Map "${pfName || pfEmail}" to employee "${employeeName}"?`)) return;
+
+            try {
+                const response = await api.request('/dashboard/employees/create-mapping', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        employee_id: employeeId,
+                        podfactory_email: pfEmail,
+                        podfactory_name: pfName,
+                        verified_by: 'manager'
+                    })
+                });
+
+                if (response.success) {
+                    showNotification('Mapping created successfully', 'success');
+                    loadMappingRecommendations();
+                } else {
+                    showNotification(response.error || 'Failed to create mapping', 'error');
+                }
+            } catch (error) {
+                console.error('Error creating mapping:', error);
+                showNotification('Error creating mapping', 'error');
+            }
+        };
+
+        // Show manual mapping modal
+        window.showManualMappingModal = function(pfEmail, pfName) {
+            const employeeOptions = allEmployeesForMapping.map(emp =>
+                `<option value="${emp.id}">${emp.name}</option>`
+            ).join('');
+
+            const modal = `
+                <div id="manualMappingModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: #2a2a2a; padding: 30px; border-radius: 12px; width: 500px; max-width: 90%;">
+                        <h3 style="color: #e0e0e0; margin-bottom: 20px;">
+                            <i class="fas fa-link" style="color: #9b59b6; margin-right: 10px;"></i>
+                            Manual Mapping
+                        </h3>
+
+                        <div style="margin-bottom: 20px; padding: 15px; background: rgba(155, 89, 182, 0.1); border-radius: 8px;">
+                            <div style="color: #808080; font-size: 0.85em;">PodFactory User:</div>
+                            <div style="color: #e0e0e0; font-weight: 600;">${pfName || pfEmail}</div>
+                            <div style="color: #808080; font-size: 0.9em;">${pfEmail}</div>
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; color: #e0e0e0;">Select Employee:</label>
+                            <select id="manualMappingEmployee" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                                <option value="">-- Select an employee --</option>
+                                ${employeeOptions}
+                            </select>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button onclick="document.getElementById('manualMappingModal').remove()" class="btn-action btn-secondary">
+                                Cancel
+                            </button>
+                            <button onclick="submitManualMapping('${pfEmail}', '${pfName}')" class="btn-action btn-primary">
+                                <i class="fas fa-check"></i> Create Mapping
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modal);
+        };
+
+        // Submit manual mapping
+        window.submitManualMapping = async function(pfEmail, pfName) {
+            const employeeId = document.getElementById('manualMappingEmployee').value;
+            if (!employeeId) {
+                showNotification('Please select an employee', 'error');
+                return;
+            }
+
+            const employeeName = document.getElementById('manualMappingEmployee').selectedOptions[0].text;
+
+            try {
+                const response = await api.request('/dashboard/employees/create-mapping', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        employee_id: parseInt(employeeId),
+                        podfactory_email: pfEmail,
+                        podfactory_name: pfName,
+                        verified_by: 'manager'
+                    })
+                });
+
+                if (response.success) {
+                    document.getElementById('manualMappingModal').remove();
+                    showNotification('Mapping created successfully', 'success');
+                    loadMappingRecommendations();
+                } else {
+                    showNotification(response.error || 'Failed to create mapping', 'error');
+                }
+            } catch (error) {
+                console.error('Error creating mapping:', error);
+                showNotification('Error creating mapping', 'error');
             }
         };
 
@@ -3022,7 +3638,7 @@
                 const notes = document.getElementById(`notes-${employeeId}`).value;
                 
                 try {
-                    const response = await fetch(`/api/dashboard/employees/${employeeId}/payrate`, {
+                    const response = await fetch(`${API_BASE}/api/dashboard/employees/${employeeId}/payrate`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -3052,7 +3668,7 @@
             };
             window.loadArchivedEmployees = async function() {
                 try {
-                    const response = await fetch('/api/dashboard/employees/archived', {
+                    const response = await fetch(`${API_BASE}/api/dashboard/employees/archived`, {
                         headers: {'X-API-Key': 'dev-api-key-123'}
                     });
                     
@@ -3092,7 +3708,7 @@
                 }
                 
                 try {
-                    const response = await fetch(`/api/dashboard/employees/${id}/restore`, {
+                    const response = await fetch(`${API_BASE}/api/dashboard/employees/${id}/restore`, {
                         method: 'POST',
                         headers: {'X-API-Key': 'dev-api-key-123'}
                     });
@@ -3113,7 +3729,7 @@
                 }
                 
                 try {
-                    const response = await fetch(`/api/dashboard/employees/${id}/archive`, {
+                    const response = await fetch(`${API_BASE}/api/dashboard/employees/${id}/archive`, {
                         method: 'POST',
                         headers: {'X-API-Key': 'dev-api-key-123'}
                     });
@@ -3140,7 +3756,7 @@
                 const employeeName = row.querySelectorAll('td')[1].textContent;
                 
                 // Fetch unmapped PodFactory emails and Connecteam users
-                const unmappedData = await fetch('/api/dashboard/unmapped-users', {
+                const unmappedData = await fetch(`${API_BASE}/api/dashboard/unmapped-users`, {
                     headers: {'X-API-Key': 'dev-api-key-123'}
                 }).then(r => r.json());
                 
@@ -3187,6 +3803,159 @@
                 document.body.insertAdjacentHTML('beforeend', modal);
             };
 
+            // Helper function to calculate name similarity (Dice coefficient)
+            function calculateNameSimilarity(name1, name2) {
+                const normalize = (s) => s.toLowerCase().replace(/[^a-z\s]/g, '').trim();
+                const n1 = normalize(name1);
+                const n2 = normalize(name2);
+
+                if (n1 === n2) return 1.0;
+                if (n1.includes(n2) || n2.includes(n1)) return 0.9;
+
+                // Dice coefficient for bigrams
+                const getBigrams = (s) => {
+                    const bigrams = new Set();
+                    for (let i = 0; i < s.length - 1; i++) {
+                        bigrams.add(s.substring(i, i + 2));
+                    }
+                    return bigrams;
+                };
+
+                const bigrams1 = getBigrams(n1);
+                const bigrams2 = getBigrams(n2);
+                let intersection = 0;
+                bigrams1.forEach(b => { if (bigrams2.has(b)) intersection++; });
+
+                return (2 * intersection) / (bigrams1.size + bigrams2.size) || 0;
+            }
+
+            // Smart mapping modal with name recommendations
+            window.openSmartMapping = async function(employeeId, employeeName) {
+                // Fetch Connecteam users
+                const unmappedData = await fetch(`${API_BASE}/api/dashboard/unmapped-users`, {
+                    headers: {'X-API-Key': 'dev-api-key-123'}
+                }).then(r => r.json());
+
+                // Calculate similarity scores and sort
+                const usersWithScores = unmappedData.connecteam_users.map(user => ({
+                    ...user,
+                    similarity: calculateNameSimilarity(employeeName, user.name)
+                })).sort((a, b) => b.similarity - a.similarity);
+
+                // Find best match - always show top match with confidence level
+                const bestMatch = usersWithScores[0];
+                const hasBestMatch = bestMatch && usersWithScores.length > 0;
+
+                // Determine confidence level and styling
+                const getConfidenceInfo = (similarity) => {
+                    if (similarity >= 0.5) return { label: 'HIGH CONFIDENCE', color: '#28a745', bgColor: 'rgba(40, 167, 69, 0.15)', borderColor: 'rgba(40, 167, 69, 0.4)' };
+                    if (similarity >= 0.2) return { label: 'POSSIBLE MATCH', color: '#ffc107', bgColor: 'rgba(255, 193, 7, 0.15)', borderColor: 'rgba(255, 193, 7, 0.4)' };
+                    return { label: 'BEST AVAILABLE', color: '#6c757d', bgColor: 'rgba(108, 117, 125, 0.15)', borderColor: 'rgba(108, 117, 125, 0.4)' };
+                };
+                const confidence = bestMatch ? getConfidenceInfo(bestMatch.similarity) : null;
+
+                const modal = `
+                    <div id="smartMappingModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+                        <div style="background: #2a2a2a; padding: 30px; border-radius: 10px; width: 600px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
+                            <h3 style="color: #e0e0e0; margin-bottom: 10px;">
+                                <i class="fas fa-link" style="color: #667eea;"></i> Link "${employeeName}" to Connecteam
+                            </h3>
+
+                            ${hasBestMatch ? `
+                                <div style="background: ${confidence.bgColor}; border: 1px solid ${confidence.borderColor}; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                        <span style="background: ${confidence.color}; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600;">
+                                            ${confidence.label}
+                                        </span>
+                                        <span style="color: #a0a0a0; font-size: 0.85em;">
+                                            ${Math.round(bestMatch.similarity * 100)}% match
+                                        </span>
+                                    </div>
+                                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: #e0e0e0;">
+                                        <input type="radio" name="connecteamUserSmart" value="${bestMatch.connecteam_id}" checked style="width: 18px; height: 18px;">
+                                        <span style="font-size: 1.1em; font-weight: 500;">${bestMatch.name}</span>
+                                        <span style="color: #808080; font-size: 0.9em;">(ID: ${bestMatch.connecteam_id})</span>
+                                    </label>
+                                </div>
+                            ` : ''}
+
+                            <div style="margin-bottom: 15px;">
+                                <h4 style="color: #667eea; margin-bottom: 10px;">
+                                    ${hasBestMatch ? 'Or choose a different user:' : 'Select Connecteam User:'}
+                                </h4>
+                                <input type="text" id="smartConnecteamSearch" placeholder="Search by name..."
+                                       style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; margin-bottom: 10px;"
+                                       onkeyup="filterSmartConnecteamList()">
+                                <div id="smartConnecteamList" style="max-height: 250px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.2); border-radius: 5px;">
+                                    ${usersWithScores.slice(hasBestMatch ? 1 : 0).map(user => `
+                                        <label style="display: flex; justify-content: space-between; align-items: center; padding: 10px; cursor: pointer; color: #e0e0e0; border-bottom: 1px solid rgba(255,255,255,0.1);" class="connecteam-option">
+                                            <div style="display: flex; align-items: center; gap: 10px;">
+                                                <input type="radio" name="connecteamUserSmart" value="${user.connecteam_id}">
+                                                <span>${user.name}</span>
+                                            </div>
+                                            <span style="color: #808080; font-size: 0.85em;">${Math.round(user.similarity * 100)}%</span>
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                                <button onclick="document.getElementById('smartMappingModal').remove()"
+                                        style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                    Cancel
+                                </button>
+                                <button onclick="saveSmartMappingConnecteam(${employeeId})"
+                                        style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">
+                                    <i class="fas fa-check"></i> Link to Connecteam
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modal);
+            };
+
+            window.filterSmartConnecteamList = function() {
+                const search = document.getElementById('smartConnecteamSearch').value.toLowerCase();
+                document.querySelectorAll('#smartConnecteamList label').forEach(label => {
+                    label.style.display = label.textContent.toLowerCase().includes(search) ? 'flex' : 'none';
+                });
+            };
+
+            window.saveSmartMappingConnecteam = async function(employeeId) {
+                const selected = document.querySelector('input[name="connecteamUserSmart"]:checked');
+
+                if (!selected) {
+                    alert('Please select a Connecteam user');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE}/api/dashboard/employees/${employeeId}/mapping`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': 'dev-api-key-123'
+                        },
+                        body: JSON.stringify({
+                            connecteam_user_id: selected.value
+                        })
+                    });
+
+                    if (response.ok) {
+                        alert('Employee linked to Connecteam successfully!');
+                        document.getElementById('smartMappingModal').remove();
+                        loadNeedsAttention();
+                        loadEmployeeManagementData();
+                    } else {
+                        alert('Failed to link employee');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error linking employee: ' + error.message);
+                }
+            };
+
             window.filterConnecteamList = function() {
                 const search = document.getElementById('connecteamSearch').value.toLowerCase();
                 document.querySelectorAll('#connecteamList label').forEach(label => {
@@ -3211,7 +3980,7 @@
                 }
                 
                 try {
-                    const response = await fetch(`/api/dashboard/employees/${employeeId}/mapping`, {
+                    const response = await fetch(`${API_BASE}/api/dashboard/employees/${employeeId}/mapping`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -3240,7 +4009,7 @@
                 if (!confirm('Sync all employees from Connecteam? This may take a moment.')) return;
                 
                 try {
-                    const response = await fetch('/api/connecteam/sync/employees', {
+                    const response = await fetch(`${API_BASE}/api/connecteam/sync/employees`, {
                         method: 'POST',
                         headers: {'X-API-Key': 'dev-api-key-123'}
                     });
@@ -3826,7 +4595,7 @@
             // Add the execute reassignment function
             window.executeReassignment = async function(workerName, fromStation, toStation) {
                 try {
-                    const response = await fetch('/api/dashboard/reassign-worker', {
+                    const response = await fetch(`${API_BASE}/api/dashboard/reassign-worker`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

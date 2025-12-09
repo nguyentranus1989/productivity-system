@@ -690,8 +690,10 @@
     </div>
 
     <script>
-        // API configuration
-        const API_BASE = '';
+        // API configuration - auto-detect environment
+        const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:5000'
+            : '';
         const API_KEY = 'dev-api-key-123';
 
         // Global data storage
@@ -743,7 +745,7 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
 }
             try {
                 // Fetch real predictions
-                const predResponse = await fetch("/api/schedule/predictions/weekly");
+                const predResponse = await fetch(`${API_BASE}/api/schedule/predictions/weekly`);
                 const predData = await predResponse.json();
                 
                 if (predData.success && predData.predictions) {
@@ -785,7 +787,7 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
                 }
                 
                 // Load schedule/employee data
-                const scheduleResponse = await fetch("/api/schedule/weekly");
+                const scheduleResponse = await fetch(`${API_BASE}/api/schedule/weekly`);
                 const scheduleData = await scheduleResponse.json();
                 
                 if (scheduleData.success) {
@@ -1800,7 +1802,7 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
     localStorage.setItem("savedSchedule", JSON.stringify(scheduleData));
     
     // Save to database
-    fetch("/api/schedule/save", {
+    fetch(`${API_BASE}/api/schedule/save`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -1857,7 +1859,7 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 3000);
 }
-    fetch("/api/schedule/employees", {
+    fetch(`${API_BASE}/api/schedule/employees`, {
         headers: {
             "X-API-Key": "dev-api-key-123"
         }
@@ -2136,7 +2138,7 @@ function removeEmployeeFromSchedule(employeeId, day, timeSlot) {
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 3000);
 }
-            const response = await fetch("/api/schedule/employees/all");
+            const response = await fetch(`${API_BASE}/api/schedule/employees/all`);
             const data = await response.json();
             if (data.success) {
                 allEmployees = data.employees;
@@ -2265,7 +2267,7 @@ function loadStationData() {
     document.getElementById("stationContent").innerHTML = '<div class="loading">Loading employee performance data...</div>';
     document.getElementById("stationStatus").textContent = "Loading...";
     
-    fetch("/api/station-performance")
+    fetch(`${API_BASE}/api/station-performance`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {

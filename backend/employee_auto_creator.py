@@ -48,11 +48,11 @@ class EmployeeAutoCreator:
             if existing:
                 logger.info(f"Found existing employee: {existing['name']} (ID: {existing['id']})")
                 
-                # Add email mapping if not exists
+                # Add email mapping if not exists (pending verification - not auto-verified)
                 cursor.execute("""
-                    INSERT IGNORE INTO employee_podfactory_mapping_v2 
+                    INSERT IGNORE INTO employee_podfactory_mapping_v2
                     (employee_id, podfactory_email, podfactory_name, similarity_score, confidence_level, is_verified, created_at)
-                    VALUES (%s, %s, %s, 1.0, 'HIGH', 1, NOW())
+                    VALUES (%s, %s, %s, 1.0, 'HIGH', 0, NOW())
                 """, (existing['id'], user_email, user_name))
                 
                 if cursor.rowcount > 0:
@@ -91,11 +91,11 @@ class EmployeeAutoCreator:
             
             new_employee_id = cursor.lastrowid
             
-            # Create PodFactory mapping
+            # Create PodFactory mapping (pending verification - not auto-verified)
             cursor.execute("""
-                INSERT INTO employee_podfactory_mapping_v2 
+                INSERT INTO employee_podfactory_mapping_v2
                 (employee_id, podfactory_email, podfactory_name, similarity_score, confidence_level, is_verified, created_at)
-                VALUES (%s, %s, %s, 1.0, 'HIGH', 1, NOW())
+                VALUES (%s, %s, %s, 1.0, 'HIGH', 0, NOW())
             """, (new_employee_id, user_email, user_name))
             
             conn.commit()
