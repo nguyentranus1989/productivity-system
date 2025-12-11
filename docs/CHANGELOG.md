@@ -2,6 +2,43 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.2.3] - 2025-12-11
+
+### Added
+- **System Controls - Real Functionality**: All buttons now perform actual operations
+  - `Force Sync`: Triggers real `ConnecteamSync.sync_todays_shifts()` or `PodFactorySync.sync_activities()`
+  - `Clear Logs`: Deletes sync logs older than 7 days from database
+  - `Reset Pool`: Resets database connection pool
+  - `Test Connection`: Measures actual DB latency in milliseconds
+  - `View Logs`: New endpoint + modal displaying real sync logs from database
+  - `Restart Service`: PM2 restart on Linux, guidance message on Windows
+
+- **View Logs Modal**: Styled modal with scrollable log entries
+  - Shows Connecteam sync status, timestamps, record counts, errors
+  - Shows PodFactory daily sync summaries
+  - ESC key and X button to close
+
+### Changed
+- **Custom UI Modals**: Replaced all native Chrome `confirm()` and `alert()` with styled modals
+  - `showConfirmModal()`: Dark themed confirm dialog with Confirm/Cancel buttons
+  - `showNotification()`: Toast notifications (success/error/warning/info)
+  - `showLoadingModal()`: Spinner with progress bar, X button, ESC to cancel
+
+### Technical Details
+- **Backend** (`backend/api/system_control.py`):
+  - `force_sync()`: Imports and runs actual sync classes
+  - `clear_sync_logs()`: DELETE query on `connecteam_sync_log` table
+  - `reset_connection_pool()`: Resets DB pool via `get_db()`
+  - `test_database_connection()`: Real latency measurement with `time.time()`
+  - `get_service_logs()`: New endpoint returning formatted sync logs
+
+- **Frontend** (`frontend/manager.html`):
+  - Added `showNotification()`, `showConfirmModal()`, `showLoadingModal()`
+  - Refactored 6 system control functions to use async callbacks
+  - Added `viewLogs()` with fetch + modal display
+
+---
+
 ## [2.2.2] - 2025-12-11
 
 ### Fixed

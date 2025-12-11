@@ -7,803 +7,7 @@
     <title>Manager Dashboard - Productivity System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: #0f0f0f;
-            color: #e0e0e0;
-            overflow-x: hidden;
-        }
-
-        /* Date Filter Styles */
-        .date-filter-container input[type="date"] {
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 0.9em;
-        }
-
-        .date-filter-container input[type="date"]:focus {
-            outline: none;
-            border-color: rgba(102, 126, 234, 0.5);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .date-filter-container .btn-group {
-            display: flex;
-            gap: 5px;
-        }
-
-        .date-filter-container .btn-group .btn-action {
-            padding: 8px 16px;
-            font-size: 0.9em;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 280px;
-            height: 100vh;
-            background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 30px 20px;
-            overflow-y: auto;
-            z-index: 1000;
-            transition: transform 0.3s ease;
-        }
-        
-        .sidebar-header {
-            margin-bottom: 40px;
-            text-align: center;
-        }
-        
-        .sidebar-header h2 {
-            font-size: 1.8em;
-            font-weight: 700;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
-        }
-        
-        /* Add this to your existing styles */
-        .section-content {
-            display: none;
-        }
-
-        .section-content.active {
-            display: block;
-        }
-
-        /* Bottleneck Detection Specific Styles */
-        .bottleneck-alert {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-            padding: 20px 25px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .bottleneck-alert i {
-            font-size: 28px;
-        }
-
-        .workflow-stations {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-
-        .station-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .station-card.bottleneck {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: #ef4444;
-            animation: pulse 2s infinite;
-        }
-
-        .station-card.warning {
-            background: rgba(251, 191, 36, 0.2);
-            border-color: #fbbf24;
-        }
-
-        .station-rate {
-            font-size: 36px;
-            font-weight: 700;
-            margin: 10px 0;
-        }
-
-        .queue-status {
-            margin-top: 15px;
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-        }
-        .nav-item {
-            display: block;
-            padding: 15px 20px;
-            margin: 5px 0;
-            color: #b0b0b0;
-            text-decoration: none;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .nav-item:hover {
-            background: rgba(102, 126, 234, 0.1);
-            color: #667eea;
-            transform: translateX(5px);
-        }
-        
-        .nav-item.active {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
-            color: #667eea;
-            font-weight: 600;
-        }
-        
-        .nav-item i {
-            width: 24px;
-            margin-right: 12px;
-            font-size: 1.1em;
-        }
-        
-        /* Main Content */
-        .main-content {
-            margin-left: 280px;
-            padding: 30px;
-            min-height: 100vh;
-            background: #0f0f0f;
-        }
-        
-        /* Header */
-        .dashboard-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 40px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .dashboard-title h1 {
-            font-size: 2.5em;
-            font-weight: 700;
-            margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .dashboard-title p {
-            color: #808080;
-            margin-top: 5px;
-            font-size: 1.1em;
-        }
-        
-        .header-actions {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-        
-        #currentDateTime {
-            color: #808080;
-            font-size: 1.1em;
-            font-weight: 500;
-        }
-        
-        .btn-action {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-        
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: #e0e0e0;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
-        }
-        
-        /* Metric Cards */
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            margin-bottom: 40px;
-        }
-        
-        .metric-card {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 30px;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .metric-card::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        
-        .metric-card:hover::before {
-            opacity: 1;
-        }
-        
-        .metric-card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(102, 126, 234, 0.3);
-        }
-        
-        .metric-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .metric-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5em;
-        }
-        
-        .metric-icon.blue { background: rgba(102, 126, 234, 0.2); color: #667eea; }
-        .metric-icon.green { background: rgba(52, 211, 153, 0.2); color: #34d399; }
-        .metric-icon.purple { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
-        .metric-icon.yellow { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
-        
-        .metric-value {
-            font-size: 2.5em;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-        
-        .metric-label {
-            color: #808080;
-            font-size: 0.95em;
-        }
-        
-        .metric-change {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            font-weight: 600;
-        }
-        
-        .metric-change.positive {
-            background: rgba(52, 211, 153, 0.2);
-            color: #34d399;
-        }
-        
-        .metric-change.negative {
-            background: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-        }
-        
-        /* Department Performance */
-        .department-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 25px;
-            margin-bottom: 40px;
-        }
-        
-        .department-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 25px;
-            transition: all 0.3s ease;
-        }
-        
-        .department-card:hover {
-            transform: scale(1.02);
-            border-color: rgba(102, 126, 234, 0.3);
-        }
-        
-        .department-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .department-name {
-            font-size: 1.3em;
-            font-weight: 600;
-        }
-        
-        .department-score {
-            font-size: 2em;
-            font-weight: 700;
-            color: #667eea;
-        }
-        
-        .progress-bar {
-            height: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            overflow: hidden;
-            margin-bottom: 15px;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
-            transition: width 0.5s ease;
-        }
-        
-        .department-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-top: 20px;
-        }
-        
-        .stat-item {
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-size: 1.2em;
-            font-weight: 600;
-            color: #e0e0e0;
-        }
-        
-        .stat-label {
-            font-size: 0.85em;
-            color: #808080;
-            margin-top: 3px;
-        }
-        
-        /* Live Activity Feed */
-        .activity-feed {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 25px;
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        
-        .activity-feed h3 {
-            font-size: 1.3em;
-            margin-bottom: 20px;
-            color: #e0e0e0;
-        }
-        
-        .activity-item {
-            display: flex;
-            align-items: center;
-            padding: 15px;
-            margin-bottom: 10px;
-            background: rgba(255, 255, 255, 0.02);
-            border-radius: 12px;
-            transition: all 0.3s ease;
-        }
-        
-        .activity-item:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        
-        .activity-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            font-size: 1.2em;
-        }
-        
-        .activity-content {
-            flex: 1;
-        }
-        
-        .activity-title {
-            font-weight: 600;
-            color: #e0e0e0;
-            margin-bottom: 3px;
-        }
-        
-        .activity-time {
-            font-size: 0.85em;
-            color: #808080;
-        }
-        
-        /* Charts Container */
-        .charts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 25px;
-            margin-bottom: 40px;
-        }
-        
-        .chart-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 25px;
-        }
-        
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .chart-title {
-            font-size: 1.3em;
-            font-weight: 600;
-            color: #e0e0e0;
-        }
-        
-        /* Alerts Section */
-        .alerts-container {
-            margin-bottom: 30px;
-        }
-        
-        .alert-item {
-            display: flex;
-            align-items: center;
-            padding: 15px 20px;
-            margin-bottom: 15px;
-            border-radius: 12px;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            animation: slideIn 0.3s ease;
-        }
-        
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-        
-        .alert-icon {
-            font-size: 1.5em;
-            color: #ef4444;
-            margin-right: 15px;
-        }
-        
-        .alert-content {
-            flex: 1;
-        }
-        
-        .alert-title {
-            font-weight: 600;
-            color: #ef4444;
-            margin-bottom: 3px;
-        }
-        
-        .alert-message {
-            font-size: 0.9em;
-            color: #e0e0e0;
-        }
-        
-        .alert-action {
-            padding: 8px 16px;
-            background: rgba(239, 68, 68, 0.2);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 8px;
-            color: #ef4444;
-            text-decoration: none;
-            font-size: 0.9em;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .alert-action:hover {
-            background: rgba(239, 68, 68, 0.3);
-        }
-        
-        /* Loading Animation */
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(102, 126, 234, 0.3);
-            border-radius: 50%;
-            border-top-color: #667eea;
-            animation: spin 1s ease-in-out infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-            
-            .sidebar.active {
-                transform: translateX(0);
-            }
-            
-            .main-content {
-                margin-left: 0;
-            }
-            
-            .metrics-grid,
-            .department-grid,
-            .charts-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        /* Scrollbar Styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: rgba(102, 126, 234, 0.3);
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(102, 126, 234, 0.5);
-        }
-        
-        /* No Data State */
-        .no-data {
-            text-align: center;
-            padding: 40px;
-            color: #808080;
-        }
-        
-        .no-data i {
-            font-size: 3em;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-        /* Status level colors */
-        .station-card.complete {
-            background: rgba(34, 197, 94, 0.1);
-            border-color: #22c55e;
-        }
-
-        .station-card.idle {
-            background: rgba(107, 114, 128, 0.1);
-            border-color: #6b7280;
-        }
-
-        .station-card.good {
-            background: rgba(34, 197, 94, 0.2);
-            border-color: #22c55e;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .status-badge.complete {
-            background: #22c55e;
-            color: white;
-        }
-
-        .status-badge.idle {
-            background: #6b7280;
-            color: white;
-        }
-
-        .status-badge.critical {
-            background: #ef4444;
-            color: white;
-        }
-
-        .status-badge.warning {
-            background: #f59e0b;
-            color: white;
-        }
-
-        .status-badge.good {
-            background: #10b981;
-            color: white;
-        }
-        /* Cost Analysis Styles */
-        .cost-efficient {
-            background: rgba(34, 197, 94, 0.1);
-            color: #22c55e;
-        }
-
-        .cost-warning {
-            background: rgba(251, 191, 36, 0.1);
-            color: #fbbf24;
-        }
-
-        .cost-alert {
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
-        }
-
-        .efficiency-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .champion-card {
-            display: flex;
-            align-items: center;
-            padding: 15px;
-            margin-bottom: 10px;
-            background: rgba(255, 255, 255, 0.02);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .champion-rank {
-            font-size: 24px;
-            margin-right: 15px;
-        }
-
-        .champion-info {
-            flex: 1;
-        }
-
-        .champion-name {
-            font-weight: 600;
-            color: #e0e0e0;
-            margin-bottom: 3px;
-        }
-
-        .champion-stats {
-            font-size: 0.85em;
-            color: #808080;
-        }
-
-        .champion-value {
-            font-size: 1.2em;
-            font-weight: 700;
-            color: #667eea;
-        }
-/* Mobile Scrolling Fix */
-/* Mobile Scrolling Fix */
-@media only screen and (max-width: 768px) {
-    /* Make sidebar accessible on mobile */
-    .sidebar {
-        position: fixed !important;
-        left: -250px !important;
-        top: 0 !important;
-        height: 100vh !important;
-        z-index: 9999 !important;
-        transition: left 0.3s ease !important;
-        background: #1a1a2e !important;
-    }
-    .sidebar.active {
-        left: 0 !important;
-    }
-}
-    /* Add hamburger menu button for mobile */
-    .mobile-menu-toggle { display: none !important; } @media only screen and (max-width: 768px) { .mobile-menu-toggle {
-        display: none !important;
-        position: fixed !important;
-        top: 10px !important;
-        left: 10px !important;
-        z-index: 10000 !important;
-        background: #007bff !important;
-        color: white !important;
-        border: none !important;
-        padding: 10px 15px !important;
-        border-radius: 5px !important;
-        font-size: 20px !important;
-    }
-@media only screen and (max-width: 768px) {
-    body {
-        overflow: auto !important;
-        overflow-x: hidden !important;
-        height: auto !important;
-    }
-    .main-container, .container, .dashboard-container {
-        height: auto !important;
-        overflow: visible !important;
-    }
-}
-/* Mobile Menu Button Fix */
-.mobile-menu-toggle {
-    display: none;
-}
-
-@media only screen and (max-width: 768px) {
-    .mobile-menu-toggle {
-        display: block !important;
-        position: fixed !important;
-        top: 10px !important;
-        left: 10px !important;
-        z-index: 10000 !important;
-        background: #007bff !important;
-        color: white !important;
-        border: none !important;
-        padding: 10px 15px !important;
-        border-radius: 5px !important;
-        font-size: 20px !important;
-        cursor: pointer !important;
-    }
-}
-    </style>
+    <link rel="stylesheet" href="css/manager.css">
 </head>
 <body>
     <!-- Mobile Menu Toggle Button (only visible on mobile) -->
@@ -1420,6 +624,12 @@
                         </div>
                         <div id="pendingVerifSummary" style="color: #e0e0e0; font-size: 1.5em; font-weight: 600;">-</div>
                     </div>
+                    <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 10px; padding: 15px;">
+                        <div style="color: #a855f7; font-size: 0.85em; margin-bottom: 5px;">
+                            <i class="fas fa-box-open"></i> No PodFactory Mapping
+                        </div>
+                        <div id="noPodFactorySummary" style="color: #e0e0e0; font-size: 1.5em; font-weight: 600;">-</div>
+                    </div>
                 </div>
 
                 <!-- No Connecteam Section -->
@@ -1444,6 +654,17 @@
                     </div>
                 </div>
 
+                <!-- No PodFactory Mapping Section -->
+                <div id="noPodFactorySection" style="margin-bottom: 30px; display: none;">
+                    <h4 style="color: #a855f7; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-box-open"></i> Employees Without PodFactory Mapping
+                        <span style="font-size: 0.8em; font-weight: normal; color: #808080;">(Cannot track production data)</span>
+                    </h4>
+                    <div id="noPodFactoryList" style="display: grid; gap: 10px;">
+                        <p style="color: #808080; text-align: center; padding: 20px;">Loading...</p>
+                    </div>
+                </div>
+
                 <!-- All Clear State -->
                 <div id="allClearState" style="display: none; text-align: center; padding: 60px 20px; background: rgba(34, 197, 94, 0.1); border-radius: 12px; border: 1px dashed rgba(34, 197, 94, 0.3);">
                     <i class="fas fa-check-circle" style="font-size: 4em; color: #22c55e; margin-bottom: 20px;"></i>
@@ -1455,32 +676,37 @@
             <!-- Payrates Tab -->
             <div id="empTabPayrates" class="emp-tab-content" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="margin: 0;">Employee Payrates Management</h3>
+                    <h3 style="margin: 0;">Employee Payrates</h3>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="text" id="payrateSearchInput" 
-                            placeholder="Search by name..." 
+                        <input type="text" id="payrateSearchInput"
+                            placeholder="Search by name..."
                             onkeyup="filterPayrates()"
                             style="padding: 8px 12px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; width: 250px;">
                         <select id="payrateSortBy" onchange="sortPayrates()"
                                 style="padding: 8px 12px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
                             <option value="name">Sort by Name</option>
-                            <option value="no_rate">No Rate First</option>
-                            <option value="hourly_asc">Hourly: $0 → $$$</option>
-                            <option value="hourly_desc">Hourly: $$$ → $0</option>
+                            <option value="not_set">Not Set First</option>
+                            <option value="hourly_asc">Hourly: Low → High</option>
+                            <option value="hourly_desc">Hourly: High → Low</option>
                         </select>
                     </div>
+                </div>
+                <!-- Help text -->
+                <div style="background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 0.9em;">
+                    <i class="fas fa-info-circle" style="color: #667eea; margin-right: 8px;"></i>
+                    <strong>Hourly:</strong> Enter $/hour directly. <strong>Salary:</strong> Enter $/month (converts to hourly at 26 days × 8 hrs).
+                    Click <span style="background: #667eea; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">Edit</span> to modify, then <span style="background: #22c55e; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">Save</span>.
                 </div>
                 <div style="overflow-x: auto;">
                     <table style="width: 100%; color: #e0e0e0; border-collapse: collapse;">
                         <thead>
                             <tr style="border-bottom: 2px solid rgba(255,255,255,0.2);">
-                                <th style="padding: 12px;">Employee</th>
-                                <th style="padding: 12px; text-align: center;">Pay Type</th>
+                                <th style="padding: 12px; text-align: left;">Employee</th>
+                                <th style="padding: 12px; text-align: center;">Type</th>
                                 <th style="padding: 12px; text-align: center;">Rate</th>
                                 <th style="padding: 12px; text-align: center; cursor: pointer; user-select: none;" onclick="toggleHourlySort()">
-                                    Hourly Equiv <i class="fas fa-sort"></i>
+                                    Hourly <i class="fas fa-sort" style="opacity: 0.5;"></i>
                                 </th>
-                                <th style="padding: 12px;">Notes</th>
                                 <th style="padding: 12px; text-align: center;">Actions</th>
                             </tr>
                         </thead>
@@ -1771,6 +997,137 @@
         const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:5000' : '';
 
+        // ============= NOTIFICATION & MODAL SYSTEM =============
+        // Toast notification function
+        function showNotification(message, type = 'info') {
+            const colors = {
+                success: { bg: '#10b981', icon: '✓' },
+                error: { bg: '#ef4444', icon: '✕' },
+                warning: { bg: '#f59e0b', icon: '⚠' },
+                info: { bg: '#667eea', icon: 'ℹ' }
+            };
+            const config = colors[type] || colors.info;
+
+            const toast = document.createElement('div');
+            toast.className = 'custom-toast';
+            toast.innerHTML = `
+                <span style="font-size: 18px; margin-right: 10px;">${config.icon}</span>
+                <span>${message}</span>
+            `;
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 30px;
+                right: 30px;
+                background: ${config.bg};
+                color: white;
+                padding: 16px 24px;
+                border-radius: 10px;
+                box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+                z-index: 99999;
+                display: flex;
+                align-items: center;
+                font-weight: 500;
+                animation: slideInRight 0.3s ease;
+                max-width: 400px;
+            `;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideOutRight 0.3s ease forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Custom confirm modal (replaces browser confirm)
+        function showConfirmModal(title, message, onConfirm, onCancel) {
+            const modal = document.createElement('div');
+            modal.id = 'customConfirmModal';
+            modal.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 99998; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: #1e1e1e; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; width: 420px; max-width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                        <h3 style="color: #e0e0e0; margin: 0 0 15px 0; font-size: 1.3em;">${title}</h3>
+                        <p style="color: #a0a0a0; margin: 0 0 25px 0; line-height: 1.6;">${message}</p>
+                        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                            <button id="confirmCancel" style="padding: 10px 24px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-weight: 500;">Cancel</button>
+                            <button id="confirmOk" style="padding: 10px 24px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Confirm</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('confirmOk').onclick = () => { modal.remove(); if(onConfirm) onConfirm(); };
+            document.getElementById('confirmCancel').onclick = () => { modal.remove(); if(onCancel) onCancel(); };
+        }
+
+        // Loading modal for async operations
+        let loadingProgress = 0;
+        let loadingInterval = null;
+
+        function showLoadingModal(message) {
+            loadingProgress = 0;
+            const modal = document.createElement('div');
+            modal.id = 'loadingModal';
+            modal.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 99998; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: #2a2a2a; padding: 30px 40px; border-radius: 12px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.5); position: relative; min-width: 280px;">
+                        <button onclick="hideLoadingModal()" style="position: absolute; top: 10px; right: 12px; background: none; border: none; color: #808080; font-size: 1.4em; cursor: pointer; padding: 5px; line-height: 1;">&times;</button>
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2.5em; color: #667eea;"></i>
+                        <p style="color: #e0e0e0; margin: 15px 0 12px 0; font-size: 1.1em;">${message}</p>
+                        <div style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 6px; overflow: hidden; margin-top: 10px;">
+                            <div id="loadingProgressBar" style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 10px;"></div>
+                        </div>
+                        <p id="loadingPercent" style="color: #808080; font-size: 0.85em; margin: 8px 0 0 0;">0%</p>
+                        <p style="color: #606060; font-size: 0.75em; margin: 10px 0 0 0;">Press ESC to cancel</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Simulate progress (accelerates near end)
+            loadingInterval = setInterval(() => {
+                if (loadingProgress < 90) {
+                    loadingProgress += Math.random() * 15;
+                    if (loadingProgress > 90) loadingProgress = 90;
+                    updateLoadingProgress(loadingProgress);
+                }
+            }, 200);
+
+            // ESC key to close
+            modal._escHandler = (e) => { if (e.key === 'Escape') hideLoadingModal(); };
+            document.addEventListener('keydown', modal._escHandler);
+
+            return modal;
+        }
+
+        function updateLoadingProgress(percent) {
+            const bar = document.getElementById('loadingProgressBar');
+            const text = document.getElementById('loadingPercent');
+            if (bar) bar.style.width = percent + '%';
+            if (text) text.textContent = Math.round(percent) + '%';
+        }
+
+        function hideLoadingModal() {
+            if (loadingInterval) { clearInterval(loadingInterval); loadingInterval = null; }
+            const modal = document.getElementById('loadingModal');
+            if (modal) {
+                if (modal._escHandler) document.removeEventListener('keydown', modal._escHandler);
+                // Complete the progress bar before closing
+                updateLoadingProgress(100);
+                setTimeout(() => modal.remove(), 150);
+            }
+        }
+
+        // Add CSS animations
+        const styleSheet = document.createElement('style');
+        styleSheet.textContent = `
+            @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+            @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+            @keyframes spin { to { transform: rotate(360deg); } }
+        `;
+        document.head.appendChild(styleSheet);
+
         // Mobile sidebar toggle function
         function toggleSidebar() {
             const sidebar = document.getElementById("sidebar");
@@ -1953,122 +1310,126 @@
         }
 
         // Restart a service
-        async function restartService(serviceName) {
+        function restartService(serviceName) {
             // Check cooldown
             if (restartCooldowns[serviceName]) {
                 const timeLeft = Math.ceil((restartCooldowns[serviceName] - Date.now()) / 1000);
                 if (timeLeft > 0) {
-                    alert(`Please wait ${timeLeft} seconds before restarting again`);
+                    showNotification(`Please wait ${timeLeft}s before restarting again`, 'warning');
                     return;
                 }
             }
-            
-            // Double confirmation for critical services
-            if (serviceName === 'flask-backend') {
-                if (!confirm(`This will restart the main backend. Users may experience brief interruption. Continue?`)) {
-                    return;
+
+            // Custom confirm dialog
+            const title = serviceName === 'flask-backend' ? '⚠️ Restart Backend' : 'Restart Service';
+            const message = serviceName === 'flask-backend'
+                ? 'This will restart the main backend. Users may experience brief interruption. Continue?'
+                : `Are you sure you want to restart ${serviceName}?`;
+
+            showConfirmModal(title, message, async () => {
+                showLoadingModal(`Restarting ${serviceName}...`);
+                try {
+                    const response = await fetch(`${API_BASE}/api/system/restart-service`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': 'dev-api-key-123'
+                        },
+                        body: JSON.stringify({ service: serviceName })
+                    });
+
+                    const data = await response.json();
+                    hideLoadingModal();
+
+                    if (data.success) {
+                        showNotification(`${serviceName} restarted successfully`, 'success');
+                        // Set 30-second cooldown
+                        restartCooldowns[serviceName] = Date.now() + 30000;
+                        // Update status after a few seconds
+                        setTimeout(() => {
+                            updateSystemHealth();
+                            loadSystemDetails();
+                        }, 3000);
+                    } else {
+                        showNotification(`Failed: ${data.message || data.error}`, 'error');
+                    }
+                } catch (error) {
+                    hideLoadingModal();
+                    showNotification(`Error: ${error.message}`, 'error');
                 }
-            } else {
-                if (!confirm(`Are you sure you want to restart ${serviceName}?`)) {
-                    return;
-                }
-            }
-            
-            try {
-                const response = await fetch(`${API_BASE}/api/system/restart-service`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': 'dev-api-key-123'
-                    },
-                    body: JSON.stringify({ service: serviceName })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert(`${serviceName} restarted successfully`);
-                    // Set 30-second cooldown
-                    restartCooldowns[serviceName] = Date.now() + 30000;
-                    // Update status after a few seconds
-                    setTimeout(() => {
-                        updateSystemHealth();
-                        loadSystemDetails();
-                    }, 3000);
-                } else {
-                    alert(`Failed to restart: ${data.error}`);
-                }
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-            }
+            });
         }
 
         // Force a sync
-        async function forceSync(syncType) {
-            if (!confirm(`Force ${syncType} sync now?`)) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`${API_BASE}/api/system/force-sync`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': 'dev-api-key-123'
-                    },
-                    body: JSON.stringify({ type: syncType })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert(`${syncType} sync completed successfully`);
-                    updateSystemHealth();
-                    loadSystemDetails();
-                } else {
-                    alert(`Sync failed: ${data.error}`);
+        function forceSync(syncType) {
+            showConfirmModal('Force Sync', `Force ${syncType} sync now?`, async () => {
+                showLoadingModal(`Syncing ${syncType}...`);
+                try {
+                    const response = await fetch(`${API_BASE}/api/system/force-sync`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': 'dev-api-key-123'
+                        },
+                        body: JSON.stringify({ type: syncType })
+                    });
+
+                    const data = await response.json();
+                    hideLoadingModal();
+
+                    if (data.success) {
+                        showNotification(`${syncType} sync completed`, 'success');
+                        updateSystemHealth();
+                        loadSystemDetails();
+                    } else {
+                        showNotification(`Sync failed: ${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    hideLoadingModal();
+                    showNotification(`Error: ${error.message}`, 'error');
                 }
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-            }
+            });
         }
 
         // Clear sync logs
-        async function clearSyncLogs(syncType) {
-            if (!confirm(`Clear old ${syncType} sync logs?`)) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`${API_BASE}/api/system/clear-sync-logs`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': 'dev-api-key-123'
-                    },
-                    body: JSON.stringify({ type: syncType, days: 7 })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert(data.message);
-                } else {
-                    alert(`Failed: ${data.error}`);
+        function clearSyncLogs(syncType) {
+            showConfirmModal('Clear Logs', `Clear old ${syncType} sync logs?`, async () => {
+                showLoadingModal(`Clearing ${syncType} logs...`);
+                try {
+                    const response = await fetch(`${API_BASE}/api/system/clear-sync-logs`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': 'dev-api-key-123'
+                        },
+                        body: JSON.stringify({ type: syncType, days: 7 })
+                    });
+
+                    const data = await response.json();
+                    hideLoadingModal();
+
+                    if (data.success) {
+                        showNotification(data.message || 'Done', 'success');
+                    } else {
+                        showNotification(`Failed: ${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    hideLoadingModal();
+                    showNotification(`Error: ${error.message}`, 'error');
                 }
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-            }
+            });
         }
 
         // Test database connection
         async function testDatabaseConnection() {
+            showLoadingModal('Testing database connection...');
             try {
                 const response = await fetch(`${API_BASE}/api/system/test-connection`, {
                     headers: { 'X-API-Key': 'dev-api-key-123' }
                 });
                 
                 const data = await response.json();
+                hideLoadingModal();
                 
                 if (data.success) {
                     document.getElementById('db-status-detail').textContent = 
@@ -2076,92 +1437,168 @@
                     document.getElementById('db-latency-detail').textContent = 
                         `Latency: ${data.latency_ms} ms`;
                     
-                    alert(`Database connected!\nLatency: ${data.latency_ms} ms\nStatus: ${data.status}`);
+                    showNotification(`Database connected! Latency: ${data.latency_ms}ms`, 'success');
                 } else {
-                    alert(`Connection failed: ${data.error}`);
+                    showNotification(`Connection failed: ${data.error}`, 'error');
                 }
             } catch (error) {
-                alert(`Error: ${error.message}`);
+                hideLoadingModal();
+                showNotification(`Error: ${error.message}`, 'error');
             }
         }
 
         // Reset connection pool
-        async function resetConnectionPool() {
-            if (!confirm('Reset database connection pool?')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`${API_BASE}/api/system/reset-connection-pool`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': 'dev-api-key-123'
+        function resetConnectionPool() {
+            showConfirmModal('Reset Pool', 'Reset database connection pool?', async () => {
+                showLoadingModal("Resetting connection pool...");
+                try {
+                    const response = await fetch(`${API_BASE}/api/system/reset-connection-pool`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': 'dev-api-key-123'
+                        }
+                    });
+
+                    const data = await response.json();
+                    hideLoadingModal();
+
+                    if (data.success) {
+                        showNotification('Connection pool reset', 'success');
+                        updateSystemHealth();
+                    } else {
+                        showNotification(`Failed: ${data.error}`, 'error');
                     }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert('Connection pool reset successfully');
-                    updateSystemHealth();
-                } else {
-                    alert(`Failed: ${data.error}`);
+                } catch (error) {
+                    hideLoadingModal();
+                    showNotification(`Error: ${error.message}`, 'error');
                 }
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-            }
+            });
         }
 
         // Restart all services
-        async function restartAllServices() {
-            if (!confirm('⚠️ WARNING: This will restart ALL services and cause a brief outage.\n\nAre you absolutely sure?')) {
-                return;
-            }
-            
-            if (!confirm('This is your final confirmation. Restart all services?')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`${API_BASE}/api/system/restart-all`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': 'dev-api-key-123'
-                    },
-                    body: JSON.stringify({ confirm: true })
+        function restartAllServices() {
+            showConfirmModal('⚠️ Warning', 'This will restart ALL services and cause a brief outage. Are you absolutely sure?', () => {
+                showConfirmModal('Final Confirmation', 'This is your final confirmation. Restart all services?', async () => {
+                    showLoadingModal('Restarting all services...');
+                    try {
+                        const response = await fetch(`${API_BASE}/api/system/restart-all`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-API-Key': 'dev-api-key-123'
+                            },
+                            body: JSON.stringify({ confirm: true })
+                        });
+
+                        const data = await response.json();
+                        hideLoadingModal();
+
+                        if (data.success) {
+                            showNotification('All services restarted. Page will reload in 15 seconds.', 'success');
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 15000);
+                        } else {
+                            showNotification(`Failed: ${data.error}`, 'error');
+                        }
+                    } catch (error) {
+                        hideLoadingModal();
+                        showNotification(`Error: ${error.message}`, 'error');
+                    }
                 });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert('All services restarted. Please wait 10-15 seconds for everything to come back online.');
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 15000);
-                } else {
-                    alert(`Failed: ${data.error}`);
-                }
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-            }
+            });
         }
 
         // Clear all caches
-        async function clearAllCaches() {
-            if (!confirm('Clear all system caches?')) {
-                return;
-            }
-            
-            alert('Cache clearing not yet implemented');
-            // TODO: Implement cache clearing
+        function clearAllCaches() {
+            showConfirmModal('Clear Caches', 'Clear all system caches?', () => {
+                showNotification('Cache clearing not yet implemented', 'warning');
+                // TODO: Implement cache clearing
+            });
         }
 
-        // View logs (placeholder)
-        function viewLogs(serviceName) {
-            alert(`Log viewing for ${serviceName} not yet implemented`);
-            // TODO: Implement log viewing
+        // View logs - fetches and displays real logs in a modal
+        async function viewLogs(serviceName) {
+            showLoadingModal(`Loading ${serviceName} logs...`);
+            try {
+                const response = await fetch(`${API_BASE}/api/system/logs/${serviceName}`, {
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+
+                const data = await response.json();
+                hideLoadingModal();
+
+                if (!data.success) {
+                    showNotification(data.error || 'Failed to load logs', 'error');
+                    return;
+                }
+
+                // Build logs display HTML
+                let logsHtml = '';
+                if (serviceName === 'connecteam') {
+                    logsHtml = data.logs.map(log => `
+                        <div style="padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.85em;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="color: ${log.status === 'success' ? '#10b981' : '#ef4444'};">${log.status}</span>
+                                <span style="color: #808080;">${new Date(log.timestamp).toLocaleString()}</span>
+                            </div>
+                            <div style="color: #a0a0a0;">Type: ${log.type} | Records: ${log.records || 0}</div>
+                            ${log.error ? `<div style="color: #ef4444; margin-top: 4px;">Error: ${log.error}</div>` : ''}
+                        </div>
+                    `).join('');
+                } else if (serviceName === 'podfactory') {
+                    logsHtml = data.logs.map(log => `
+                        <div style="padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.85em;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="color: #10b981;">${log.date}</span>
+                                <span style="color: #667eea;">${log.items} items</span>
+                            </div>
+                            <div style="color: #a0a0a0;">First: ${new Date(log.first).toLocaleTimeString()} | Last: ${new Date(log.last).toLocaleTimeString()}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    logsHtml = data.logs.map(log => `
+                        <div style="padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.85em;">
+                            <pre style="margin: 0; color: #e0e0e0; white-space: pre-wrap;">${JSON.stringify(log, null, 2)}</pre>
+                        </div>
+                    `).join('');
+                }
+
+                // Show logs in modal
+                const modal = document.createElement('div');
+                modal.id = 'logsModal';
+                modal.innerHTML = `
+                    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 99998; display: flex; align-items: center; justify-content: center;">
+                        <div style="background: #1e1e1e; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; width: 600px; max-width: 90%; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                            <div style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+                                <h3 style="margin: 0; color: #e0e0e0;">${serviceName.charAt(0).toUpperCase() + serviceName.slice(1)} Logs</h3>
+                                <button onclick="document.getElementById('logsModal').remove()" style="background: none; border: none; color: #808080; font-size: 1.5em; cursor: pointer;">&times;</button>
+                            </div>
+                            <div style="flex: 1; overflow-y: auto; max-height: 60vh;">
+                                ${logsHtml || '<div style="padding: 20px; color: #808080; text-align: center;">No logs found</div>'}
+                            </div>
+                            <div style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); text-align: right;">
+                                <button onclick="document.getElementById('logsModal').remove()" style="padding: 8px 20px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: none; border-radius: 8px; cursor: pointer;">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+
+                // ESC key to close
+                const escHandler = (e) => {
+                    if (e.key === 'Escape') {
+                        document.getElementById('logsModal')?.remove();
+                        document.removeEventListener('keydown', escHandler);
+                    }
+                };
+                document.addEventListener('keydown', escHandler);
+
+            } catch (error) {
+                hideLoadingModal();
+                showNotification(`Error loading logs: ${error.message}`, 'error');
+            }
         }
 
         // Format uptime
@@ -2947,20 +2384,23 @@
         window.loadNeedsAttention = async function() {
             const noConnecteamList = document.getElementById('noConnecteamList');
             const pendingList = document.getElementById('pendingVerificationList');
+            const noPodFactoryList = document.getElementById('noPodFactoryList');
             const allClearState = document.getElementById('allClearState');
             const noConnecteamSection = document.getElementById('noConnecteamSection');
             const pendingSection = document.getElementById('pendingVerifSection');
+            const noPodFactorySection = document.getElementById('noPodFactorySection');
             const badge = document.getElementById('attentionBadge');
 
             try {
                 const response = await api.request('/dashboard/employees/needs-attention');
 
                 if (response.success) {
-                    const { no_connecteam, pending_verification, summary } = response;
+                    const { no_connecteam, pending_verification, no_podfactory, summary } = response;
 
                     // Update summary counts
                     document.getElementById('noConnecteamSummary').textContent = summary.no_connecteam_count;
                     document.getElementById('pendingVerifSummary').textContent = summary.pending_verification_count;
+                    document.getElementById('noPodFactorySummary').textContent = summary.no_podfactory_count || 0;
                     document.getElementById('needsAttentionCount').textContent = summary.total_attention_needed;
 
                     // Update badge
@@ -2993,11 +2433,20 @@
                         pendingSection.style.display = 'none';
                     }
 
+                    // Render No PodFactory Mapping list
+                    if (no_podfactory && no_podfactory.length > 0) {
+                        noPodFactorySection.style.display = 'block';
+                        noPodFactoryList.innerHTML = no_podfactory.map(emp => renderNoPodFactoryCard(emp)).join('');
+                    } else {
+                        noPodFactorySection.style.display = 'none';
+                    }
+
                     // Show all clear if nothing needs attention
                     if (summary.total_attention_needed === 0) {
                         allClearState.style.display = 'block';
                         noConnecteamSection.style.display = 'none';
                         pendingSection.style.display = 'none';
+                        noPodFactorySection.style.display = 'none';
                     } else {
                         allClearState.style.display = 'none';
                     }
@@ -3055,6 +2504,184 @@
                 </div>
             `;
         }
+
+        function renderNoPodFactoryCard(emp) {
+            return `
+                <div style="
+                    background: rgba(168, 85, 247, 0.05);
+                    border: 1px solid rgba(168, 85, 247, 0.3);
+                    border-radius: 10px;
+                    padding: 15px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 15px;
+                    flex-wrap: wrap;
+                ">
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                            <span style="color: #e0e0e0; font-weight: 600;">${emp.name}</span>
+                            <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75em;">
+                                <i class="fas fa-check"></i> Connecteam Linked
+                            </span>
+                        </div>
+                        <div style="color: #808080; font-size: 0.85em;">
+                            ${emp.email || 'No email'} | Connecteam ID: ${emp.connecteam_user_id}
+                        </div>
+                        <div style="color: #808080; font-size: 0.8em; margin-top: 3px;">
+                            ${emp.recent_clock_count || 0} clock-ins (7 days)
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button onclick="openPodFactoryMapping(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')"
+                                class="btn-action btn-primary" style="padding: 8px 12px; font-size: 0.85em; background: rgba(168, 85, 247, 0.8);">
+                            <i class="fas fa-box-open"></i> Add PodFactory Email
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Open modal to add PodFactory email mapping for an employee
+        window.openPodFactoryMapping = async function(employeeId, employeeName) {
+            // Show loading modal first
+            const loadingModal = `
+                <div id="podFactoryMappingModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: #2a2a2a; padding: 30px; border-radius: 10px; width: 500px; max-width: 90%; text-align: center;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: #a855f7;"></i>
+                        <p style="color: #e0e0e0; margin-top: 15px;">Searching PodFactory for "${employeeName}"...</p>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', loadingModal);
+
+            // Fetch real email suggestions from PodFactory database
+            let suggestions = [];
+            try {
+                const response = await fetch(`${API_BASE_URL}/dashboard/podfactory/suggest-emails?name=${encodeURIComponent(employeeName)}`, {
+                    headers: { 'X-API-Key': API_KEY }
+                });
+                const data = await response.json();
+                if (data.success && data.emails) {
+                    suggestions = data.emails;
+                }
+            } catch (e) {
+                console.error('Failed to fetch suggestions:', e);
+            }
+
+            // Generate fallback suggestion based on name pattern
+            const nameParts = employeeName.toLowerCase().split(' ').filter(p => p);
+            const fallbackEmail = nameParts.length >= 2
+                ? `${nameParts[0]}.${nameParts.slice(1).join('.')}shp@colorecommerce.us`
+                : `${nameParts[0]}shp@colorecommerce.us`;
+
+            // Build suggestion buttons HTML
+            let suggestionsHtml = '';
+            if (suggestions.length > 0) {
+                suggestionsHtml = `
+                    <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                        <div style="color: #22c55e; font-size: 0.85em; margin-bottom: 10px;">
+                            <i class="fas fa-check-circle"></i> Found in PodFactory (click to select):
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            ${suggestions.map(s => `
+                                <button onclick="document.getElementById('podFactoryEmailInput').value='${s.email}'"
+                                        style="text-align: left; padding: 10px; background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 5px; cursor: pointer; color: #e0e0e0;">
+                                    <strong>${s.email}</strong>
+                                    <span style="color: #808080; font-size: 0.85em; margin-left: 10px;">${s.name || ''}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                suggestionsHtml = `
+                    <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                        <div style="color: #ef4444; font-size: 0.85em;">
+                            <i class="fas fa-exclamation-triangle"></i> No matching email found in PodFactory (last 30 days)
+                        </div>
+                        <div style="color: #808080; font-size: 0.8em; margin-top: 5px;">
+                            Suggested pattern: <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">${fallbackEmail}</code>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Replace with full modal
+            document.getElementById('podFactoryMappingModal').remove();
+            const modal = `
+                <div id="podFactoryMappingModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: #2a2a2a; padding: 30px; border-radius: 10px; width: 500px; max-width: 90%;">
+                        <h3 style="color: #e0e0e0; margin-bottom: 20px;">
+                            <i class="fas fa-box-open" style="color: #a855f7;"></i> Map PodFactory Email for "${employeeName}"
+                        </h3>
+
+                        ${suggestionsHtml}
+
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; color: #e0e0e0;">
+                                PodFactory Email Address:
+                            </label>
+                            <input type="email" id="podFactoryEmailInput"
+                                   value="${suggestions.length > 0 ? suggestions[0].email : fallbackEmail}"
+                                   placeholder="email@colorecommerce.us"
+                                   style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-size: 1em;">
+                        </div>
+
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button onclick="document.getElementById('podFactoryMappingModal').remove()"
+                                    style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                Cancel
+                            </button>
+                            <button onclick="savePodFactoryMapping(${employeeId}, '${employeeName.replace(/'/g, "\\'")}')"
+                                    style="padding: 10px 20px; background: #a855f7; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">
+                                <i class="fas fa-save"></i> Save Mapping
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modal);
+        };
+
+        // Save PodFactory email mapping
+        window.savePodFactoryMapping = async function(employeeId, employeeName) {
+            const email = document.getElementById('podFactoryEmailInput').value.trim();
+
+            if (!email) {
+                alert('Please enter a PodFactory email address');
+                return;
+            }
+
+            if (!email.includes('@')) {
+                alert('Please enter a valid email address');
+                return;
+            }
+
+            try {
+                const response = await api.request('/dashboard/employees/create-mapping', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        employee_id: employeeId,
+                        podfactory_email: email,
+                        podfactory_name: employeeName,
+                        is_verified: true
+                    })
+                });
+
+                if (response.success) {
+                    document.getElementById('podFactoryMappingModal').remove();
+                    alert(`PodFactory email mapped for ${employeeName}`);
+                    loadNeedsAttention();
+                    loadEmployeeManagementData();
+                } else {
+                    alert(response.error || 'Failed to save mapping');
+                }
+            } catch (error) {
+                console.error('Error saving PodFactory mapping:', error);
+                alert('Error saving mapping: ' + error.message);
+            }
+        };
 
         window.markAsContractor = async function(employeeId, employeeName) {
             if (!confirm(`Mark "${employeeName}" as a contractor? This will exempt them from Connecteam time tracking.`)) return;
@@ -3519,26 +3146,27 @@
                     case 'name':
                         filtered.sort((a, b) => a.name.localeCompare(b.name));
                         break;
-                    case 'no_rate':
+                    case 'not_set':
+                        // Sort by: not set first (hourly_equivalent is null), then by name
                         filtered.sort((a, b) => {
-                            const aRate = parseFloat(a.pay_rate || 0);
-                            const bRate = parseFloat(b.pay_rate || 0);
-                            if (aRate === 0 && bRate !== 0) return -1;
-                            if (aRate !== 0 && bRate === 0) return 1;
+                            const aNotSet = a.hourly_equivalent === null;
+                            const bNotSet = b.hourly_equivalent === null;
+                            if (aNotSet && !bNotSet) return -1;
+                            if (!aNotSet && bNotSet) return 1;
                             return a.name.localeCompare(b.name);
                         });
                         break;
                     case 'hourly_asc':
                         filtered.sort((a, b) => {
-                            const aHourly = parseFloat(a.hourly_equivalent || 0);
-                            const bHourly = parseFloat(b.hourly_equivalent || 0);
+                            const aHourly = parseFloat(a.hourly_equivalent || a.pay_rate || 13);
+                            const bHourly = parseFloat(b.hourly_equivalent || b.pay_rate || 13);
                             return aHourly - bHourly;
                         });
                         break;
                     case 'hourly_desc':
                         filtered.sort((a, b) => {
-                            const aHourly = parseFloat(a.hourly_equivalent || 0);
-                            const bHourly = parseFloat(b.hourly_equivalent || 0);
+                            const aHourly = parseFloat(a.hourly_equivalent || a.pay_rate || 13);
+                            const bHourly = parseFloat(b.hourly_equivalent || b.pay_rate || 13);
                             return bHourly - aHourly;
                         });
                         break;
@@ -3556,72 +3184,112 @@
             window.displayPayratesTable = function(payrates) {
                 const tbody = document.getElementById('payrateTableBody');
                 const noResults = document.getElementById('payrateNoResults');
-                
+
                 if (!tbody) return;
-                
+
                 if (payrates.length === 0) {
                     tbody.style.display = 'none';
                     if (noResults) noResults.style.display = 'block';
                     return;
                 }
-                
+
                 tbody.style.display = '';
                 if (noResults) noResults.style.display = 'none';
-                
+
                 tbody.innerHTML = payrates.map(emp => {
-                    const hasNoRate = !emp.pay_rate || parseFloat(emp.pay_rate) === 0;
-                    const rowStyle = hasNoRate ? 'background: rgba(239, 68, 68, 0.1);' : '';
-                    const hourlyRate = parseFloat(emp.hourly_equivalent || 0);
-                    const rateDisplay = hasNoRate ? 
-                        '<span style="color: #ef4444; font-weight: bold;">NO RATE</span>' : 
-                        `<strong style="font-size: 1.1em;">$${hourlyRate.toFixed(2)}</strong>/hr`;
-                    
+                    // Check if rate is not set (no record in employee_payrates table)
+                    const isNotSet = emp.hourly_equivalent === null;
+                    const payRate = parseFloat(emp.pay_rate) || 13;
+                    const hourlyRate = emp.pay_type === 'salary' ? payRate / 26 / 8 : payRate;
+                    const displayHourly = emp.hourly_equivalent !== null ? parseFloat(emp.hourly_equivalent) : hourlyRate;
+
+                    const rowStyle = isNotSet ? 'background: rgba(251, 191, 36, 0.1);' : '';
+                    const typeLabel = emp.pay_type === 'salary' ? 'Salary' : 'Hourly';
+                    const rateLabel = emp.pay_type === 'salary' ? `$${payRate.toLocaleString()}/mo` : `$${payRate.toFixed(2)}/hr`;
+
                     return `
-                        <tr style="${rowStyle}">
-                            <td style="padding: 12px; font-weight: 600;">
+                        <tr id="payrate-row-${emp.id}" style="${rowStyle}">
+                            <td style="padding: 12px; font-weight: 500;">
                                 ${emp.name}
-                                ${hasNoRate ? '<span style="color: #ef4444; margin-left: 10px;">⚠️</span>' : ''}
+                                ${isNotSet ? '<span style="color: #fbbf24; margin-left: 8px; font-size: 0.8em;">(default $13)</span>' : ''}
                             </td>
                             <td style="padding: 12px; text-align: center;">
-                                <select id="paytype-${emp.id}" style="background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); padding: 5px; border-radius: 5px;">
+                                <span id="paytype-display-${emp.id}">${typeLabel}</span>
+                                <select id="paytype-edit-${emp.id}" style="display: none; background: #1a1a2e; color: #e0e0e0; border: 1px solid #667eea; padding: 6px 10px; border-radius: 6px;">
                                     <option value="hourly" ${emp.pay_type === 'hourly' ? 'selected' : ''}>Hourly</option>
                                     <option value="salary" ${emp.pay_type === 'salary' ? 'selected' : ''}>Salary</option>
                                 </select>
                             </td>
                             <td style="padding: 12px; text-align: center;">
-                                $<input type="number" id="payrate-${emp.id}" value="${emp.pay_rate || 0}" 
-                                    step="0.01" min="0" 
-                                    style="width: 80px; background: ${hasNoRate ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.1)'}; color: #e0e0e0; border: 1px solid ${hasNoRate ? '#ef4444' : 'rgba(255,255,255,0.2)'}; padding: 5px; border-radius: 5px;">
-                            </td>
-                            <td style="padding: 12px; text-align: center; color: ${hasNoRate ? '#ef4444' : '#667eea'};">
-                                ${rateDisplay}
-                            </td>
-                            <td style="padding: 12px;">
-                                <input type="text" id="notes-${emp.id}" value="${emp.notes || ''}" 
-                                    placeholder="Notes..." 
-                                    style="width: 150px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); padding: 5px; border-radius: 5px;">
+                                <span id="payrate-display-${emp.id}" style="font-weight: 600; color: ${isNotSet ? '#fbbf24' : '#e0e0e0'};">${rateLabel}</span>
+                                <div id="payrate-edit-${emp.id}" style="display: none;">
+                                    <input type="number" id="payrate-input-${emp.id}" value="${payRate}"
+                                        step="0.01" min="0"
+                                        style="width: 100px; background: #1a1a2e; color: #e0e0e0; border: 1px solid #667eea; padding: 6px 10px; border-radius: 6px; text-align: right;">
+                                    <span id="payrate-unit-${emp.id}" style="margin-left: 4px; color: #808080;">${emp.pay_type === 'salary' ? '/mo' : '/hr'}</span>
+                                </div>
                             </td>
                             <td style="padding: 12px; text-align: center;">
-                                <button onclick="savePayrate(${emp.id})" style="padding: 5px 15px; background: ${hasNoRate ? '#ef4444' : '#22c55e'}; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                                    ${hasNoRate ? 'Set Rate' : 'Save'}
+                                <span style="font-size: 1.1em; font-weight: 600; color: #667eea;">$${displayHourly.toFixed(2)}</span>
+                                <span style="color: #808080; font-size: 0.85em;">/hr</span>
+                            </td>
+                            <td style="padding: 12px; text-align: center;">
+                                <button id="edit-btn-${emp.id}" onclick="enterEditMode(${emp.id})"
+                                    style="padding: 6px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 5px;">
+                                    Edit
+                                </button>
+                                <button id="save-btn-${emp.id}" onclick="savePayrate(${emp.id})"
+                                    style="display: none; padding: 6px 16px; background: #22c55e; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 5px;">
+                                    Save
+                                </button>
+                                <button id="cancel-btn-${emp.id}" onclick="cancelEditMode(${emp.id})"
+                                    style="display: none; padding: 6px 12px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                    Cancel
                                 </button>
                             </td>
                         </tr>
                     `;
                 }).join('');
-                
-                // Show count of employees without rates
-                const noRateCount = payrates.filter(emp => !emp.pay_rate || parseFloat(emp.pay_rate) === 0).length;
-                if (noRateCount > 0) {
+
+                // Show count of employees without rates set
+                const notSetCount = payrates.filter(emp => emp.hourly_equivalent === null).length;
+                const container = tbody.parentElement.parentElement;
+                const existingAlert = container.querySelector('.no-rate-alert');
+                if (existingAlert) existingAlert.remove();
+
+                if (notSetCount > 0) {
                     const alertDiv = document.createElement('div');
-                    alertDiv.style.cssText = 'padding: 10px; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 8px; margin-top: 10px;';
-                    alertDiv.innerHTML = `<i class="fas fa-exclamation-triangle" style="color: #ef4444; margin-right: 10px;"></i><strong>${noRateCount} employees</strong> have no pay rate set`;
-                    const container = tbody.parentElement.parentElement;
-                    const existingAlert = container.querySelector('.no-rate-alert');
-                    if (existingAlert) existingAlert.remove();
+                    alertDiv.style.cssText = 'padding: 12px; background: rgba(251, 191, 36, 0.1); border: 1px solid #fbbf24; border-radius: 8px; margin-top: 15px;';
+                    alertDiv.innerHTML = `<i class="fas fa-info-circle" style="color: #fbbf24; margin-right: 10px;"></i><strong>${notSetCount} employees</strong> using default rate ($13/hr). Click Edit to set their actual rate.`;
                     alertDiv.className = 'no-rate-alert';
                     container.appendChild(alertDiv);
                 }
+            };
+
+            // Enter edit mode for a payrate row
+            window.enterEditMode = function(empId) {
+                // Hide display elements, show edit elements
+                document.getElementById(`paytype-display-${empId}`).style.display = 'none';
+                document.getElementById(`paytype-edit-${empId}`).style.display = 'inline-block';
+                document.getElementById(`payrate-display-${empId}`).style.display = 'none';
+                document.getElementById(`payrate-edit-${empId}`).style.display = 'inline-block';
+                document.getElementById(`edit-btn-${empId}`).style.display = 'none';
+                document.getElementById(`save-btn-${empId}`).style.display = 'inline-block';
+                document.getElementById(`cancel-btn-${empId}`).style.display = 'inline-block';
+
+                // Update unit label when type changes
+                document.getElementById(`paytype-edit-${empId}`).onchange = function() {
+                    const unit = this.value === 'salary' ? '/mo' : '/hr';
+                    document.getElementById(`payrate-unit-${empId}`).textContent = unit;
+                };
+
+                // Highlight the row
+                document.getElementById(`payrate-row-${empId}`).style.background = 'rgba(102, 126, 234, 0.15)';
+            };
+
+            // Cancel edit mode
+            window.cancelEditMode = function(empId) {
+                loadPayratesData(); // Reload to reset values
             };
 
             window.filterPayrates = function() {
@@ -3633,10 +3301,14 @@
             };
 
             window.savePayrate = async function(employeeId) {
-                const payType = document.getElementById(`paytype-${employeeId}`).value;
-                const payRate = document.getElementById(`payrate-${employeeId}`).value;
-                const notes = document.getElementById(`notes-${employeeId}`).value;
-                
+                const payType = document.getElementById(`paytype-edit-${employeeId}`).value;
+                const payRate = document.getElementById(`payrate-input-${employeeId}`).value;
+
+                // Disable save button and show loading
+                const saveBtn = document.getElementById(`save-btn-${employeeId}`);
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Saving...';
+
                 try {
                     const response = await fetch(`${API_BASE}/api/dashboard/employees/${employeeId}/payrate`, {
                         method: 'POST',
@@ -3647,23 +3319,28 @@
                         body: JSON.stringify({
                             pay_rate: parseFloat(payRate),
                             pay_type: payType,
-                            notes: notes
+                            notes: ''
                         })
                     });
-                    
+
                     if (response.ok) {
                         // Show success feedback
-                        const row = document.getElementById(`payrate-${employeeId}`).closest('tr');
-                        row.style.background = 'rgba(34, 197, 94, 0.1)';
+                        const row = document.getElementById(`payrate-row-${employeeId}`);
+                        row.style.background = 'rgba(34, 197, 94, 0.2)';
+                        saveBtn.textContent = 'Saved!';
+                        saveBtn.style.background = '#16a34a';
                         setTimeout(() => {
-                            row.style.background = '';
-                            loadPayratesData(); // Reload to show updated hourly equivalent
-                        }, 1000);
+                            loadPayratesData(); // Reload to show updated values
+                        }, 800);
                     } else {
                         alert('Error saving payrate');
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save';
                     }
                 } catch (error) {
                     alert('Failed to save payrate');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save';
                 }
             };
             window.loadArchivedEmployees = async function() {
