@@ -98,21 +98,50 @@ class PodFactorySync:
         """Get current datetime in Central Time"""
         return datetime.now(self.central)
     
+    def get_email_to_employee_mapping(self):
+        """Load explicit email->employee mappings from mapping table (highest priority)"""
+        conn = pymysql.connect(**self.local_config)
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+        # Get verified email mappings
+        cursor.execute("""
+            SELECT
+                m.podfactory_email,
+                m.employee_id,
+                e.name as employee_name
+            FROM employee_podfactory_mapping_v2 m
+            JOIN employees e ON e.id = m.employee_id
+            WHERE m.is_verified = 1 AND e.is_active = 1
+        """)
+
+        mappings = {}
+        for row in cursor.fetchall():
+            email = row['podfactory_email'].lower().strip()
+            mappings[email] = {
+                'employee_id': row['employee_id'],
+                'name': row['employee_name']
+            }
+
+        cursor.close()
+        conn.close()
+        logger.info(f"Loaded {len(mappings)} explicit email mappings from mapping table")
+        return mappings
+
     def get_employee_mapping(self):
         """Get employee mappings using name-based matching"""
         conn = pymysql.connect(**self.local_config)
         cursor = conn.cursor(pymysql.cursors.DictCursor)
-        
+
         # Get all active employees
         cursor.execute("""
-            SELECT 
+            SELECT
                 id as employee_id,
                 name as display_name,
                 LOWER(TRIM(name)) as normalized_name
             FROM employees
             WHERE is_active = 1
         """)
-        
+
         employees = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -182,8 +211,21 @@ class PodFactorySync:
         
         return email_prefix
     
-    def find_employee_by_name(self, email, name_mappings, user_name=None):
-        """Try to find employee using various name matching strategies"""
+    def find_employee_by_name(self, email, name_mappings, user_name=None, email_mappings=None):
+        """Try to find employee using various name matching strategies
+
+        Priority order:
+        1. Explicit email mapping from mapping table (highest priority)
+        2. Name-based matching (existing logic)
+        """
+        # FIRST: Check explicit email mapping table (highest priority)
+        if email_mappings and email:
+            email_lower = email.lower().strip()
+            if email_lower in email_mappings:
+                match = email_mappings[email_lower]
+                logger.debug(f"Matched '{email}' via explicit email mapping to '{match['name']}'")
+                return match
+
         if user_name:
             normalized_pf_name = user_name.lower().strip()
             
@@ -513,6 +555,9 @@ class PodFactorySync:
         logger.info("Starting PodFactory sync (UTC storage mode)...")
         logger.info(f"Current Central Time: {self.get_central_datetime()}")
         
+        # Load explicit email mappings FIRST (highest priority)
+        email_mappings = self.get_email_to_employee_mapping()
+
         name_mappings = self.get_employee_mapping()
         if not name_mappings:
             logger.error("No employee mappings found!")
@@ -569,9 +614,10 @@ class PodFactorySync:
         
         for activity in activities:
             employee = self.find_employee_by_name(
-                activity['user_email'], 
-                name_mappings, 
-                user_name=activity.get('user_name')
+                activity['user_email'],
+                name_mappings,
+                user_name=activity.get('user_name'),
+                email_mappings=email_mappings
             )
             
             if not employee:
@@ -714,7 +760,7 @@ class PodFactorySync:
                     0, 0, 0
                 FROM activity_logs al
                 JOIN role_configs rc ON rc.id = al.role_id
-                WHERE DATE(al.window_start) = CURDATE()
+                WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = CURDATE()
                     AND al.source = 'podfactory'
                 GROUP BY al.employee_id
                 ON DUPLICATE KEY UPDATE

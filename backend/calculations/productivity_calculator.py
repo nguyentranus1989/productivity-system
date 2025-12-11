@@ -293,7 +293,7 @@ class ProductivityCalculator:
                 FROM activity_logs al
                 JOIN role_configs rc ON rc.id = al.role_id
                 WHERE al.employee_id = %s
-                AND DATE(al.window_start) = %s
+                AND DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = %s
                 """,
                 (employee_id, process_date)
             )
@@ -325,7 +325,7 @@ class ProductivityCalculator:
                 FROM activity_logs al
                 JOIN role_configs rc ON rc.id = al.role_id
                 WHERE al.employee_id = %s
-                AND DATE(al.window_start) = %s
+                AND DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = %s
                 GROUP BY rc.id, rc.role_name
                 ORDER BY SUM(al.items_count) DESC
                 LIMIT 1
