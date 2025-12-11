@@ -2,6 +2,82 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.2.2] - 2025-12-11
+
+### Fixed
+- **System Health 404 Error**: Fixed `/api/system/health` endpoint returning 404
+  - Root cause: `backend/api/system_control.py` imported `mysql.connector` (not installed in venv)
+  - Flask silently failed to register `system_control_bp` blueprint due to import error
+  - Fix: Changed import from `mysql.connector` to `pymysql` (already in venv)
+  - Updated `get_db_connection()` to use pymysql syntax with `DictCursor`
+  - System Health indicators in manager.html now display properly
+
+---
+
+## [2.2.1] - 2025-12-10
+
+### Fixed
+- **Negative Hours Data Protection**: Added multi-layer defense against invalid clock times
+  - Added `GREATEST(0, ...)` wrappers to 5 TIMESTAMPDIFF locations in dashboard.py
+  - Added validation in `_parse_shift()` (connecteam_client.py) - rejects invalid shifts
+  - Added validation in `_sync_clock_time()` (connecteam_sync.py) - second layer defense
+
+### Added
+- **Data Quality Scripts**: Tools for auditing and fixing clock_times data
+  - `backend/scripts/audit_clock_times.py`: Finds records with clock_out < clock_in
+  - `backend/scripts/fix_negative_hours.py`: Auto-fixes overnight shift date errors
+  - `backend/scripts/clear_today_clock_times.py`: Clears today's data for fresh re-sync
+
+### Data Quality
+- Re-synced Dec 10 data from Connecteam - **0 invalid records** after fresh sync
+- Previous 16 bad records were caused by stale/corrupted data, not Connecteam source
+
+---
+
+## [2.2.0] - 2025-12-10
+
+### Performance
+- **Flask Startup Optimization**: Reduced startup time from 14.75s → 1.54s (90% improvement)
+  - Converted 8 heavy import jobs to deferred scheduler registration
+  - Jobs now register on first request rather than import time
+  - Added `_jobs_registered` flag to prevent duplicate registration
+
+### Fixed
+- **Connecteam Pagination**: Fixed sync missing employees (71 → 83 employees)
+  - API returns max 100 users per page; added pagination loop
+  - Now fetches all pages using `nextPageToken`
+
+- **Cost Analysis Negative Hours**: Fixed timezone mismatch causing impossible negative hours
+  - Root cause: `CONVERT_TZ(NOW(), 'UTC', 'America/Chicago')` but `clock_times` stores UTC
+  - Fix: Changed all 4 occurrences to use `NOW()` directly
+  - Locations fixed:
+    - Line 561: `/clock-times/today` endpoint
+    - Lines 628/634: `/leaderboard` endpoint
+    - Line 1421: Analytics endpoint
+    - Line 3441: Cost Analysis CTE
+
+- **Salary Formula**: Fixed monthly cost calculation (22 → 26 work days/month)
+  - Formula: `hourly_rate = annual_salary / (26 * 12 * 8)`
+
+### Added
+- **PodFactory Email Mapping Workflow**: New endpoint for suggesting PodFactory emails
+  - `POST /api/podfactory/suggest-emails` - Returns email suggestions for unmapped employees
+  - Modal in frontend for manual email entry when auto-match fails
+
+- **Payrate UI Redesign**: Improved employee payrate management
+  - Cleaner card-based layout
+  - Better visual hierarchy for salary vs hourly employees
+  - Inline editing capabilities
+
+### Technical Details
+- **Modified Files**:
+  - `backend/app.py`: Deferred scheduler job registration
+  - `backend/api/dashboard.py`: Timezone fixes (4 locations), salary formula
+  - `backend/integrations/connecteam_sync.py`: Pagination support
+  - `frontend/manager.html`: PodFactory mapping modal, payrate UI
+
+---
+
 ## [2.1.0] - 2025-12-09
 
 ### Added

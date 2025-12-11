@@ -12,7 +12,8 @@ import os
 from functools import wraps
 import logging
 import platform
-import mysql.connector
+import pymysql
+import pymysql.cursors
 
 # Add these imports that were missing
 from database.db_manager import DatabaseManager
@@ -23,12 +24,13 @@ logger = logging.getLogger(__name__)
 # Add the database connection function
 def get_db_connection():
     """Create and return a database connection"""
-    return mysql.connector.connect(
+    return pymysql.connect(
         host=config.DB_HOST,
         port=config.DB_PORT,
         user=config.DB_USER,
         password=config.DB_PASSWORD,
-        database=config.DB_NAME
+        database=config.DB_NAME,
+        cursorclass=pymysql.cursors.DictCursor
     )
 
 # Create blueprint
@@ -60,7 +62,7 @@ def get_system_health():
     cursor = None
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor()
         
         health = {
             'timestamp': datetime.now().isoformat(),
