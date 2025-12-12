@@ -2149,7 +2149,7 @@ def get_current_bottleneck():
         SELECT DISTINCT e.id, e.name
         FROM employees e
         INNER JOIN clock_times ct ON ct.employee_id = e.id
-        WHERE DATE(ct.clock_in) = %s 
+        WHERE DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) = %s
             AND ct.clock_out IS NULL
             AND e.is_active = 1
         """
@@ -3476,17 +3476,17 @@ def get_cost_analysis():
 
         # Get employee costs for the date range
         # OPTIMIZED: Uses JOINs instead of correlated subqueries for 10-20x performance improvement
-        # NOTE: clock_in uses date range with >= and < for index usage (avoids DATE() function)
+        # NOTE: Filter by CT date using CONVERT_TZ since clock_in is stored in UTC
         employee_costs_query = """
         WITH clock_hours AS (
-            -- Pre-aggregate clock_times once (uses index on clock_in)
+            -- Pre-aggregate clock_times once (filter by CT date)
             SELECT
                 employee_id,
                 SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, UTC_TIMESTAMP())))) / 60.0 as clocked_hours,
-                COUNT(DISTINCT DATE(clock_in)) as days_worked,
+                COUNT(DISTINCT DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago'))) as days_worked,
                 MIN(clock_in) as first_clock_in
             FROM clock_times
-            WHERE clock_in >= %s AND clock_in < DATE_ADD(%s, INTERVAL 1 DAY)
+            WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
             GROUP BY employee_id
         ),
         score_agg AS (
@@ -3607,17 +3607,17 @@ def get_cost_analysis():
                 }
 
         # For SINGLE DAY only: Get clock in/out times for tooltip display
-        # NOTE: clock_times stores times as-is from Connecteam (already in CT)
+        # NOTE: clock_times stores times in UTC, converted to CT for display
         if not is_date_range and employee_ids:
             clock_times_query = """
             SELECT
                 ct.employee_id,
-                ct.clock_in as clock_in_ct,
-                ct.clock_out as clock_out_ct,
+                CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago') as clock_in_ct,
+                CONVERT_TZ(ct.clock_out, '+00:00', 'America/Chicago') as clock_out_ct,
                 GREATEST(0, TIMESTAMPDIFF(MINUTE, ct.clock_in, COALESCE(ct.clock_out, UTC_TIMESTAMP()))) as minutes
             FROM clock_times ct
             WHERE ct.employee_id IN ({})
-            AND DATE(ct.clock_in) = %s
+            AND DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) = %s
             ORDER BY ct.clock_in
             """.format(','.join(['%s'] * len(employee_ids)))
 
