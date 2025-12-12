@@ -2,6 +2,20 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.2.5] - 2025-12-12
+
+### Added
+- **Clock Times Tooltip**: Hover over clocked hours in Cost Analysis to see clock in/out times
+  - Shows each clock in/out time for single-day view only
+  - Small clock icon indicates hoverable cells
+  - Format: `05:20 AM - 03:41 PM (10h 21m)`
+
+### Changed
+- **Removed Auto-Refresh**: Cost Analysis no longer auto-refreshes every minute
+  - Reduces unnecessary API calls and improves stability
+
+---
+
 ## [2.2.4] - 2025-12-11
 
 ### Fixed

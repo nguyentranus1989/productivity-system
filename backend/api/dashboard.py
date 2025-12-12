@@ -3605,7 +3605,41 @@ def get_cost_analysis():
                     'in_production': 0,
                     'qc_passed': 0
                 }
-        
+
+        # For SINGLE DAY only: Get clock in/out times for tooltip display
+        # NOTE: clock_times stores times as-is from Connecteam (already in CT)
+        if not is_date_range and employee_ids:
+            clock_times_query = """
+            SELECT
+                ct.employee_id,
+                ct.clock_in as clock_in_ct,
+                ct.clock_out as clock_out_ct,
+                GREATEST(0, TIMESTAMPDIFF(MINUTE, ct.clock_in, COALESCE(ct.clock_out, NOW()))) as minutes
+            FROM clock_times ct
+            WHERE ct.employee_id IN ({})
+            AND DATE(ct.clock_in) = %s
+            ORDER BY ct.clock_in
+            """.format(','.join(['%s'] * len(employee_ids)))
+
+            clock_times_params = employee_ids + [start_date]
+            clock_times_results = db_manager.execute_query(clock_times_query, clock_times_params)
+
+            # Build lookup by employee_id
+            clock_times_by_employee = {}
+            for row in clock_times_results:
+                emp_id = row['employee_id']
+                if emp_id not in clock_times_by_employee:
+                    clock_times_by_employee[emp_id] = []
+                clock_times_by_employee[emp_id].append({
+                    'clock_in': row['clock_in_ct'].strftime('%I:%M %p') if row['clock_in_ct'] else None,
+                    'clock_out': row['clock_out_ct'].strftime('%I:%M %p') if row['clock_out_ct'] else 'Active',
+                    'minutes': row['minutes']
+                })
+
+            # Assign to each employee
+            for emp in employee_costs:
+                emp['clock_times'] = clock_times_by_employee.get(emp['id'], [])
+
         # Calculate additional metrics for each employee (rest of the code remains the same)
         for emp in employee_costs:
             try:

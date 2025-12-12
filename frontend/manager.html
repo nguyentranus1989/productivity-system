@@ -1150,6 +1150,25 @@
         let previousData = null;
         // Cost Analysis Variables
         let costData = null;
+
+        // ============= TAB VISIBILITY HANDLING =============
+        // Only refresh data when tab is visible to reduce server load
+        let isTabVisible = !document.hidden;
+
+        document.addEventListener('visibilitychange', () => {
+            isTabVisible = !document.hidden;
+            if (isTabVisible) {
+                // Tab became visible - refresh data immediately
+                loadDashboardData();
+                updateSystemHealth();
+            }
+        });
+
+        // Helper to check if should refresh
+        function shouldRefresh() {
+            return isTabVisible;
+        }
+
         // ============= SYSTEM HEALTH MONITORING =============
         // Cooldown tracking for restart buttons
         let restartCooldowns = {};
@@ -1635,9 +1654,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Initial health check
             updateSystemHealth();
-            
-            // Update health status every 30 seconds
-            setInterval(updateSystemHealth, 30000);
+
+            // Update health status every 30 seconds (only when tab visible)
+            setInterval(() => {
+                if (shouldRefresh()) updateSystemHealth();
+            }, 30000);
             
             // Close modal when clicking outside
             document.getElementById('system-control-modal').addEventListener('click', function(e) {
@@ -2205,8 +2226,10 @@
             // Load initial data
             loadDashboardData();
             
-            // Set up auto-refresh every 30 seconds
-            refreshInterval = setInterval(loadDashboardData, 30000);
+            // Set up auto-refresh every 30 seconds (only when tab visible)
+            refreshInterval = setInterval(() => {
+                if (shouldRefresh()) loadDashboardData();
+            }, 30000);
             
             // Schedule midnight refresh
             const scheduleMiddnightRefresh = () => {
@@ -4298,9 +4321,10 @@
                 }
             };
 
-            // Auto-refresh bottleneck data when on that section
+            // Auto-refresh bottleneck data when on that section (only when tab visible)
             setInterval(() => {
-                if (document.getElementById('bottleneck-section') && 
+                if (shouldRefresh() &&
+                    document.getElementById('bottleneck-section') &&
                     document.getElementById('bottleneck-section').classList.contains('active')) {
                     loadBottleneckData();
                 }
@@ -4586,16 +4610,34 @@
                             break;
                     }
                     
+                    // Check if single day (show clock times tooltip)
+                    const isSingleDay = costData.date_range && !costData.date_range.is_range;
+
                     // Populate table
                     tbody.innerHTML = sortedEmployees.map(emp => {
                         const nonActivePercent = (emp.non_active_hours / emp.clocked_hours * 100) || 0;
                         const nonActiveColor = nonActivePercent > 50 ? '#ef4444' : (nonActivePercent > 30 ? '#f59e0b' : '#22c55e');
-                        
+
+                        // Build clock times tooltip for single day view
+                        let clockTimesHtml = '';
+                        if (isSingleDay && emp.clock_times && emp.clock_times.length > 0) {
+                            const tooltipLines = emp.clock_times.map(ct =>
+                                `${ct.clock_in} - ${ct.clock_out} (${Math.floor(ct.minutes/60)}h ${ct.minutes%60}m)`
+                            ).join('&#10;');
+                            clockTimesHtml = `
+                                <td style="padding: 12px; text-align: center; cursor: help; position: relative;" class="clock-times-cell" title="${tooltipLines}">
+                                    ${parseFloat(emp.clocked_hours || 0).toFixed(1)}
+                                    <i class="fas fa-clock" style="font-size: 10px; opacity: 0.5; margin-left: 4px;"></i>
+                                </td>`;
+                        } else {
+                            clockTimesHtml = `<td style="padding: 12px; text-align: center;">${parseFloat(emp.clocked_hours || 0).toFixed(1)}</td>`;
+                        }
+
                         return `
                             <tr>
                                 <td style="padding: 12px;">${emp.name}</td>
                                 <td style="padding: 12px; text-align: center;">$${parseFloat(emp.hourly_rate || 0).toFixed(2)}</td>
-                                <td style="padding: 12px; text-align: center;">${parseFloat(emp.clocked_hours || 0).toFixed(1)}</td>
+                                ${clockTimesHtml}
                                 <td style="padding: 12px; text-align: center; color: #22c55e;">${parseFloat(emp.active_hours || 0).toFixed(1)}</td>
                                 <td style="padding: 12px; text-align: center; color: ${nonActiveColor}; font-weight: bold;">
                                     ${parseFloat(emp.non_active_hours || 0).toFixed(1)}
@@ -4815,14 +4857,6 @@
                         </tr>
                     `;
                 }
-                // Auto-refresh cost data when on that section
-                // Auto-refresh cost data when on that section
-                setInterval(() => {
-                    if (document.getElementById('cost-section') && 
-                        document.getElementById('cost-section').classList.contains('active')) {
-                        loadCostAnalysisData();
-                    }
-                }, 60000); // Every minute
 
                 // Add event listener for cost sort dropdown
                 const costSortElement = document.getElementById('costSortBy');
