@@ -3,7 +3,7 @@
 import requests
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import urllib3
@@ -59,52 +59,90 @@ class ConnecteamClient:
         self._employee_cache = {}
         
     def get_all_employees(self, include_archived: bool = True) -> Dict[str, ConnecteamEmployee]:
-        """Fetch all employees from Connecteam"""
+        """Fetch all employees from Connecteam with pagination"""
         try:
             employees = {}
-            
-            # Get active users
-            response = requests.get(
-                f"{self.base_url}/users/v1/users",
-                headers=self.headers,
-                timeout=30,
-                verify=False
-            )
-            
-            if response.status_code == 200:
+
+            # Get active users with pagination
+            offset = 0
+            limit = 100
+            total_active = 0
+
+            while True:
+                response = requests.get(
+                    f"{self.base_url}/users/v1/users",
+                    headers=self.headers,
+                    params={'limit': limit, 'offset': offset},
+                    timeout=30,
+                    verify=False
+                )
+
+                if response.status_code != 200:
+                    logger.error(f"Failed to fetch users: {response.status_code}")
+                    break
+
                 data = response.json()
                 users = data.get('data', {}).get('users', [])
-                logger.info(f"Retrieved {len(users)} active users from Connecteam")
-                
+
+                if not users:
+                    break
+
                 for user in users:
                     emp = self._parse_employee(user)
                     employees[emp.user_id] = emp
-            
-            # Get archived users if requested
+
+                total_active += len(users)
+
+                # Check if we got fewer than limit (last page)
+                if len(users) < limit:
+                    break
+
+                offset += limit
+
+            logger.info(f"Retrieved {total_active} active users from Connecteam")
+
+            # Get archived users if requested (also with pagination)
             if include_archived:
                 try:
-                    archived_response = requests.get(
-                        f"{self.base_url}/users/v1/users",
-                        headers=self.headers,
-                        params={'userStatus': 'archived'},
-                        timeout=30,
-                        verify=False
-                    )
-                    
-                    if archived_response.status_code == 200:
+                    offset = 0
+                    total_archived = 0
+
+                    while True:
+                        archived_response = requests.get(
+                            f"{self.base_url}/users/v1/users",
+                            headers=self.headers,
+                            params={'userStatus': 'archived', 'limit': limit, 'offset': offset},
+                            timeout=30,
+                            verify=False
+                        )
+
+                        if archived_response.status_code != 200:
+                            break
+
                         archived_data = archived_response.json()
                         archived_users = archived_data.get('data', {}).get('users', [])
-                        logger.info(f"Retrieved {len(archived_users)} archived users")
-                        
+
+                        if not archived_users:
+                            break
+
                         for user in archived_users:
                             emp = self._parse_employee(user)
                             employees[emp.user_id] = emp
+
+                        total_archived += len(archived_users)
+
+                        if len(archived_users) < limit:
+                            break
+
+                        offset += limit
+
+                    logger.info(f"Retrieved {total_archived} archived users")
                 except Exception as e:
                     logger.warning(f"Could not fetch archived users: {e}")
-            
+
             self._employee_cache = employees
             return employees
-            
+
         except Exception as e:
             logger.error(f"Error fetching employees: {e}")
             return {}
@@ -230,7 +268,8 @@ class ConnecteamClient:
             if not clock_in_timestamp:
                 return None
             
-            clock_in = datetime.fromtimestamp(clock_in_timestamp)
+            # Store in UTC explicitly for consistent timezone handling
+            clock_in = datetime.fromtimestamp(clock_in_timestamp, tz=timezone.utc).replace(tzinfo=None)
             
             # Get clock out time (if exists)
             end_info = shift_data.get('end')
@@ -240,24 +279,42 @@ class ConnecteamClient:
             
             if end_info and end_info.get('timestamp'):
                 clock_out_timestamp = end_info.get('timestamp')
-                clock_out = datetime.fromtimestamp(clock_out_timestamp)
+                # Store in UTC explicitly for consistent timezone handling
+                clock_out = datetime.fromtimestamp(clock_out_timestamp, tz=timezone.utc).replace(tzinfo=None)
                 total_minutes = (clock_out_timestamp - clock_in_timestamp) / 60
                 is_active = False
+
+                # Validate: clock_out must be after clock_in
+                if clock_out < clock_in:
+                    logger.warning(
+                        f"Invalid shift for {employee_name}: clock_out ({clock_out}) before clock_in ({clock_in}). "
+                        f"Raw timestamps: start={clock_in_timestamp}, end={clock_out_timestamp}"
+                    )
+                    # Auto-correct: if clock_out is same day but earlier, assume next day
+                    if clock_out.date() == clock_in.date():
+                        from datetime import timedelta
+                        clock_out = clock_out + timedelta(days=1)
+                        total_minutes = (clock_out - clock_in).total_seconds() / 60
+                        logger.info(f"Auto-corrected clock_out to next day: {clock_out}")
+                    else:
+                        # Can't auto-fix, skip this shift
+                        logger.error(f"Cannot auto-correct shift for {employee_name} - dates differ. Skipping.")
+                        return None
             else:
-                # Still working - calculate current duration
-                current_time = datetime.now().timestamp()
+                # Still working - calculate current duration using UTC
+                current_time = datetime.now(timezone.utc).timestamp()
                 total_minutes = (current_time - clock_in_timestamp) / 60
             
-            # Parse breaks
+            # Parse breaks - store in UTC
             breaks = []
             for break_data in shift_data.get('breaks', []):
                 break_start = break_data.get('start', {}).get('timestamp')
                 break_end = break_data.get('end', {}).get('timestamp')
-                
+
                 if break_start:
                     break_info = {
-                        'start': datetime.fromtimestamp(break_start),
-                        'end': datetime.fromtimestamp(break_end) if break_end else None,
+                        'start': datetime.fromtimestamp(break_start, tz=timezone.utc).replace(tzinfo=None),
+                        'end': datetime.fromtimestamp(break_end, tz=timezone.utc).replace(tzinfo=None) if break_end else None,
                         'duration_minutes': (break_end - break_start) / 60 if break_end else None
                     }
                     breaks.append(break_info)

@@ -188,11 +188,11 @@ def get_department_stats():
             ), 1), 0) as avg_efficiency
         FROM activity_logs al
         LEFT JOIN (
-            SELECT 
+            SELECT
                 employee_id,
                 SUM(total_minutes) as clock_minutes
             FROM clock_times
-            WHERE DATE(clock_in) = %s
+            WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = %s
             GROUP BY employee_id
         ) ct ON ct.employee_id = al.employee_id
         WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = %s
@@ -607,7 +607,7 @@ def get_today_clock_times():
                 ct.clock_in,
                 ct.clock_out,
                 CASE WHEN ct.clock_out IS NULL THEN 1 ELSE 0 END as is_clocked_in,
-                GREATEST(0, TIMESTAMPDIFF(MINUTE, ct.clock_in, IFNULL(ct.clock_out, NOW()))) as total_minutes,
+                GREATEST(0, TIMESTAMPDIFF(MINUTE, ct.clock_in, IFNULL(ct.clock_out, UTC_TIMESTAMP()))) as total_minutes,
                 COALESCE(ds.active_minutes, 0) as active_minutes,
                 COALESCE(ds.items_processed, 0) as items_processed
             FROM clock_times ct
@@ -673,20 +673,20 @@ def get_live_leaderboard():
                 LEFT JOIN (
                     SELECT 
                         employee_id,
-                        -- Calculate actual worked time without duplicates
+                        -- Calculate actual worked time without duplicates (UTC comparison)
                         ROUND(
                             TIMESTAMPDIFF(MINUTE,
                                 MIN(clock_in),
-                                COALESCE(MAX(clock_out), NOW())
+                                COALESCE(MAX(clock_out), UTC_TIMESTAMP())
                             ) / 60.0,
                             1
                         ) as hours_worked,
                         TIMESTAMPDIFF(MINUTE,
                             MIN(clock_in),
-                            COALESCE(MAX(clock_out), NOW())
+                            COALESCE(MAX(clock_out), UTC_TIMESTAMP())
                         ) as clock_minutes
                     FROM clock_times
-                    WHERE DATE(clock_in) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                    WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
                     GROUP BY employee_id
                 ) ct ON ct.employee_id = e.id
                 WHERE ds.score_date = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
@@ -876,7 +876,7 @@ def get_achievement_ticker():
                     employee_id,
                     GREATEST(0, TIMESTAMPDIFF(MINUTE, MIN(clock_in), COALESCE(MAX(clock_out), UTC_TIMESTAMP()))) as clock_minutes
                 FROM clock_times
-                WHERE DATE(clock_in) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
                 GROUP BY employee_id
             ) ct ON ct.employee_id = e.id
             WHERE ds.score_date = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
@@ -1467,12 +1467,12 @@ def get_employee_stats(employee_id):
             LEFT JOIN daily_scores ds ON ds.employee_id = e.id 
                 AND ds.score_date = CURDATE()
             LEFT JOIN (
-                SELECT employee_id, 
-                       MIN(clock_in) as clock_in, 
+                SELECT employee_id,
+                       MIN(clock_in) as clock_in,
                        MAX(clock_out) as clock_out,
-                       GREATEST(0, TIMESTAMPDIFF(MINUTE, MIN(clock_in), COALESCE(MAX(clock_out), NOW()))) as clock_minutes
+                       GREATEST(0, TIMESTAMPDIFF(MINUTE, MIN(clock_in), COALESCE(MAX(clock_out), UTC_TIMESTAMP()))) as clock_minutes
                 FROM clock_times
-                WHERE DATE(clock_in) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
                 GROUP BY employee_id
             ) ct ON ct.employee_id = e.id
             WHERE e.id = %s
@@ -3400,7 +3400,7 @@ def test_bottleneck():
         cursor.execute("""
             SELECT COUNT(*) as active_workers
             FROM clock_times
-            WHERE DATE(clock_in) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+            WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
                 AND clock_out IS NULL
         """)
         workers = cursor.fetchone()
@@ -3482,7 +3482,7 @@ def get_cost_analysis():
             -- Pre-aggregate clock_times once (uses index on clock_in)
             SELECT
                 employee_id,
-                SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, NOW())))) / 60.0 as clocked_hours,
+                SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, UTC_TIMESTAMP())))) / 60.0 as clocked_hours,
                 COUNT(DISTINCT DATE(clock_in)) as days_worked,
                 MIN(clock_in) as first_clock_in
             FROM clock_times
@@ -3614,7 +3614,7 @@ def get_cost_analysis():
                 ct.employee_id,
                 ct.clock_in as clock_in_ct,
                 ct.clock_out as clock_out_ct,
-                GREATEST(0, TIMESTAMPDIFF(MINUTE, ct.clock_in, COALESCE(ct.clock_out, NOW()))) as minutes
+                GREATEST(0, TIMESTAMPDIFF(MINUTE, ct.clock_in, COALESCE(ct.clock_out, UTC_TIMESTAMP()))) as minutes
             FROM clock_times ct
             WHERE ct.employee_id IN ({})
             AND DATE(ct.clock_in) = %s

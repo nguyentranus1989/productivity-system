@@ -348,10 +348,10 @@ class ConnecteamSync:
                         # Update active status and duration
                         self.db.execute_query(
                             """
-                            UPDATE clock_times 
-                            SET total_minutes = TIMESTAMPDIFF(MINUTE, clock_in, NOW()),
-                                is_active = TRUE, 
-                                updated_at = NOW()
+                            UPDATE clock_times
+                            SET total_minutes = TIMESTAMPDIFF(MINUTE, clock_in, UTC_TIMESTAMP()),
+                                is_active = TRUE,
+                                updated_at = UTC_TIMESTAMP()
                             WHERE id = %s
                             """,
                             (existing['id'],)

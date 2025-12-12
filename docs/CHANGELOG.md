@@ -2,6 +2,30 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.3.0] - 2025-12-12
+
+### Fixed (CRITICAL)
+- **UTC Timezone Migration**: Fixed 6-hour offset bug causing wrong time calculations
+  - **Root Cause**: `clock_times` stored timestamps in CT while `NOW()` returned UTC
+  - **Solution**: Migrated all clock_times to UTC storage, updated all queries to use `UTC_TIMESTAMP()`
+
+  **Changes Made:**
+  - `connecteam_client.py`: Use `datetime.fromtimestamp(ts, tz=timezone.utc)` for explicit UTC
+  - `connecteam_sync.py`: Changed `NOW()` to `UTC_TIMESTAMP()` in update queries
+  - `dashboard.py`: Updated 6 `TIMESTAMPDIFF(...NOW())` to use `UTC_TIMESTAMP()`
+  - `dashboard.py`: Fixed 5 date filters to use `DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago'))`
+  - `productivity_calculator.py`: Updated 2 `NOW()` instances to `UTC_TIMESTAMP()`
+  - Migrated 4,395 historical records from CT to UTC using `CONVERT_TZ()`
+
+  **Impact:** Time worked calculations now accurate (was showing +6 hours for active workers)
+
+### Data Migration
+- Created backup: `clock_times_backup_20251212` (4,395 records)
+- Migrated clock_in/clock_out from CT to UTC using MySQL `CONVERT_TZ()`
+- All date filtering now uses CT conversion: `DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago'))`
+
+---
+
 ## [2.2.5] - 2025-12-12
 
 ### Added

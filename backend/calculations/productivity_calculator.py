@@ -67,12 +67,12 @@ class ProductivityCalculator:
         
         clock_data = self.db.execute_one(
             """
-            SELECT 
+            SELECT
                 MIN(clock_in) as first_clock_in,
-                MAX(COALESCE(clock_out, NOW())) as last_clock_out,
-                TIMESTAMPDIFF(MINUTE, MIN(clock_in), MAX(COALESCE(clock_out, NOW()))) as total_minutes
+                MAX(COALESCE(clock_out, UTC_TIMESTAMP())) as last_clock_out,
+                TIMESTAMPDIFF(MINUTE, MIN(clock_in), MAX(COALESCE(clock_out, UTC_TIMESTAMP()))) as total_minutes
             FROM clock_times
-            WHERE employee_id = %s 
+            WHERE employee_id = %s
             AND clock_in >= %s
             AND clock_in < %s
             """,
@@ -250,13 +250,13 @@ class ProductivityCalculator:
             
             clock_data = self.db.execute_one(
                 """
-                SELECT 
+                SELECT
                     MIN(clock_in) as first_clock_in,
-                    MAX(COALESCE(clock_out, NOW())) as last_clock_out,
+                    MAX(COALESCE(clock_out, UTC_TIMESTAMP())) as last_clock_out,
                     SUM(total_minutes) as total_minutes,  -- USE THE EXISTING COLUMN!
                     SUM(COALESCE(break_minutes, 0)) as total_break_minutes
                 FROM clock_times
-                WHERE employee_id = %s 
+                WHERE employee_id = %s
                 AND clock_in >= %s
                 AND clock_in < %s
                 """,
