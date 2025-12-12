@@ -169,7 +169,7 @@
         
         <!-- Metrics Grid -->
         <div class="metrics-grid">
-            <div class="metric-card">
+            <div class="metric-card clickable" onclick="showEmployeePopup()" title="Click to view all employees">
                 <div class="metric-header">
                     <div class="metric-icon blue">
                         <i class="fas fa-users"></i>
@@ -247,7 +247,7 @@
             </div>
             
             <div class="activity-feed">
-                <h3>Top Performers & Recent Activity</h3>
+                <h3>Clock Activity</h3>
                 <div id="activityFeed">
                     <div class="no-data">
                         <i class="fas fa-spinner fa-spin"></i>
@@ -989,7 +989,28 @@
         </div>
     </div>
     </div> <!-- This closes the main-content div -->
-    
+
+    <!-- Employee Popup Modal -->
+    <div id="employee-popup-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 10001; align-items: center; justify-content: center;" onclick="hideEmployeePopup(event)">
+        <div class="employee-popup" style="background: #1a1a2e; border-radius: 16px; width: 650px; max-width: 95%; max-height: 85vh; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid rgba(99,102,241,0.3);" onclick="event.stopPropagation()">
+            <div style="background: linear-gradient(135deg, #312e81 0%, #1e1b4b 100%); padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: #fff; font-size: 18px; display: flex; align-items: center; gap: 10px; margin: 0;">
+                    <i class="fas fa-users"></i> Today's Employees
+                    <span id="popupEmployeeCount" style="background: #6366f1; padding: 4px 12px; border-radius: 20px; font-size: 13px;">0 employees</span>
+                </h3>
+                <button onclick="hideEmployeePopup()" style="background: none; border: none; color: #9ca3af; font-size: 28px; cursor: pointer;">&times;</button>
+            </div>
+            <div style="padding: 15px 20px; background: #252540; border-bottom: 1px solid rgba(255,255,255,0.1); position: relative;">
+                <input type="text" id="employeeSearchInput" placeholder="Search by name..." oninput="filterPopupEmployees()" style="width: 100%; padding: 12px 15px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #1a1a2e; color: #fff; font-size: 14px;">
+            </div>
+            <div id="employeePopupList" style="max-height: 55vh; overflow-y: auto; padding: 10px 0;">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px; color: #9ca3af;">
+                    <span class="loading"></span> Loading employees...
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.1/dist/chart.umd.min.js"></script>
     <script src="dashboard-api.js"></script>
     <script>
@@ -1142,6 +1163,135 @@
                 sidebar.classList.remove("active");
             }
         });
+
+        // ============= EMPLOYEE POPUP FUNCTIONS =============
+        let popupEmployeesData = []; // Store fetched data for filtering
+
+        async function showEmployeePopup() {
+            const overlay = document.getElementById('employee-popup-overlay');
+            const listContainer = document.getElementById('employeePopupList');
+            const searchInput = document.getElementById('employeeSearchInput');
+
+            if (!overlay) return;
+
+            // Show popup with loading state
+            overlay.style.display = 'flex';
+            searchInput.value = '';
+            listContainer.innerHTML = '<div class="popup-loading"><span class="loading"></span> Loading employees...</div>';
+
+            try {
+                // Fetch today's clock times
+                const response = await fetch(`${API_BASE}/api/dashboard/clock-times/today`, {
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+                const data = await response.json();
+                // API returns array directly or object with clock_times
+                popupEmployeesData = Array.isArray(data) ? data : (data.clock_times || []);
+
+                renderPopupEmployees(popupEmployeesData);
+            } catch (error) {
+                console.error('Error loading employees:', error);
+                listContainer.innerHTML = '<div class="popup-no-results"><i class="fas fa-exclamation-triangle"></i>Error loading employees</div>';
+            }
+        }
+
+        function hideEmployeePopup(event) {
+            if (!event || event.target === document.getElementById('employee-popup-overlay')) {
+                document.getElementById('employee-popup-overlay').style.display = 'none';
+            }
+        }
+
+        function renderPopupEmployees(employees) {
+            const listContainer = document.getElementById('employeePopupList');
+            const countSpan = document.getElementById('popupEmployeeCount');
+
+            if (!employees || employees.length === 0) {
+                listContainer.innerHTML = '<div class="popup-no-results"><i class="fas fa-users-slash"></i>No employees clocked in today</div>';
+                countSpan.textContent = '0 employees';
+                return;
+            }
+
+            // Sort: clocked-in first, then by clock_in time
+            employees.sort((a, b) => {
+                if (a.is_clocked_in !== b.is_clocked_in) return b.is_clocked_in - a.is_clocked_in;
+                return new Date(b.clock_in) - new Date(a.clock_in);
+            });
+
+            countSpan.textContent = `${employees.length} employee${employees.length !== 1 ? 's' : ''}`;
+
+            listContainer.innerHTML = employees.map(emp => {
+                const name = emp.employee_name || emp.name || 'Unknown';
+                const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                const isClockedIn = emp.is_clocked_in || !emp.clock_out;
+                const statusClass = isClockedIn ? 'popup-status-clocked-in' : 'popup-status-clocked-out';
+                const statusText = isClockedIn ? 'Clocked In' : 'Clocked Out';
+
+                // Format time worked
+                const totalMinutes = parseFloat(emp.total_minutes || 0);
+                const hours = Math.floor(totalMinutes / 60);
+                const mins = Math.round(totalMinutes % 60);
+                const timeWorked = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+                // Format clock times (convert from UTC to display)
+                const clockIn = emp.clock_in ? new Date(emp.clock_in).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+                const clockOut = emp.clock_out ? new Date(emp.clock_out).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+
+                // Items processed info
+                const itemsInfo = emp.items_processed ? `${emp.items_processed} items` : '';
+
+                const statusStyle = isClockedIn
+                    ? 'background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.4);'
+                    : 'background: rgba(107,114,128,0.15); color: #9ca3af; border: 1px solid rgba(107,114,128,0.4);';
+
+                return `
+                    <div class="popup-employee-item" data-name="${name.toLowerCase()}" data-dept="${itemsInfo.toLowerCase()}" style="display: flex; align-items: center; padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); gap: 15px;">
+                        <div style="width: 42px; height: 42px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #fff; font-size: 14px;">${initials}</div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #fff; margin-bottom: 3px;">${name}</div>
+                            <div style="font-size: 12px; color: #9ca3af;">${itemsInfo || 'No activity'}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-weight: 600; color: #34d399; font-size: 14px;">${timeWorked}</div>
+                            <div style="font-size: 11px; margin-top: 2px;">
+                                <div style="color: #34d399;">In: ${clockIn}</div>
+                                ${clockOut ? `<div style="color: #f87171;">Out: ${clockOut}</div>` : ''}
+                            </div>
+                        </div>
+                        <span style="padding: 5px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; ${statusStyle}">${statusText}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterPopupEmployees() {
+            const searchTerm = document.getElementById('employeeSearchInput').value.toLowerCase();
+            const items = document.querySelectorAll('.popup-employee-item');
+            const countSpan = document.getElementById('popupEmployeeCount');
+            let visibleCount = 0;
+
+            items.forEach(item => {
+                const name = item.getAttribute('data-name') || '';
+                const dept = item.getAttribute('data-dept') || '';
+
+                if (name.includes(searchTerm) || dept.includes(searchTerm)) {
+                    item.style.display = '';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            countSpan.textContent = `${visibleCount} employee${visibleCount !== 1 ? 's' : ''}`;
+        }
+
+        // Close popup with ESC key
+        document.addEventListener('keydown', (e) => {
+            const overlay = document.getElementById('employee-popup-overlay');
+            if (e.key === 'Escape' && overlay && overlay.style.display === 'flex') {
+                hideEmployeePopup();
+            }
+        });
+
         let dashboardData = {};
         // Initialize API and variables
         const api = new ProductivityAPI();
@@ -1157,11 +1307,8 @@
 
         document.addEventListener('visibilitychange', () => {
             isTabVisible = !document.hidden;
-            if (isTabVisible) {
-                // Tab became visible - refresh data immediately
-                loadDashboardData();
-                updateSystemHealth();
-            }
+            // Note: Auto-refresh on visibility change disabled to reduce API calls
+            // Data will refresh via 60-second interval instead
         });
 
         // Helper to check if should refresh
@@ -1655,10 +1802,10 @@
             // Initial health check
             updateSystemHealth();
 
-            // Update health status every 30 seconds (only when tab visible)
+            // Update health status every 60 seconds (only when tab visible)
             setInterval(() => {
                 if (shouldRefresh()) updateSystemHealth();
-            }, 30000);
+            }, 60000);
             
             // Close modal when clicking outside
             document.getElementById('system-control-modal').addEventListener('click', function(e) {
@@ -1723,8 +1870,37 @@
             });
         }
         
-        // Load all dashboard data
+        // Debounce and lock tracking for loadDashboardData
+        let lastDashboardLoad = 0;
+        let dashboardLoadInProgress = false;
+        let dashboardLoadCount = 0;
+        const DASHBOARD_DEBOUNCE_MS = 30000; // Minimum 30 seconds between loads
+
+        // Load all dashboard data (debounced + locked)
         async function loadDashboardData() {
+            const caller = new Error().stack.split('\n')[2]?.trim() || 'unknown';
+            console.log(`[DEBUG] loadDashboardData called from: ${caller}`);
+
+            // Prevent concurrent calls
+            if (dashboardLoadInProgress) {
+                console.log('[DEBUG] Dashboard load already in progress, skipping');
+                return;
+            }
+
+            // Prevent rapid consecutive calls
+            const now = Date.now();
+            const timeSinceLast = now - lastDashboardLoad;
+            if (timeSinceLast < DASHBOARD_DEBOUNCE_MS) {
+                console.log(`[DEBUG] Dashboard load debounced (${Math.round(timeSinceLast/1000)}s < ${DASHBOARD_DEBOUNCE_MS/1000}s)`);
+                return;
+            }
+
+            dashboardLoadCount++;
+            console.log(`[DEBUG] Dashboard load #${dashboardLoadCount} starting (${Math.round(timeSinceLast/1000)}s since last)`);
+
+            dashboardLoadInProgress = true;
+            lastDashboardLoad = now;
+
             try {
                 const currentDate = dashboardData.startDate || api.getCentralDate();
                 console.log('Loading data for:', currentDate);
@@ -1794,9 +1970,11 @@
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 showErrorState();
+            } finally {
+                dashboardLoadInProgress = false;
             }
         }
-        
+
         // Show loading states
         function showLoadingStates() {
             document.querySelectorAll('.metric-change').forEach(el => {
@@ -1894,6 +2072,7 @@
                 const avgItemsPerMinute = parseFloat(dept.avg_items_per_minute || dept.avg_rate || 0);
                 const efficiency = parseFloat(dept.efficiency || 0);
                 const vsTarget = parseFloat(dept.vs_target || 0);
+                const targetRate = parseFloat(dept.target_rate || 15);
                 const totalItems = parseInt(dept.total_items || 0);
                 const employeeCount = parseInt(dept.employee_count || 0);
                 
@@ -1914,7 +2093,7 @@
                         </div>
                         <div class="stat-item">
                             <div class="stat-value">${avgItemsPerMinute.toFixed(1)}</div>
-                            <div class="stat-label">Avg Items/Min</div>
+                            <div class="stat-label">Avg Items/Min (Target: ${targetRate})</div>
                         </div>
                         <div class="stat-item">
                             <div class="stat-value" style="color: ${vsTarget >= 0 ? '#34d399' : '#ef4444'}">
@@ -2226,10 +2405,10 @@
             // Load initial data
             loadDashboardData();
             
-            // Set up auto-refresh every 30 seconds (only when tab visible)
+            // Set up auto-refresh every 2 minutes (only when tab visible)
             refreshInterval = setInterval(() => {
                 if (shouldRefresh()) loadDashboardData();
-            }, 30000);
+            }, 120000); // 120 seconds = 2 minutes
             
             // Schedule midnight refresh
             const scheduleMiddnightRefresh = () => {
@@ -2252,13 +2431,9 @@
 
             // Schedule the midnight refresh
             scheduleMiddnightRefresh();
-            
-            // Refresh when window gains focus
-            window.addEventListener('focus', () => {
-                console.log('Window focused, refreshing data...');
-                loadDashboardData();
-            });
-            
+
+            // Note: Window focus refresh removed - visibilitychange handler already handles this
+
             // Chart time range change
             document.getElementById('chartTimeRange').addEventListener('change', updateProductivityChart);
             
@@ -4328,7 +4503,7 @@
                     document.getElementById('bottleneck-section').classList.contains('active')) {
                     loadBottleneckData();
                 }
-            }, 30000); // Every 30 seconds
+            }, 60000); // Every 60 seconds
             // ========== COST ANALYSIS FUNCTIONS ==========
 
                 // Load Cost Analysis Data
@@ -4871,117 +5046,10 @@
                 }
 
                 });  // <-- This closes the DOMContentLoaded function
-        function setDateRange(range) {
-            const today = api.getCentralDate();
-            const startInput = document.getElementById('startDate');
-            const endInput = document.getElementById('endDate');
-            
-            if (range === 'today') {
-                startInput.value = today;
-                endInput.value = today;
-            } else if (range === 'week') {
-                const endDate = new Date(today + 'T12:00:00');
-                const startDate = new Date(endDate);
-                startDate.setDate(startDate.getDate() - 7);
-                startInput.value = startDate.toISOString().split('T')[0];
-                endInput.value = today;
-            } else if (range === 'month') {
-                const endDate = new Date(today + 'T12:00:00');
-                const startDate = new Date(endDate);
-                startDate.setMonth(startDate.getMonth() - 1);
-                startInput.value = startDate.toISOString().split('T')[0];
-                endInput.value = today;
-            }
-        }
 
-        function showSection(sectionName) {
-            console.log('Showing section:', sectionName);
-            
-            // Hide all sections
-            const sections = ['dashboard-section', 'cost-section', 'bottleneck-section', 'scheduling-section', 'analytics-section', 'employee-management-section'];
-            sections.forEach(id => {
-                const section = document.getElementById(id);
-                if (section) {
-                    section.style.display = 'none';
-                    section.classList.remove('active');
-                }
-            });
-            
-            // Show the selected section
-            const selectedSection = document.getElementById(sectionName + '-section');
-            if (selectedSection) {
-                selectedSection.style.display = 'block';
-                selectedSection.classList.add('active');
-                
-                // Load data for the section
-                if (sectionName === 'dashboard') {
-                    loadDashboardData();
-                } else if (sectionName === 'cost') {
-                    if (typeof loadCostAnalysisData === 'function') {
-                        loadCostAnalysisData();
-                    }
-                } else if (sectionName === 'bottleneck') {
-                    if (typeof loadBottleneckData === 'function') {
-                        loadBottleneckData();
-                    }
-                } else if (sectionName === 'employee-management') {
-                    if (typeof loadEmployeeManagementData === 'function') {
-                        loadEmployeeManagementData();
-                    }
-                }
-            }
-            
-            // Update active nav item
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            const activeNav = document.querySelector(`[onclick*="${sectionName}"]`);
-            if (activeNav && activeNav.parentElement) {
-                activeNav.parentElement.classList.add('active');
-            }
-        }
-        
-function applyDateFilter() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            
-            if (!startDate || !endDate) {
-                alert('Please select both start and end dates');
-                return;
-            }
-            
-            if (startDate > endDate) {
-                alert('Start date must be before end date');
-                return;
-            }
-            
-            console.log('Applying date filter:', startDate, 'to', endDate);
-            
-            // Update the dashboard title
-            const titleElement = document.querySelector('.dashboard-title p');
-            if (startDate === endDate) {
-                const dateObj = new Date(startDate + 'T12:00:00');f
-                titleElement.textContent = `Data for ${dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
-            } else {
-                titleElement.textContent = `Data from ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`;
-            }
-            
-            // Store the date range
-            dashboardData.startDate = startDate;
-            dashboardData.endDate = endDate;
-            
-            // Reload data with new date range
-            loadDashboardData();
-            
-            // If cost analysis is active, reload it too
-            const costSection = document.getElementById('cost-section');
-            if (costSection && costSection.classList.contains('active')) {
-                if (typeof loadCostAnalysisData === 'function') {
-                    loadCostAnalysisData();
-                }
-            }
-        }
-        
+        // NOTE: setDateRange, showSection, applyDateFilter are defined as window.*
+        // functions earlier in this file (around lines 3904-3974). Do NOT duplicate here.
+
         </script>
 <script src="/js/auth-check.js"></script>
     </body>

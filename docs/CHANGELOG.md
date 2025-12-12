@@ -2,6 +2,32 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.3.1] - 2025-12-12
+
+### Fixed
+- **Dashboard Rapid Refresh Bug**: Fixed API calls firing every 2-6 seconds instead of intended interval
+  - **Root Cause 1**: `ManagerDashboard` class in `dashboard-api.js` auto-initializing with 30s interval
+  - **Root Cause 2**: Duplicate functions (`setDateRange`, `showSection`, `applyDateFilter`) outside DOMContentLoaded
+  - **Root Cause 3**: Syntax error in duplicate `applyDateFilter` (`'T12:00:00');f`)
+
+  **Fixes Applied:**
+  - Disabled ManagerDashboard auto-init in `dashboard-api.js` (line 1246-1252)
+  - Removed 3 duplicate functions from end of `manager.html`
+  - Increased debounce from 10s → 30s with lock mechanism
+  - Increased auto-refresh interval from 60s → 2 minutes
+  - Added `[DEBUG]` logging to trace API call triggers
+
+### Added
+- **Active Employees Popup**: Click on "Active Employees" metric card to see all clocked-in employees
+  - Shows employee name, status (Clocked In/Out), time worked, items processed
+  - Search functionality to filter employees
+  - Click outside or X button to close
+
+### Changed
+- **Auto-refresh Intervals**: Dashboard now refreshes every 2 minutes (was 60 seconds)
+
+---
+
 ## [2.3.0] - 2025-12-12
 
 ### Fixed (CRITICAL)
@@ -14,10 +40,20 @@ All notable changes to the Productivity Tracker system.
   - `connecteam_sync.py`: Changed `NOW()` to `UTC_TIMESTAMP()` in update queries
   - `dashboard.py`: Updated 6 `TIMESTAMPDIFF(...NOW())` to use `UTC_TIMESTAMP()`
   - `dashboard.py`: Fixed 5 date filters to use `DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago'))`
+  - `dashboard.py`: Fixed Recent Activity feed to display times in CT (was showing UTC)
+  - `dashboard.py`: Leaderboard now uses real-time TIMESTAMPDIFF instead of stored total_minutes
+  - `dashboard.py`: Team-metrics fixed `CURDATE()` → CT date (4 queries)
   - `productivity_calculator.py`: Updated 2 `NOW()` instances to `UTC_TIMESTAMP()`
   - Migrated 4,395 historical records from CT to UTC using `CONVERT_TZ()`
 
   **Impact:** Time worked calculations now accurate (was showing +6 hours for active workers)
+  **Impact:** "Recent Activity" feed now shows correct CT times (was showing 01:53 PM instead of 07:53 AM)
+  **Impact:** Dashboard "Total Hours Worked" now shows correct ~75h instead of inflated ~148h
+
+### Changed (UI)
+- **Clock Activity Header**: Renamed "Top Performers & Recent Activity" to "Clock Activity" (reflects actual content)
+- **Auto-refresh Intervals**: Changed from 30s to 60s for Dashboard, System Health, and Bottleneck tabs
+- **Department Performance**: Now shows target rate - "Avg Items/Min (Target: X)"
 
 ### Data Migration
 - Created backup: `clock_times_backup_20251212` (4,395 records)

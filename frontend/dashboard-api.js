@@ -1243,9 +1243,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clean up on page unload
         window.addEventListener('beforeunload', () => display.destroy());
     } else if (path.includes('manager.html')) {
-        const dashboard = new ManagerDashboard();
-        dashboard.init();
-        window.managerDashboard = dashboard;
+        // NOTE: ManagerDashboard auto-init DISABLED
+        // manager.html has its own initialization with proper debouncing
+        // Enabling both causes duplicate API calls (30s + 60s intervals overlap)
+        // const dashboard = new ManagerDashboard();
+        // dashboard.init();
+        // window.managerDashboard = dashboard;
+        console.log('ManagerDashboard auto-init disabled - using manager.html inline init');
     } else if (path.includes('employee.html')) {
         window.employeePortal = new EmployeePortal();
         window.employeePortal.init();
