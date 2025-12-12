@@ -3620,7 +3620,8 @@ def get_cost_analysis():
                 employee_id,
                 SUM(active_minutes) / 60.0 as active_hours,
                 SUM(clocked_minutes - active_minutes) / 60.0 as non_active_hours,
-                AVG(efficiency_rate) * 100 as utilization_rate,
+                -- Utilization = active_minutes / clocked_minutes (NOT efficiency_rate!)
+                LEAST(100, SUM(active_minutes) / NULLIF(SUM(clocked_minutes), 0) * 100) as utilization_rate,
                 SUM(items_processed) as items_processed,
                 COUNT(DISTINCT score_date) as active_days
             FROM daily_scores

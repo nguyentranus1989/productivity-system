@@ -956,8 +956,36 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Data Maintenance Control -->
+                <div style="
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 10px;
+                    padding: 20px;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <h3 style="margin: 0 0 10px 0; color: #06b6d4;">Data Maintenance</h3>
+                            <div style="color: #808080; font-size: 0.9em;">
+                                <div>Recalculate derived data when values become stale</div>
+                                <div>Tables: daily_scores, clock_times, employee_status</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="openRecalculationModal()" style="
+                                padding: 8px 16px;
+                                background: #06b6d4;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                            ">🔧 Recalculate</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            
+
             <!-- Emergency Actions -->
             <div style="
                 margin-top: 30px;
@@ -1010,6 +1038,204 @@
             </div>
         </div>
     </div>
+
+    <!-- Data Recalculation Modal -->
+    <div id="recalc-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 10002; align-items: center; justify-content: center;" onclick="closeRecalculationModal(event)">
+        <div style="background: #1a1a2e; border-radius: 16px; width: 550px; max-width: 95%; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid rgba(6,182,212,0.3);" onclick="event.stopPropagation()">
+            <!-- Modal Header -->
+            <div style="background: linear-gradient(135deg, #0891b2 0%, #164e63 100%); padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: #fff; font-size: 18px; display: flex; align-items: center; gap: 10px; margin: 0;">
+                    🔧 Data Recalculation
+                </h3>
+                <button onclick="closeRecalculationModal()" style="background: none; border: none; color: #9ca3af; font-size: 28px; cursor: pointer;">&times;</button>
+            </div>
+
+            <!-- Modal Body -->
+            <div style="padding: 25px;">
+                <!-- Date Range Selection -->
+                <div id="recalc-form" style="display: block;">
+                    <div style="margin-bottom: 20px;">
+                        <label style="color: #e0e0e0; display: block; margin-bottom: 8px; font-weight: 500;">Date Range</label>
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <div style="flex: 1;">
+                                <label style="color: #808080; font-size: 0.85em; display: block; margin-bottom: 4px;">Start Date</label>
+                                <input type="date" id="recalc-start-date" onchange="updateRecalcEstimate()" style="
+                                    width: 100%;
+                                    padding: 10px 12px;
+                                    background: #252540;
+                                    border: 1px solid rgba(255,255,255,0.15);
+                                    border-radius: 8px;
+                                    color: #fff;
+                                    font-size: 14px;
+                                ">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="color: #808080; font-size: 0.85em; display: block; margin-bottom: 4px;">End Date</label>
+                                <input type="date" id="recalc-end-date" onchange="updateRecalcEstimate()" style="
+                                    width: 100%;
+                                    padding: 10px 12px;
+                                    background: #252540;
+                                    border: 1px solid rgba(255,255,255,0.15);
+                                    border-radius: 8px;
+                                    color: #fff;
+                                    font-size: 14px;
+                                ">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Estimate Display -->
+                    <div id="recalc-estimate" style="display: none; margin-bottom: 20px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); border-radius: 8px; padding: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="color: #fbbf24; font-weight: 500; margin-bottom: 5px;">Estimated Time</div>
+                                <div id="recalc-estimate-time" style="color: #e0e0e0; font-size: 1.2em; font-weight: 600;">--</div>
+                            </div>
+                            <div style="text-align: right; color: #9ca3af; font-size: 0.85em;">
+                                <div id="recalc-estimate-days">-- days</div>
+                                <div id="recalc-estimate-records">-- records</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- What will be recalculated -->
+                    <div style="margin-bottom: 20px; background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3); border-radius: 8px; padding: 15px;">
+                        <div style="color: #06b6d4; font-weight: 500; margin-bottom: 10px;">What will be recalculated:</div>
+                        <ul style="color: #9ca3af; margin: 0; padding-left: 20px; font-size: 0.9em; line-height: 1.8;">
+                            <li>clock_times.total_minutes (from clock_in/out)</li>
+                            <li>daily_scores.clocked_minutes (from clock_times)</li>
+                            <li>daily_scores.active_minutes (from activity_logs)</li>
+                            <li>daily_scores.items_processed (from activity_logs)</li>
+                            <li>daily_scores.efficiency_rate (derived)</li>
+                            <li>employee_current_status (live status)</li>
+                        </ul>
+                    </div>
+
+                    <button onclick="startRecalculation()" style="
+                        width: 100%;
+                        padding: 12px;
+                        background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        font-weight: 600;
+                        cursor: pointer;
+                    ">Start Recalculation</button>
+                </div>
+
+                <!-- Progress Display -->
+                <div id="recalc-progress" style="display: none;">
+                    <!-- Current Stage -->
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <div class="recalc-spinner" style="
+                            width: 50px;
+                            height: 50px;
+                            border: 4px solid rgba(6,182,212,0.2);
+                            border-top-color: #06b6d4;
+                            border-radius: 50%;
+                            animation: spin 1s linear infinite;
+                            margin: 0 auto 15px;
+                        "></div>
+                        <div id="recalc-current-stage" style="color: #06b6d4; font-size: 1.1em; font-weight: 500;">Initializing...</div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="color: #808080; font-size: 0.9em;">Progress</span>
+                            <span id="recalc-percent" style="color: #06b6d4; font-weight: 600;">0%</span>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 12px; overflow: hidden;">
+                            <div id="recalc-progress-bar" style="background: linear-gradient(90deg, #06b6d4, #22d3ee); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.85em; color: #808080;">
+                            <span>Elapsed: <span id="recalc-elapsed" style="color: #e0e0e0;">0s</span></span>
+                            <span>Stage <span id="recalc-stage-num">0</span>/6</span>
+                        </div>
+                    </div>
+
+                    <!-- Stage List -->
+                    <div id="recalc-stages" style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 15px;">
+                        <div class="recalc-stage" data-stage="1" data-id="clock_times.total_minutes" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; color: #808080;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span class="stage-icon">○</span>
+                                <span>clock_times.total_minutes</span>
+                            </div>
+                            <span class="stage-time" style="font-size: 0.85em;"></span>
+                        </div>
+                        <div class="recalc-stage" data-stage="2" data-id="daily_scores.clocked_minutes" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; color: #808080;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span class="stage-icon">○</span>
+                                <span>daily_scores.clocked_minutes</span>
+                            </div>
+                            <span class="stage-time" style="font-size: 0.85em;"></span>
+                        </div>
+                        <div class="recalc-stage" data-stage="3" data-id="daily_scores.active_minutes" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; color: #808080;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span class="stage-icon">○</span>
+                                <span>daily_scores.active_minutes</span>
+                            </div>
+                            <span class="stage-time" style="font-size: 0.85em;"></span>
+                        </div>
+                        <div class="recalc-stage" data-stage="4" data-id="daily_scores.items_processed" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; color: #808080;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span class="stage-icon">○</span>
+                                <span>daily_scores.items_processed</span>
+                            </div>
+                            <span class="stage-time" style="font-size: 0.85em;"></span>
+                        </div>
+                        <div class="recalc-stage" data-stage="5" data-id="daily_scores.efficiency_rate" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; color: #808080;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span class="stage-icon">○</span>
+                                <span>daily_scores.efficiency_rate</span>
+                            </div>
+                            <span class="stage-time" style="font-size: 0.85em;"></span>
+                        </div>
+                        <div class="recalc-stage" data-stage="6" data-id="employee_current_status" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; color: #808080;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span class="stage-icon">○</span>
+                                <span>employee_current_status</span>
+                            </div>
+                            <span class="stage-time" style="font-size: 0.85em;"></span>
+                        </div>
+                    </div>
+
+                    <!-- Results (shown when complete) -->
+                    <div id="recalc-results" style="display: none; margin-top: 20px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 15px;">
+                        <div style="color: #10b981; font-weight: 500; margin-bottom: 10px;">✓ Recalculation Complete</div>
+                        <div id="recalc-results-content" style="color: #9ca3af; font-size: 0.9em;"></div>
+                    </div>
+
+                    <!-- Error (shown on failure) -->
+                    <div id="recalc-error" style="display: none; margin-top: 20px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 15px;">
+                        <div style="color: #ef4444; font-weight: 500; margin-bottom: 10px;">✕ Error</div>
+                        <div id="recalc-error-content" style="color: #9ca3af; font-size: 0.9em;"></div>
+                    </div>
+
+                    <!-- Close button (shown when complete/error) -->
+                    <button id="recalc-close-btn" onclick="closeRecalculationModal()" style="
+                        display: none;
+                        width: 100%;
+                        margin-top: 20px;
+                        padding: 12px;
+                        background: rgba(255,255,255,0.1);
+                        color: #e0e0e0;
+                        border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 8px;
+                        font-size: 14px;
+                        cursor: pointer;
+                    ">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.1/dist/chart.umd.min.js"></script>
     <script src="dashboard-api.js"></script>
@@ -1766,6 +1992,266 @@
                 showNotification(`Error loading logs: ${error.message}`, 'error');
             }
         }
+
+        // ============= DATA RECALCULATION FUNCTIONS =============
+        let recalcJobId = null;
+        let recalcPollInterval = null;
+
+        function openRecalculationModal() {
+            // Set default dates to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('recalc-start-date').value = today;
+            document.getElementById('recalc-end-date').value = today;
+
+            // Reset modal state
+            document.getElementById('recalc-form').style.display = 'block';
+            document.getElementById('recalc-progress').style.display = 'none';
+            document.getElementById('recalc-results').style.display = 'none';
+            document.getElementById('recalc-error').style.display = 'none';
+            document.getElementById('recalc-close-btn').style.display = 'none';
+            document.getElementById('recalc-estimate').style.display = 'none';
+
+            // Reset stage icons and times
+            document.querySelectorAll('.recalc-stage').forEach(stage => {
+                stage.style.color = '#808080';
+                stage.querySelector('.stage-icon').textContent = '○';
+                stage.querySelector('.stage-time').textContent = '';
+            });
+
+            // Show modal
+            const overlay = document.getElementById('recalc-modal-overlay');
+            overlay.style.display = 'flex';
+
+            // Close system controls modal if open
+            closeSystemControls();
+
+            // Get initial estimate
+            updateRecalcEstimate();
+        }
+
+        async function updateRecalcEstimate() {
+            const startDate = document.getElementById('recalc-start-date').value;
+            const endDate = document.getElementById('recalc-end-date').value;
+
+            if (!startDate || !endDate || startDate > endDate) {
+                document.getElementById('recalc-estimate').style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/system/recalculate/estimate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'dev-api-key-123'
+                    },
+                    body: JSON.stringify({ start_date: startDate, end_date: endDate })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('recalc-estimate').style.display = 'block';
+                    document.getElementById('recalc-estimate-time').textContent = data.estimated_display;
+                    document.getElementById('recalc-estimate-days').textContent = `${data.days} day${data.days > 1 ? 's' : ''}`;
+                    document.getElementById('recalc-estimate-records').textContent =
+                        `${data.daily_scores_count} scores, ${data.activity_logs_count.toLocaleString()} activities`;
+                }
+            } catch (error) {
+                console.error('Estimate error:', error);
+            }
+        }
+
+        function closeRecalculationModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+
+            // Stop polling if running
+            if (recalcPollInterval) {
+                clearInterval(recalcPollInterval);
+                recalcPollInterval = null;
+            }
+
+            document.getElementById('recalc-modal-overlay').style.display = 'none';
+        }
+
+        async function startRecalculation() {
+            const startDate = document.getElementById('recalc-start-date').value;
+            const endDate = document.getElementById('recalc-end-date').value;
+
+            if (!startDate || !endDate) {
+                showNotification('Please select both start and end dates', 'warning');
+                return;
+            }
+
+            if (startDate > endDate) {
+                showNotification('Start date must be before end date', 'warning');
+                return;
+            }
+
+            // Switch to progress view
+            document.getElementById('recalc-form').style.display = 'none';
+            document.getElementById('recalc-progress').style.display = 'block';
+            document.getElementById('recalc-current-stage').textContent = 'Starting recalculation...';
+            document.getElementById('recalc-progress-bar').style.width = '0%';
+            document.getElementById('recalc-percent').textContent = '0%';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/system/recalculate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'dev-api-key-123'
+                    },
+                    body: JSON.stringify({
+                        start_date: startDate,
+                        end_date: endDate
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    recalcJobId = data.job_id;
+                    // Start polling for status
+                    recalcPollInterval = setInterval(pollRecalculationStatus, 1000);
+                } else {
+                    showRecalcError(data.error || 'Failed to start recalculation');
+                }
+            } catch (error) {
+                showRecalcError(`Network error: ${error.message}`);
+            }
+        }
+
+        async function pollRecalculationStatus() {
+            if (!recalcJobId) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/system/recalculate/status/${recalcJobId}`, {
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    showRecalcError(data.error || 'Failed to get status');
+                    return;
+                }
+
+                // Update progress bar
+                const progress = data.progress_percent || 0;
+                document.getElementById('recalc-progress-bar').style.width = `${progress}%`;
+                document.getElementById('recalc-percent').textContent = `${Math.round(progress)}%`;
+
+                // Update elapsed time
+                if (data.elapsed_seconds) {
+                    document.getElementById('recalc-elapsed').textContent = formatElapsedTime(data.elapsed_seconds);
+                }
+
+                // Update stage number
+                document.getElementById('recalc-stage-num').textContent = data.current_stage || 0;
+
+                // Update current stage name
+                if (data.stage_name) {
+                    document.getElementById('recalc-current-stage').textContent = data.stage_name;
+                }
+
+                // Update stage icons and timings
+                const stageTimings = data.stage_timings || {};
+                document.querySelectorAll('.recalc-stage').forEach(stageEl => {
+                    const stageNum = parseInt(stageEl.dataset.stage);
+                    const stageId = stageEl.dataset.id;
+                    const stageIcon = stageEl.querySelector('.stage-icon');
+                    const stageTime = stageEl.querySelector('.stage-time');
+
+                    if (stageTimings[stageId]) {
+                        // Stage completed
+                        stageEl.style.color = '#10b981';
+                        stageIcon.textContent = '✓';
+                        const timing = stageTimings[stageId];
+                        stageTime.textContent = `${timing.elapsed_seconds}s`;
+                    } else if (stageNum === data.current_stage && data.status === 'running') {
+                        // Current stage
+                        stageEl.style.color = '#06b6d4';
+                        stageIcon.textContent = '●';
+                        stageTime.textContent = '';
+                    }
+                });
+
+                // Check if complete
+                if (data.status === 'completed') {
+                    clearInterval(recalcPollInterval);
+                    recalcPollInterval = null;
+
+                    // Hide spinner
+                    document.querySelector('.recalc-spinner').style.display = 'none';
+                    document.getElementById('recalc-current-stage').textContent = 'Complete!';
+                    document.getElementById('recalc-current-stage').style.color = '#10b981';
+
+                    // Show results with total time
+                    document.getElementById('recalc-results').style.display = 'block';
+                    let resultsHtml = `<div style="margin-bottom: 10px;">Total time: <strong>${formatElapsedTime(data.total_elapsed_seconds)}</strong></div>`;
+                    resultsHtml += '<div style="font-size: 0.85em;">';
+                    if (data.stage_timings) {
+                        for (const [stageId, timing] of Object.entries(data.stage_timings)) {
+                            resultsHtml += `<div style="display: flex; justify-content: space-between; padding: 3px 0;">
+                                <span>${stageId}</span>
+                                <span>${timing.elapsed_seconds}s (${timing.records} records)</span>
+                            </div>`;
+                        }
+                    }
+                    resultsHtml += '</div>';
+                    document.getElementById('recalc-results-content').innerHTML = resultsHtml;
+
+                    // Show close button
+                    document.getElementById('recalc-close-btn').style.display = 'block';
+
+                    showNotification('Data recalculation completed successfully!', 'success');
+                } else if (data.status === 'error') {
+                    clearInterval(recalcPollInterval);
+                    recalcPollInterval = null;
+                    showRecalcError(data.error || 'Recalculation failed');
+                }
+
+            } catch (error) {
+                console.error('Poll error:', error);
+                // Don't stop polling on network hiccups
+            }
+        }
+
+        function formatElapsedTime(seconds) {
+            if (seconds < 60) return `${Math.round(seconds)}s`;
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.round(seconds % 60);
+            return `${mins}m ${secs}s`;
+        }
+
+        function showRecalcError(message) {
+            if (recalcPollInterval) {
+                clearInterval(recalcPollInterval);
+                recalcPollInterval = null;
+            }
+
+            // Hide spinner
+            document.querySelector('.recalc-spinner').style.display = 'none';
+            document.getElementById('recalc-current-stage').textContent = 'Failed';
+            document.getElementById('recalc-current-stage').style.color = '#ef4444';
+
+            // Show error
+            document.getElementById('recalc-error').style.display = 'block';
+            document.getElementById('recalc-error-content').textContent = message;
+
+            // Show close button
+            document.getElementById('recalc-close-btn').style.display = 'block';
+
+            showNotification('Recalculation failed: ' + message, 'error');
+        }
+
+        // ESC key to close recalculation modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeRecalculationModal();
+            }
+        });
 
         // Format uptime
         function formatUptime(ms) {
@@ -2953,7 +3439,6 @@
         window.loadPendingVerifications = async function() {
             const container = document.getElementById('pendingVerificationList');
             const emptyState = document.getElementById('noPendingState');
-            const badge = document.getElementById('pendingBadge');
 
             try {
                 const response = await api.request('/dashboard/employees/pending-verification');
@@ -2961,10 +3446,6 @@
                 if (response.success && response.pending.length > 0) {
                     emptyState.style.display = 'none';
                     container.style.display = 'grid';
-
-                    // Update badge
-                    badge.textContent = response.pending_count;
-                    badge.style.display = 'flex';
 
                     // Load employee list for reassignment
                     const empResponse = await api.request('/dashboard/employees');
@@ -2977,7 +3458,6 @@
                 } else {
                     container.style.display = 'none';
                     emptyState.style.display = 'block';
-                    badge.style.display = 'none';
                 }
             } catch (error) {
                 console.error('Error loading pending verifications:', error);
@@ -3131,24 +3611,6 @@
             }
         };
 
-        // Load pending count on page load for badge
-        async function updatePendingBadge() {
-            try {
-                const response = await api.request('/dashboard/employees/pending-verification');
-                const badge = document.getElementById('pendingBadge');
-                if (response.success && response.pending_count > 0) {
-                    badge.textContent = response.pending_count;
-                    badge.style.display = 'flex';
-                } else {
-                    badge.style.display = 'none';
-                }
-            } catch (error) {
-                console.error('Error updating pending badge:', error);
-            }
-        }
-
-        // Call on page load
-        setTimeout(updatePendingBadge, 2000);
 
         // Store all employees for dropdown
         let allEmployeesForMapping = [];

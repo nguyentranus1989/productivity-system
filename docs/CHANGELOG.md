@@ -2,6 +2,31 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.3.5] - 2025-12-12
+
+### Added
+- **Data Recalculation UI**: System Controls → Data Maintenance
+  - Date range picker with estimate before running
+  - Real-time progress bar with stage indicators
+  - Per-stage timing and record counts in results
+  - 6-stage pipeline: clock_times → clocked_minutes → active_minutes → idle_periods → items_processed → efficiency_rate
+
+### Fixed
+- **Cost Analysis Utilization Bug**: Was showing 8000%+ instead of correct 2-20%
+  - **Root Cause**: Used `efficiency_rate * 100` (items/min × 100) instead of actual utilization
+  - **Fix**: Changed to `(active_minutes / clocked_minutes) * 100`
+  - **Example**: Hoang Duong showed 8391% → now shows 2.7% (correct)
+
+- **Console Error**: Removed dead `pendingBadge` code throwing null reference errors
+  - Element never existed in DOM, code was orphaned
+
+### Technical Details
+- `backend/api/system_control.py`: Added recalculation endpoints with timing
+- `backend/api/dashboard.py`: Fixed utilization formula (line ~3623)
+- `frontend/manager.html`: Added recalculation modal, removed dead badge code
+
+---
+
 ## [2.3.4] - 2025-12-12
 
 ### Fixed

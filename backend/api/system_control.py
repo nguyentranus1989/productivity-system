@@ -29,6 +29,10 @@ sync_status = {
     'podfactory': {'running': False, 'last_result': None}
 }
 
+# Track recalculation jobs
+import uuid
+recalc_jobs = {}
+
 # Add the database connection function
 def get_db_connection():
     """Create and return a database connection"""
@@ -575,3 +579,291 @@ def get_service_logs(service_name):
             cursor.close()
         if conn:
             conn.close()
+
+
+# ============= DATA RECALCULATION =============
+
+def run_recalculation(job_id, start_date, end_date):
+    """Background thread to run data recalculation"""
+    import time
+    job = recalc_jobs[job_id]
+    conn = None
+    cursor = None
+    job['stage_timings'] = {}  # Track per-stage timing
+    job_start_time = time.time()
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        stages = [
+            ('clock_times.total_minutes', 'Updating clock times total_minutes'),
+            ('daily_scores.clocked_minutes', 'Recalculating clocked minutes'),
+            ('daily_scores.active_minutes', 'Recalculating active minutes from activity_logs'),
+            ('daily_scores.items_processed', 'Recalculating items processed'),
+            ('daily_scores.efficiency_rate', 'Recalculating efficiency rates'),
+            ('employee_current_status', 'Refreshing employee status view'),
+        ]
+
+        job['total_stages'] = len(stages)
+
+        for idx, (stage_id, stage_name) in enumerate(stages):
+            stage_start = time.time()
+            job['current_stage'] = idx + 1
+            job['stage_name'] = stage_name
+            job['stage_id'] = stage_id
+
+            if stage_id == 'clock_times.total_minutes':
+                # Update total_minutes from clock_in/clock_out
+                cursor.execute('''
+                    UPDATE clock_times
+                    SET total_minutes = GREATEST(0, TIMESTAMPDIFF(MINUTE, clock_in, IFNULL(clock_out, UTC_TIMESTAMP())))
+                    WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
+                ''', (start_date, end_date))
+                job['records_processed'] = cursor.rowcount
+                conn.commit()
+
+            elif stage_id == 'daily_scores.clocked_minutes':
+                # Get count first
+                cursor.execute('''
+                    SELECT COUNT(*) as cnt FROM daily_scores
+                    WHERE score_date BETWEEN %s AND %s
+                ''', (start_date, end_date))
+                job['records_total'] = cursor.fetchone()['cnt']
+
+                # Update clocked_minutes from clock_times
+                cursor.execute('''
+                    UPDATE daily_scores ds
+                    SET clocked_minutes = (
+                        SELECT COALESCE(SUM(
+                            CASE
+                                WHEN ct.clock_out IS NOT NULL THEN ct.total_minutes
+                                ELSE TIMESTAMPDIFF(MINUTE, ct.clock_in, UTC_TIMESTAMP())
+                            END
+                        ), 0)
+                        FROM clock_times ct
+                        WHERE ct.employee_id = ds.employee_id
+                        AND DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) = ds.score_date
+                    )
+                    WHERE ds.score_date BETWEEN %s AND %s
+                ''', (start_date, end_date))
+                job['records_processed'] = cursor.rowcount
+                conn.commit()
+
+            elif stage_id == 'daily_scores.active_minutes':
+                # Update active_minutes from activity_logs
+                cursor.execute('''
+                    UPDATE daily_scores ds
+                    SET active_minutes = (
+                        SELECT COALESCE(SUM(al.duration_minutes), 0)
+                        FROM activity_logs al
+                        WHERE al.employee_id = ds.employee_id
+                        AND DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = ds.score_date
+                    )
+                    WHERE ds.score_date BETWEEN %s AND %s
+                ''', (start_date, end_date))
+                job['records_processed'] = cursor.rowcount
+                conn.commit()
+
+            elif stage_id == 'daily_scores.items_processed':
+                # Update items_processed from activity_logs
+                cursor.execute('''
+                    UPDATE daily_scores ds
+                    SET items_processed = (
+                        SELECT COALESCE(SUM(al.items_count), 0)
+                        FROM activity_logs al
+                        WHERE al.employee_id = ds.employee_id
+                        AND DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = ds.score_date
+                    )
+                    WHERE ds.score_date BETWEEN %s AND %s
+                ''', (start_date, end_date))
+                job['records_processed'] = cursor.rowcount
+                conn.commit()
+
+            elif stage_id == 'daily_scores.efficiency_rate':
+                # Calculate efficiency_rate = items / active_minutes
+                cursor.execute('''
+                    UPDATE daily_scores ds
+                    SET efficiency_rate = CASE
+                        WHEN active_minutes > 0 THEN ROUND(items_processed / active_minutes, 2)
+                        ELSE 0
+                    END
+                    WHERE ds.score_date BETWEEN %s AND %s
+                ''', (start_date, end_date))
+                job['records_processed'] = cursor.rowcount
+                conn.commit()
+
+            elif stage_id == 'employee_current_status':
+                # This is a view/cache table - just mark as done
+                job['records_processed'] = 0
+
+            # Record stage timing
+            stage_elapsed = round(time.time() - stage_start, 2)
+            job['stage_timings'][stage_id] = {
+                'elapsed_seconds': stage_elapsed,
+                'records': job['records_processed']
+            }
+            job['elapsed_seconds'] = round(time.time() - job_start_time, 2)
+            job['progress_percent'] = int((idx + 1) / len(stages) * 100)
+
+        job['status'] = 'completed'
+        job['completed_at'] = datetime.now().isoformat()
+        job['total_elapsed_seconds'] = round(time.time() - job_start_time, 2)
+
+    except Exception as e:
+        job['status'] = 'error'
+        job['error'] = str(e)
+        logger.error(f"Recalculation error: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+@system_control_bp.route('/api/system/recalculate', methods=['POST'])
+@require_admin_auth
+def start_recalculation():
+    """Start a data recalculation job"""
+    data = request.json or {}
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+
+    if not start_date or not end_date:
+        return jsonify({'success': False, 'error': 'start_date and end_date required'}), 400
+
+    # Check if another job is running
+    for jid, job in recalc_jobs.items():
+        if job.get('status') == 'running':
+            return jsonify({
+                'success': False,
+                'error': 'Another recalculation job is already running',
+                'job_id': jid
+            }), 409
+
+    # Create new job
+    job_id = str(uuid.uuid4())[:8]
+    recalc_jobs[job_id] = {
+        'job_id': job_id,
+        'status': 'running',
+        'start_date': start_date,
+        'end_date': end_date,
+        'current_stage': 0,
+        'total_stages': 6,
+        'stage_name': 'Initializing...',
+        'stage_id': None,
+        'progress_percent': 0,
+        'records_processed': 0,
+        'records_total': 0,
+        'started_at': datetime.now().isoformat(),
+        'error': None
+    }
+
+    # Start background thread
+    thread = threading.Thread(target=run_recalculation, args=(job_id, start_date, end_date))
+    thread.daemon = True
+    thread.start()
+
+    return jsonify({
+        'success': True,
+        'job_id': job_id,
+        'message': 'Recalculation started'
+    })
+
+
+@system_control_bp.route('/api/system/recalculate/status/<job_id>', methods=['GET'])
+@require_admin_auth
+def get_recalculation_status(job_id):
+    """Get status of a recalculation job"""
+    if job_id not in recalc_jobs:
+        return jsonify({'success': False, 'error': 'Job not found'}), 404
+
+    job = recalc_jobs[job_id]
+    return jsonify({
+        'success': True,
+        **job
+    })
+
+
+@system_control_bp.route('/api/system/recalculate/estimate', methods=['POST'])
+@require_admin_auth
+def estimate_recalculation():
+    """Estimate time for recalculation based on date range"""
+    data = request.json or {}
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+
+    if not start_date or not end_date:
+        return jsonify({'success': False, 'error': 'start_date and end_date required'}), 400
+
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Count records that will be affected
+        cursor.execute('''
+            SELECT COUNT(*) as clock_count FROM clock_times
+            WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
+        ''', (start_date, end_date))
+        clock_count = cursor.fetchone()['clock_count']
+
+        cursor.execute('''
+            SELECT COUNT(*) as score_count FROM daily_scores
+            WHERE score_date BETWEEN %s AND %s
+        ''', (start_date, end_date))
+        score_count = cursor.fetchone()['score_count']
+
+        cursor.execute('''
+            SELECT COUNT(*) as activity_count FROM activity_logs
+            WHERE DATE(CONVERT_TZ(window_start, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
+        ''', (start_date, end_date))
+        activity_count = cursor.fetchone()['activity_count']
+
+        # Calculate days
+        from datetime import datetime as dt
+        d1 = dt.strptime(start_date, '%Y-%m-%d')
+        d2 = dt.strptime(end_date, '%Y-%m-%d')
+        days = (d2 - d1).days + 1
+
+        # Estimate based on benchmarks (rough: ~1 sec per 10 daily_score records)
+        # Plus overhead for activity_logs scans
+        base_time = 5  # seconds base overhead
+        score_time = score_count * 0.1  # 0.1 sec per daily_score record
+        activity_overhead = activity_count * 0.001  # activity_logs scan overhead
+
+        estimated_seconds = base_time + score_time + activity_overhead
+        estimated_seconds = max(5, min(estimated_seconds, 1800))  # Cap at 30 min
+
+        return jsonify({
+            'success': True,
+            'days': days,
+            'clock_times_count': clock_count,
+            'daily_scores_count': score_count,
+            'activity_logs_count': activity_count,
+            'estimated_seconds': round(estimated_seconds),
+            'estimated_display': format_duration(estimated_seconds)
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+def format_duration(seconds):
+    """Format seconds into human readable duration"""
+    if seconds < 60:
+        return f"{int(seconds)} seconds"
+    elif seconds < 3600:
+        mins = int(seconds / 60)
+        secs = int(seconds % 60)
+        return f"{mins}m {secs}s"
+    else:
+        hours = int(seconds / 3600)
+        mins = int((seconds % 3600) / 60)
+        return f"{hours}h {mins}m"
