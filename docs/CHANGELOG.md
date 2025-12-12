@@ -2,6 +2,36 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.2.4] - 2025-12-11
+
+### Fixed
+- **Clock Times Duplicate Records**: Fixed timezone-shifted duplicates (6-hour offset)
+  - Root cause: UTC vs CT confusion creating duplicate clock_times records
+  - Added deduplication logic in `connecteam_sync.py` to detect and skip duplicates
+  - Created cleanup script `scripts/cleanup_clock_duplicates.py` to remove existing duplicates
+
+- **Active Minutes Calculation**: Fixed active_minutes showing 0 for employees with activity
+  - Root cause: daily_scores.active_minutes not being updated from activity_logs
+  - Created `scripts/check_active_minutes.py` to detect and fix mismatches
+  - Fixed 13 employee records with incorrect active_minutes values
+
+- **API Response Enhancement**: Added active_minutes to dashboard endpoints
+  - `/api/dashboard/leaderboard` now includes `active_minutes` from daily_scores
+  - `/api/dashboard/clock-times/today` now includes `active_minutes` and `items_processed`
+
+### Added
+- **Diagnostic Scripts** in `backend/scripts/`:
+  - `cleanup_clock_duplicates.py`: Removes duplicate clock records, fixes negative minutes
+  - `compare_clocked_times.py`: Compares DB vs API clock time data
+  - `check_active_minutes.py`: Validates active_minutes against activity_logs
+
+### Technical Details
+- **Modified Files**:
+  - `backend/api/dashboard.py`: Added active_minutes to leaderboard (L307) and clock-times/today (L599-618)
+  - `backend/integrations/connecteam_sync.py`: Added 6-hour offset detection (L325-332), fixed new shift logic (L361-378)
+
+---
+
 ## [2.2.3] - 2025-12-11
 
 ### Added

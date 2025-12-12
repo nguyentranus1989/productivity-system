@@ -299,11 +299,12 @@ def get_leaderboard():
             GROUP BY al.employee_id, al.activity_type
             HAVING total_items > 0
         )
-        SELECT 
+        SELECT
             e.id,
             e.name,
             COALESCE(ds.items_processed, 0) as items_today,
             COALESCE(ds.points_earned, 0) as score,
+            COALESCE(ds.active_minutes, 0) as active_minutes,
             e.current_streak as streak,
             ct.total_minutes,
             ct.is_clocked_in,
@@ -595,20 +596,26 @@ def get_today_clock_times():
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
-        # Get all clock times for today
+        # Get today's date in CT for joins
+        today_ct = get_central_date().strftime('%Y-%m-%d')
+
+        # Get all clock times for today with active minutes from daily_scores
         cursor.execute("""
-            SELECT 
+            SELECT
                 ct.id,
                 e.name as employee_name,
                 ct.clock_in,
                 ct.clock_out,
                 CASE WHEN ct.clock_out IS NULL THEN 1 ELSE 0 END as is_clocked_in,
-                GREATEST(0, TIMESTAMPDIFF(MINUTE, ct.clock_in, IFNULL(ct.clock_out, NOW()))) as total_minutes
+                GREATEST(0, TIMESTAMPDIFF(MINUTE, ct.clock_in, IFNULL(ct.clock_out, NOW()))) as total_minutes,
+                COALESCE(ds.active_minutes, 0) as active_minutes,
+                COALESCE(ds.items_processed, 0) as items_processed
             FROM clock_times ct
             JOIN employees e ON e.id = ct.employee_id
-            WHERE DATE(ct.clock_in) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+            LEFT JOIN daily_scores ds ON ds.employee_id = ct.employee_id AND ds.score_date = %s
+            WHERE DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) = %s
             ORDER BY ct.clock_in DESC
-        """)
+        """, (today_ct, today_ct))
         
         clock_times = cursor.fetchall()
         cursor.close()

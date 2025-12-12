@@ -321,8 +321,15 @@ class ConnecteamSync:
             # Find the closest matching record
             for existing in existing_today:
                 seconds_diff = abs(existing['seconds_diff']) if existing['seconds_diff'] is not None else float('inf')
-                
-                if seconds_diff < 300:  # Within 5 minutes - it's the same shift
+
+                # Check for exact match OR 6-hour offset (UTC vs CT timezone bug)
+                is_same_shift = seconds_diff < 300  # Within 5 minutes
+                is_tz_shifted = abs(seconds_diff - 21600) < 300  # 6 hours ± 5 min (timezone offset)
+
+                if is_same_shift or is_tz_shifted:
+                    if is_tz_shifted and not is_same_shift:
+                        logger.warning(f"Detected timezone-shifted duplicate for employee {employee_id} "
+                                      f"(6hr offset detected, using existing record ID {existing['id']})")
                     # Update only if needed
                     if shift.clock_out and not existing['clock_out']:
                         self.db.execute_query(
@@ -352,11 +359,23 @@ class ConnecteamSync:
                     return True
             
             # Check if this is a legitimate second shift (e.g., after lunch)
+            # OR if it's the same completed shift being re-sent by Connecteam
             latest_record = max(existing_today, key=lambda x: x['clock_in'])
             if latest_record['clock_out']:
-                # Previous shift is complete - this IS a new shift, create it!
-                logger.info(f"Employee {employee_id} starting new shift after break")
-                # Continue to create new record - DON'T return True
+                # Previous shift is complete - but is this TRULY a new shift?
+                # Check if incoming clock_in is AFTER the existing clock_out
+                # (meaning employee clocked out, then clocked back in)
+                time_since_last_out = (shift.clock_in - latest_record['clock_out']).total_seconds()
+
+                if time_since_last_out > 300:  # More than 5 minutes after clock_out = genuine new shift
+                    logger.info(f"Employee {employee_id} starting new shift after break "
+                               f"({time_since_last_out/60:.0f} min after last clock_out)")
+                    # Continue to create new record
+                else:
+                    # This is likely the same shift being re-sent - don't create duplicate
+                    logger.debug(f"Skipping re-sent completed shift for employee {employee_id} "
+                                f"(clock_in within 5min of last clock_out)")
+                    return True
             else:
                 # Active shift exists, update clock_out if available
                 if shift.clock_out:
