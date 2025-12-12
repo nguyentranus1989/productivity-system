@@ -1,11 +1,21 @@
 # Codebase Summary
 
-*Last Updated: 2025-12-09*
+*Last Updated: 2025-12-10*
 
-## Recent Changes (v2.1.0)
-- **Link to Connecteam**: Smart employee mapping with confidence levels
-- **Name Similarity**: Dice coefficient algorithm for matching
-- **Fixed**: showNotification error in manager.html
+## Recent Changes (v2.2.1)
+- **Negative Hours Protection**: Multi-layer defense
+  - `GREATEST(0,...)` wrappers on 5 TIMESTAMPDIFF locations
+  - Validation in `_parse_shift()` and `_sync_clock_time()`
+- **Data Quality Scripts**: audit, fix, and clear clock_times
+- **Fresh Re-sync**: 0 invalid records after clean Connecteam sync
+
+## Previous (v2.2.0)
+- **Performance**: Flask startup 14.75s → 1.54s (90% faster)
+- **Connecteam Pagination**: Now syncs all employees (71 → 83)
+- **Cost Analysis Fix**: Timezone mismatch causing negative hours
+- **Salary Formula**: Fixed work days/month (22 → 26)
+- **PodFactory Mapping**: New email suggestion workflow
+- **Payrate UI**: Redesigned management interface
 
 ## Backend Modules
 

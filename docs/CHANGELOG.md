@@ -2,6 +2,69 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.3.4] - 2025-12-12
+
+### Fixed
+- **Clock Times Complete Resync**: Deleted and resynced all Dec 12 clock_times
+  - **Root Cause**: Mix of pre-fix and post-fix records with inconsistent timezone handling
+  - **Solution**: Clean slate - deleted 52 records, resynced 55 from Connecteam
+  - **Verification**: User confirmed correct times:
+    - Toan Chau: 4:45 AM CT ✓
+    - Man Nguyen: 2:06 AM CT ✓
+    - Andrea Romero: 5:09 AM CT ✓
+
+- **Daily Scores Stale Data**: Fixed `active_minutes` showing impossible values
+  - **Root Cause**: `daily_scores.active_minutes` not synced with `activity_logs`
+  - **Example**: Adrianna Charo showed 1370 active_minutes but only 235 clocked_minutes
+  - **Fix**: Recalculated from `activity_logs` for all Dec 12 records (35 updated)
+
+### Data Fixes
+- Deleted all Dec 12 clock_times and resynced from Connecteam API
+- Recalculated `daily_scores.clocked_minutes` from corrected `clock_times`
+- Recalculated `daily_scores.active_minutes` from `activity_logs`
+
+### Analysis
+- Identified 9 database tables with derived/cached data prone to staleness:
+  - daily_scores, idle_periods, alerts, employee_current_status
+  - employee_hourly_costs, currently_working, today_clock_times
+  - working_today, employee_primary_roles
+- **Planned**: Data Recalculation UI with date range picker and real-time progress
+
+---
+
+## [2.3.3] - 2025-12-12
+
+### Fixed
+- **Clock Times Timezone Bug (Corrected)**: Previous fix was wrong direction
+  - **Root Cause**: Records synced before UTC fix had UTC times stored as CT (+6 hours offset)
+  - **Actual Fix**: Subtracted 6 hours from 17 early-synced records
+  - **Verification**: User confirmed correct times:
+    - Toan Chau: 4:45 AM CT ✓
+    - Man Nguyen: 2:06 AM CT ✓
+    - Andrea Romero: 5:09 AM CT ✓
+
+### Data Fixes
+- Fixed clock_times IDs: 25679-25684, 25686-25696 (17 records)
+- Skipped 25685 (Roger Dickerson) - already correct, would create duplicate
+- **Note**: This fix was later superseded by v2.3.4 complete resync
+
+---
+
+## [2.3.2] - 2025-12-12
+
+### Fixed
+- **Clock Times Timezone Bug**: Fixed 8 records showing wrong clock-in times (6-hour offset)
+  - **Root Cause**: Records synced before UTC fix showed CT time stored as UTC
+  - **Example**: Xsavier Morales showed 1:55 AM CT instead of 7:55 AM CT
+  - **Fix**: Added 6 hours to affected records to convert CT→UTC properly
+  - **Verification**: Connecteam API now returns correct 13:55:29 UTC (= 7:55 AM CT)
+
+### Data Fixes
+- Fixed clock_times IDs: 25705, 25679, 25680, 25690, 25694, 25696, 25684
+- Rolled back 1 over-corrected record (25685 - Roger Dickerson)
+
+---
+
 ## [2.3.1] - 2025-12-12
 
 ### Fixed

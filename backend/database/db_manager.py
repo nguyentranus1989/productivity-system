@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 class DatabaseManager:
     """Manage database connections with connection pooling"""
-
-    def __init__(self, pool_size: int = 3):
+    
+    def __init__(self, pool_size: int = 5):
         self.pool_size = pool_size
         self._pool: Optional[pooling.MySQLConnectionPool] = None
         self._initialize_pool()
@@ -115,22 +115,25 @@ class DatabaseManager:
     fetchone = fetch_one
     fetchall = fetch_all
 
-# Global database manager instance
-db_manager = DatabaseManager()
+# Global database manager instance (lazy-loaded)
+_db_manager = None
 
 # Convenience functions
 def get_db():
-    """Get database manager instance"""
-    return db_manager
+    """Get database manager instance (lazy initialization)"""
+    global _db_manager
+    if _db_manager is None:
+        _db_manager = DatabaseManager()
+    return _db_manager
 
 def execute_query(query: str, params: tuple = None, dictionary: bool = True) -> list:
     """Execute a query using the global database manager"""
-    return db_manager.execute_query(query, params, dictionary)
+    return get_db().execute_query(query, params, dictionary)
 
 def execute_one(query: str, params: tuple = None, dictionary: bool = True) -> Optional[Dict[str, Any]]:
     """Execute a query and get one result using the global database manager"""
-    return db_manager.execute_one(query, params, dictionary)
+    return get_db().execute_one(query, params, dictionary)
 
 def execute_update(query: str, params: tuple = None) -> int:
     """Execute an update query using the global database manager"""
-    return db_manager.execute_update(query, params)
+    return get_db().execute_update(query, params)

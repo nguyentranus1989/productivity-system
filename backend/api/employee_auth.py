@@ -1,10 +1,9 @@
 from flask import Blueprint, request, jsonify
 import secrets
 from datetime import datetime, timedelta
-from database.db_manager import DatabaseManager
+from database.db_manager import get_db
 
 employee_auth_bp = Blueprint("employee_auth", __name__)
-db = DatabaseManager()
 
 @employee_auth_bp.route('/api/employee/login', methods=['POST'])
 def employee_login():
@@ -18,7 +17,7 @@ def employee_login():
             return jsonify({'success': False, 'message': 'Employee ID and PIN required'}), 400
         
         # Check credentials
-        result = db.execute_one("""
+        result = get_db().execute_one("""
             SELECT e.id, e.name, ea.pin 
             FROM employees e
             JOIN employee_auth ea ON e.id = ea.employee_id
@@ -58,7 +57,7 @@ def verify_token():
         if not token:
             return jsonify({'success': False, 'message': 'No token provided'}), 401
         
-        result = db.execute_one("""
+        result = get_db().execute_one("""
             SELECT e.id, e.name 
             FROM employees e
             JOIN employee_auth ea ON e.id = ea.employee_id
@@ -102,7 +101,7 @@ def get_employee_stats(employee_id):
     """Get performance stats for a specific employee"""
     try:
         # Get today's stats
-        stats = db.execute_one("""
+        stats = get_db().execute_one("""
             SELECT 
                 e.id,
                 e.name,
@@ -126,7 +125,7 @@ def get_employee_stats(employee_id):
             return jsonify({'success': False, 'message': 'Employee not found'}), 404
         
         # Get employee rank
-        rank_result = db.execute_one("""
+        rank_result = get_db().execute_one("""
             SELECT COUNT(*) + 1 as `rank`
             FROM daily_scores
             WHERE score_date = CURDATE()
@@ -138,7 +137,7 @@ def get_employee_stats(employee_id):
         """, (employee_id,))
         
         # Get total active employees today
-        total_result = db.execute_one("""
+        total_result = get_db().execute_one("""
             SELECT COUNT(DISTINCT employee_id) as total
             FROM clock_times
             WHERE DATE(clock_in) = CURDATE()

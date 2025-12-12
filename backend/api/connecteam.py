@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, request
 from datetime import datetime, timedelta
 import logging
 
-from integrations.connecteam_sync import ConnecteamSync
+# LAZY IMPORT: ConnecteamSync moved inside get_sync_service() for fast startup
 from config import config
 from api.auth import require_api_key
 from api.validators import validate_date
@@ -13,11 +13,20 @@ logger = logging.getLogger(__name__)
 
 connecteam_bp = Blueprint('connecteam', __name__)
 
-# Initialize sync service
-sync_service = ConnecteamSync(
-    config.CONNECTEAM_API_KEY,
-    config.CONNECTEAM_CLOCK_ID
-)
+# Lazy-loaded sync service
+_sync_service = None
+
+def get_sync_service():
+    """Get sync service instance (lazy initialization)"""
+    global _sync_service
+    if _sync_service is None:
+        # Import here to avoid slow startup (connecteam_sync imports heavy deps)
+        from integrations.connecteam_sync import ConnecteamSync
+        _sync_service = ConnecteamSync(
+            config.CONNECTEAM_API_KEY,
+            config.CONNECTEAM_CLOCK_ID
+        )
+    return _sync_service
 
 
 @connecteam_bp.route('/sync/employees', methods=['POST'])
@@ -25,7 +34,7 @@ sync_service = ConnecteamSync(
 def sync_employees():
     """Sync employees from Connecteam"""
     try:
-        stats = sync_service.sync_employees()
+        stats = get_sync_service().sync_employees()
         
         return jsonify({
             'success': True,
@@ -46,7 +55,7 @@ def sync_employees():
 def sync_todays_shifts():
     """Sync today's shifts from Connecteam"""
     try:
-        stats = sync_service.sync_todays_shifts()
+        stats = get_sync_service().sync_todays_shifts()
         
         return jsonify({
             'success': True,
@@ -75,7 +84,7 @@ def sync_historical():
                 'error': 'days_back must be between 1 and 365'
             }), 400
         
-        stats = sync_service.sync_historical_data(days_back)
+        stats = get_sync_service().sync_historical_data(days_back)
         
         return jsonify({
             'success': True,
@@ -94,18 +103,23 @@ def sync_historical():
 @connecteam_bp.route('/working/today', methods=['GET'])
 @require_api_key
 def get_working_today():
-    """Get list of employees working today"""
+    """Get list of employees working today (Redis cached, 5-min TTL)"""
+    import json as json_module
     try:
-        # Try cache first
+        sync_service = get_sync_service()
+
+        # Try cache first (5-minute TTL)
         cached = sync_service.cache.get('working_today')
         if cached:
-            import json
-            working_today = json.loads(cached)
+            cache_data = json_module.loads(cached)
+            working_today = cache_data.get('employees', [])
+            logger.debug(f"Cache HIT for working_today: {len(working_today)} employees")
         else:
-            # Get fresh data
+            logger.debug("Cache MISS for working_today - fetching from Connecteam API")
+            # Get fresh data from Connecteam API
             shifts = sync_service.client.get_todays_shifts()
             working_today = []
-            
+
             for shift in shifts:
                 employee = sync_service._get_employee_by_connecteam_id(shift.user_id)
                 if employee:
@@ -120,10 +134,18 @@ def get_working_today():
                         'is_active': shift.is_active,
                         'status': 'Working' if shift.is_active else 'Completed'
                     })
-        
+
+            # Cache the results with 5-minute TTL
+            cache_data = {
+                'employees': working_today,
+                'timestamp': datetime.now().isoformat()
+            }
+            sync_service.cache.set('working_today', json_module.dumps(cache_data), ttl=300)
+            logger.info(f"Cached working_today: {len(working_today)} employees (TTL: 300s)")
+
         # Summary stats
         total_working = len(working_today)
-        currently_active = sum(1 for e in working_today if e['is_active'])
+        currently_active = sum(1 for e in working_today if e.get('is_active'))
         
         return jsonify({
             'success': True,
@@ -147,18 +169,23 @@ def get_working_today():
 @connecteam_bp.route('/working/now', methods=['GET'])
 @require_api_key
 def get_currently_working():
-    """Get employees currently clocked in"""
+    """Get employees currently clocked in (Redis cached, 5-min TTL)"""
+    import json as json_module
     try:
-        # Try cache first
+        sync_service = get_sync_service()
+
+        # Try cache first (5-minute TTL)
         cached = sync_service.cache.get('currently_working')
         if cached:
-            import json
-            currently_working = json.loads(cached)
+            cache_data = json_module.loads(cached)
+            currently_working = cache_data.get('employees', [])
+            logger.debug(f"Cache HIT for currently_working: {len(currently_working)} employees")
         else:
-            # Get fresh data
+            logger.debug("Cache MISS for currently_working - fetching from Connecteam API")
+            # Get fresh data from Connecteam API
             shifts = sync_service.client.get_currently_working()
             currently_working = []
-            
+
             for shift in shifts:
                 employee = sync_service._get_employee_by_connecteam_id(shift.user_id)
                 if employee:
@@ -171,7 +198,15 @@ def get_currently_working():
                         'duration_minutes': round(shift.total_minutes, 1),
                         'duration_hours': round(shift.total_minutes / 60, 1)
                     })
-        
+
+            # Cache the results with 5-minute TTL
+            cache_data = {
+                'employees': currently_working,
+                'timestamp': datetime.now().isoformat()
+            }
+            sync_service.cache.set('currently_working', json_module.dumps(cache_data), ttl=300)
+            logger.info(f"Cached currently_working: {len(currently_working)} employees (TTL: 300s)")
+
         return jsonify({
             'success': True,
             'timestamp': datetime.now().isoformat(),
@@ -192,7 +227,7 @@ def get_currently_working():
 def get_employee_live_minutes(employee_id):
     """Get live clocked minutes for specific employee"""
     try:
-        minutes = sync_service.get_live_clocked_minutes(employee_id)
+        minutes = get_sync_service().get_live_clocked_minutes(employee_id)
         
         if minutes is None:
             return jsonify({
@@ -228,11 +263,11 @@ def get_shifts_by_date(date):
                 'error': 'Invalid date format. Use YYYY-MM-DD'
             }), 400
         
-        shifts = sync_service.client.get_shifts_for_date(date)
+        shifts = get_sync_service().client.get_shifts_for_date(date)
         
         shift_data = []
         for shift in shifts:
-            employee = sync_service._get_employee_by_connecteam_id(shift.user_id)
+            employee = get_sync_service()._get_employee_by_connecteam_id(shift.user_id)
             
             shift_info = {
                 'connecteam_user_id': shift.user_id,
@@ -296,7 +331,7 @@ def get_employee_shift_history(employee_id):
             }), 400
         
         # Get employee's Connecteam ID
-        employee = sync_service.db.fetch_one(
+        employee = get_sync_service().db.fetch_one(
             "SELECT name, connecteam_user_id FROM employees WHERE id = %s",
             (employee_id,)
         )
@@ -308,7 +343,7 @@ def get_employee_shift_history(employee_id):
             }), 404
         
         # Get shift history
-        shifts = sync_service.client.get_shift_history(
+        shifts = get_sync_service().client.get_shift_history(
             employee['connecteam_user_id'],
             start_date,
             end_date

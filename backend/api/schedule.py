@@ -1,9 +1,8 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
-from database.db_manager import DatabaseManager
+from database.db_manager import get_db
 
 schedule_bp = Blueprint('schedule', __name__)
-db = DatabaseManager()
 
 @schedule_bp.route('/api/schedule/save', methods=['POST'])
 def save_schedule():
@@ -62,7 +61,7 @@ def save_schedule():
         # Get the last inserted id using a separate connection
         # Get the last inserted id
         last_id_query = "SELECT LAST_INSERT_ID() as id"
-        result = db.execute_query(last_id_query)
+        result = get_db().execute_query(last_id_query)
         schedule_id = result[0]["id"] if result else None
         
         if not schedule_id:
@@ -172,7 +171,7 @@ def get_weekly_predictions():
             LIMIT 7
         """
         
-        results = db.execute_query(query)
+        results = get_db().execute_query(query)
         
         predictions = {}
         total = 0
@@ -228,7 +227,7 @@ def get_all_employees():
             ORDER BY e.name
         """
         
-        results = db.execute_query(query)
+        results = get_db().execute_query(query)
         
         employees = []
         for row in results:

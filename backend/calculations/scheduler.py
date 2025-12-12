@@ -200,36 +200,20 @@ class ProductivityScheduler:
             logger.error(f"Error in check_idle_employees: {e}")
     
     def update_real_time_scores(self):
-        """Update real-time scores for active employees"""
+        """Update real-time scores for active employees - BATCH optimized"""
         try:
             current_time = self.get_central_datetime()
             today = self.get_central_date()
-            
+
             logger.debug(f"Updating real-time scores at {current_time.strftime('%I:%M:%S %p')}")
-            
-            # Get all employees with activities today
-            active_employees = self.db.execute_query(
-                """
-                SELECT DISTINCT e.id, e.name
-                FROM employees e
-                JOIN activity_logs a ON e.id = a.employee_id
-                WHERE DATE(CONVERT_TZ(a.window_start, '+00:00', 'America/Chicago')) = %s
-                AND e.is_active = TRUE
-                """,
-                (today,)
-            )
-            
-            updated = 0
-            for emp in active_employees:
-                try:
-                    self.calculator.process_employee_day(emp['id'], today)
-                    updated += 1
-                except Exception as e:
-                    logger.error(f"Error updating {emp['name']}: {e}")
-            
-            if updated > 0:
-                logger.info(f"Updated real-time scores for {updated} employees")
-            
+
+            # OPTIMIZED: Process all employees for today in a single batch call
+            # This replaces N individual calls with 1 batch operation
+            results = self.calculator.process_all_employees_for_date(today)
+
+            if results and results.get('processed', 0) > 0:
+                logger.info(f"Updated real-time scores for {results['processed']} employees")
+
         except Exception as e:
             logger.error(f"Error in update_real_time_scores: {e}")
     

@@ -11,15 +11,24 @@ import logging
 logger = logging.getLogger(__name__)
 
 team_metrics_bp = Blueprint('team_metrics', __name__)
-engine = TeamMetricsEngine()
 
-@team_metrics_bp.route('/api/team-metrics/overview', methods=['GET'])
+# Lazy-loaded engine
+_engine = None
+
+def get_engine():
+    """Get engine instance (lazy initialization)"""
+    global _engine
+    if _engine is None:
+        _engine = TeamMetricsEngine()
+    return _engine
+
+@team_metrics_bp.route('/overview', methods=['GET'])
 @require_api_key
 def get_team_overview():
     """Get comprehensive team overview metrics"""
     try:
         role_id = request.args.get('role_id', type=int)
-        overview = engine.get_team_overview(role_id)
+        overview = get_engine().get_team_overview(role_id)
         
         return jsonify({
             'generated_at': datetime.now().isoformat(),
@@ -30,12 +39,12 @@ def get_team_overview():
         logger.error(f"Error getting team overview: {e}")
         return jsonify({'error': str(e)}), 500
 
-@team_metrics_bp.route('/api/team-metrics/comparison', methods=['GET'])
+@team_metrics_bp.route('/comparison', methods=['GET'])
 @require_api_key
 def get_team_comparison():
     """Compare performance across different teams/roles"""
     try:
-        comparison = engine.get_team_comparison()
+        comparison = get_engine().get_team_comparison()
         
         return jsonify({
             'generated_at': datetime.now().isoformat(),
@@ -45,7 +54,7 @@ def get_team_comparison():
         logger.error(f"Error getting team comparison: {e}")
         return jsonify({'error': str(e)}), 500
 
-@team_metrics_bp.route('/api/team-metrics/trends', methods=['GET'])
+@team_metrics_bp.route('/trends', methods=['GET'])
 @require_api_key
 def get_team_trends():
     """Get team performance trends over time"""
@@ -54,7 +63,7 @@ def get_team_trends():
         days = request.args.get('days', 30, type=int)
         days = min(days, 90)  # Cap at 90 days
         
-        trends = engine.get_team_trends(role_id, days)
+        trends = get_engine().get_team_trends(role_id, days)
         
         return jsonify({
             'generated_at': datetime.now().isoformat(),
@@ -65,12 +74,12 @@ def get_team_trends():
         logger.error(f"Error getting team trends: {e}")
         return jsonify({'error': str(e)}), 500
 
-@team_metrics_bp.route('/api/team-metrics/shift-analysis', methods=['GET'])
+@team_metrics_bp.route('/shift-analysis', methods=['GET'])
 @require_api_key
 def get_shift_analysis():
     """Analyze performance by shift times"""
     try:
-        analysis = engine.get_shift_analysis()
+        analysis = get_engine().get_shift_analysis()
         
         return jsonify({
             'generated_at': datetime.now().isoformat(),
@@ -80,12 +89,12 @@ def get_shift_analysis():
         logger.error(f"Error getting shift analysis: {e}")
         return jsonify({'error': str(e)}), 500
 
-@team_metrics_bp.route('/api/team-metrics/bottlenecks', methods=['GET'])
+@team_metrics_bp.route('/bottlenecks', methods=['GET'])
 @require_api_key
 def get_bottlenecks():
     """Identify performance bottlenecks"""
     try:
-        bottlenecks = engine.get_bottlenecks()
+        bottlenecks = get_engine().get_bottlenecks()
         
         # Sort by severity
         severity_order = {'high': 0, 'medium': 1, 'low': 2}
@@ -102,12 +111,12 @@ def get_bottlenecks():
         logger.error(f"Error getting bottlenecks: {e}")
         return jsonify({'error': str(e)}), 500
 
-@team_metrics_bp.route('/api/team-metrics/capacity', methods=['GET'])
+@team_metrics_bp.route('/capacity', methods=['GET'])
 @require_api_key
 def get_capacity_analysis():
     """Analyze team capacity and utilization"""
     try:
-        capacity = engine.get_capacity_analysis()
+        capacity = get_engine().get_capacity_analysis()
         
         return jsonify({
             'generated_at': datetime.now().isoformat(),
@@ -117,15 +126,15 @@ def get_capacity_analysis():
         logger.error(f"Error getting capacity analysis: {e}")
         return jsonify({'error': str(e)}), 500
 
-@team_metrics_bp.route('/api/team-metrics/health-score', methods=['GET'])
+@team_metrics_bp.route('/health-score', methods=['GET'])
 @require_api_key
 def get_team_health_score():
     """Calculate overall team health score"""
     try:
         # Combine various metrics to calculate health score
-        overview = engine.get_team_overview()
-        bottlenecks = engine.get_bottlenecks()
-        capacity = engine.get_capacity_analysis()
+        overview = get_engine().get_team_overview()
+        bottlenecks = get_engine().get_bottlenecks()
+        capacity = get_engine().get_capacity_analysis()
         
         # Calculate health score (0-100)
         health_score = 100

@@ -3,7 +3,16 @@ from database.db_manager import DatabaseManager
 from datetime import datetime
 
 schedule_bp = Blueprint('intelligent_schedule', __name__)
-db = DatabaseManager()
+
+# Lazy-loaded database manager
+_db = None
+
+def get_db():
+    """Get database manager instance (lazy initialization)"""
+    global _db
+    if _db is None:
+        _db = DatabaseManager()
+    return _db
 
 @schedule_bp.route('/api/schedule/weekly', methods=['GET'])
 def get_weekly_schedule():
@@ -23,7 +32,7 @@ def get_weekly_schedule():
         AND prediction_date < DATE_ADD(CURDATE(), INTERVAL 7 DAY)
     ORDER BY prediction_date
     """
-    predictions = db.execute_query(predictions_query)
+    predictions = get_db().execute_query(predictions_query)
     
     # Get top performers by station
     performance_query = """
@@ -40,7 +49,7 @@ def get_weekly_schedule():
     GROUP BY e.id, e.name, al.activity_type
     HAVING days_worked >= 3
     """
-    performance = db.execute_query(performance_query)
+    performance = get_db().execute_query(performance_query)
     
     return jsonify({
         'predictions': predictions,
@@ -74,5 +83,5 @@ def get_staffing_needs():
     ORDER BY prediction_date
     """
     
-    needs = db.execute_query(query)
+    needs = get_db().execute_query(query)
     return jsonify(needs)

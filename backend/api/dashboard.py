@@ -168,39 +168,40 @@ def get_department_stats():
         # Use dynamic date
         date = request.args.get('date', get_central_date().strftime('%Y-%m-%d'))
         
-        # Get department stats aggregated from activities
+        # Get department stats with proper efficiency calculation
+        # Formula: total_items / total_hours / target_per_hour
+        # Step 1: Get items per employee per department
+        # Step 2: Join with clock_hours (one row per employee)
+        # Step 3: Aggregate by department
         query = """
-        SELECT 
-            COALESCE(al.department, 'Unknown') as department_name,
-            COUNT(DISTINCT al.employee_id) as employee_count,
-            COALESCE(SUM(al.items_count), 0) as total_items,
-            COALESCE(ROUND(AVG(
-                CASE 
-                    WHEN ct.clock_minutes > 0 THEN al.items_count / ct.clock_minutes * 60
-                    ELSE 0 
-                END
-            ), 1), 0) as avg_items_per_minute,
-            COALESCE(ROUND(AVG(
-                CASE 
-                    WHEN ct.clock_minutes > 0 THEN (al.items_count / ct.clock_minutes) * 100
-                    ELSE 0 
-                END
-            ), 1), 0) as avg_efficiency
-        FROM activity_logs al
+        SELECT
+            dept_emp.department as department_name,
+            COUNT(*) as employee_count,
+            SUM(dept_emp.emp_items) as total_items,
+            COALESCE(SUM(ct.clock_hours), 0) as total_hours,
+            COUNT(CASE WHEN ct.clock_hours > 0 THEN 1 END) as clocked_employees
+        FROM (
+            SELECT
+                department,
+                employee_id,
+                SUM(items_count) as emp_items
+            FROM activity_logs
+            WHERE DATE(CONVERT_TZ(window_start, '+00:00', 'America/Chicago')) = %s
+            AND source = 'podfactory'
+            GROUP BY department, employee_id
+        ) dept_emp
         LEFT JOIN (
             SELECT
                 employee_id,
-                SUM(total_minutes) as clock_minutes
+                SUM(total_minutes) / 60.0 as clock_hours
             FROM clock_times
             WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = %s
             GROUP BY employee_id
-        ) ct ON ct.employee_id = al.employee_id
-        WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = %s
-        AND al.source = 'podfactory'
-        GROUP BY al.department
+        ) ct ON ct.employee_id = dept_emp.employee_id
+        GROUP BY dept_emp.department
         HAVING total_items > 0
         """
-        
+
         cursor.execute(query, (date, date))
         departments = cursor.fetchall()
         
@@ -220,27 +221,49 @@ def get_department_stats():
                     'avg_efficiency': 0
                 })
         
-        # Add performance vs target
+        # Add performance vs target - fetch from role_configs (single source of truth)
+        cursor.execute("SELECT role_name, expected_per_hour FROM role_configs")
+        role_targets = {row['role_name']: float(row['expected_per_hour']) for row in cursor.fetchall()}
+
+        # Map department names to role names
+        dept_to_role = {
+            'Heat Press': 'Heat Pressing',
+            'Packing': 'Packing and Shipping',
+            'Picking': 'Picker',
+            'Labeling': 'Labeler',
+            'Film Matching': 'Film Matching'
+        }
+
         for dept in departments:
-            # Department-specific targets
-            targets = {
-                'Picking': 20.0,
-                'Packing': 16.0,
-                'Heat Press': 6.0,  # Lower because individual items
-                'Labeling': 20.0,
-                'Unknown': 15.0
-            }
-            
             dept_name = dept['department_name']
-            target_rate = targets.get(dept_name, 15.0)
-            avg_rate = float(dept.get('avg_items_per_minute', 0) or 0)
-            
-            dept['vs_target'] = round(((avg_rate / target_rate) - 1) * 100, 1) if target_rate > 0 else 0
-            dept['efficiency'] = round(float(dept.get('avg_efficiency', 0) or 0), 1)
-            dept['avg_rate'] = round(avg_rate, 1)
+            role_name = dept_to_role.get(dept_name, dept_name)
+            expected_per_hour = role_targets.get(role_name, 60.0)  # Default 60/hr if not found
+
+            total_items = int(dept.get('total_items', 0))
+            total_hours = float(dept.get('total_hours', 0) or 0)
+            employee_count = int(dept.get('employee_count', 0) or 1)
+            clocked_employees = int(dept.get('clocked_employees', 0))
+            unclocked_employees = employee_count - clocked_employees
+
+            # Estimate hours for employees without clock times (use avg of clocked employees)
+            if clocked_employees > 0 and unclocked_employees > 0:
+                avg_hours_per_employee = total_hours / clocked_employees
+                estimated_hours = total_hours + (unclocked_employees * avg_hours_per_employee)
+            else:
+                estimated_hours = total_hours if total_hours > 0 else employee_count * 8  # Fallback 8hr
+
+            # Calculate items per hour (per hour of labor)
+            items_per_hour = total_items / estimated_hours if estimated_hours > 0 else 0
+
+            # Efficiency = actual items/hr / target items/hr × 100
+            dept['efficiency'] = round((items_per_hour / expected_per_hour) * 100, 1) if expected_per_hour > 0 else 0
+            dept['vs_target'] = round(dept['efficiency'] - 100, 1)
+            dept['target_rate'] = round(expected_per_hour / 60, 2)  # Per person per min (for display)
+            dept['avg_rate'] = round(items_per_hour / 60, 2)  # Items per minute (for display)
+            dept['avg_items_per_minute'] = dept['avg_rate']  # Alias for frontend
             dept['name'] = dept_name
-            dept['total_items'] = int(dept.get('total_items', 0))
-            dept['employee_count'] = int(dept.get('employee_count', 0))
+            dept['total_items'] = total_items
+            dept['employee_count'] = employee_count
         
         cursor.close()
         conn.close()
@@ -252,6 +275,57 @@ def get_department_stats():
         print(f"Error in department stats: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+
+
+@dashboard_bp.route('/departments/targets', methods=['GET'])
+@require_api_key
+def get_department_targets():
+    """Get all department target rates"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT department_name, target_rate_per_person, updated_at FROM department_targets ORDER BY department_name")
+        targets = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return jsonify(targets)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@dashboard_bp.route('/departments/targets/<dept_name>', methods=['PUT'])
+@require_api_key
+def update_department_target(dept_name):
+    """Update target rate for a department"""
+    try:
+        data = request.get_json()
+        new_rate = float(data.get('target_rate_per_person', 15.0))
+
+        if new_rate <= 0:
+            return jsonify({'error': 'Target rate must be greater than 0'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Upsert - insert if not exists, update if exists
+        cursor.execute("""
+            INSERT INTO department_targets (department_name, target_rate_per_person)
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE target_rate_per_person = VALUES(target_rate_per_person)
+        """, (dept_name, new_rate))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'department_name': dept_name,
+            'target_rate_per_person': new_rate
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 # Replace the get_leaderboard function in dashboard.py with this updated version:
 
@@ -356,15 +430,14 @@ def get_leaderboard():
         FROM employees e
         LEFT JOIN daily_scores ds ON ds.employee_id = e.id AND ds.score_date = %s
         LEFT JOIN (
-            -- Clock times: include shifts active today (Central Time)
-            -- Uses CONVERT_TZ to properly handle overnight shifts
+            -- Clock times: calculate real-time minutes (not stored value)
+            -- Only include today's shifts in CT timezone
             SELECT
                 employee_id,
-                SUM(total_minutes) as total_minutes,
+                SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, UTC_TIMESTAMP())))) as total_minutes,
                 MAX(CASE WHEN clock_out IS NULL THEN 1 ELSE 0 END) as is_clocked_in
             FROM clock_times
             WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = %s
-               OR (clock_out IS NULL AND DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) <= %s)
             GROUP BY employee_id
         ) ct ON ct.employee_id = e.id
         WHERE e.is_active = 1
@@ -372,8 +445,8 @@ def get_leaderboard():
         ORDER BY COALESCE(ds.points_earned, 0) DESC
         """
         
-        # Execute: activity_aggregates(utc_start, utc_end), primary_dept(utc_start, utc_end), daily_scores(date), clock_times(date, date)
-        cursor.execute(query, (utc_start, utc_end, utc_start, utc_end, date, date, date))
+        # Execute: activity_aggregates(utc_start, utc_end), primary_dept(utc_start, utc_end), daily_scores(date), clock_times(date)
+        cursor.execute(query, (utc_start, utc_end, utc_start, utc_end, date, date))
         leaderboard = cursor.fetchall()
         
         # Process and format the data (rest remains the same)
@@ -1168,26 +1241,26 @@ def get_recent_activities():
         query = """
         SELECT
             'clock_in' as type,
-            CONCAT(e.name, ' clocked in at ', DATE_FORMAT(ct.clock_in, '%h:%i %p')) as description,
+            CONCAT(e.name, ' clocked in at ', DATE_FORMAT(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago'), '%h:%i %p')) as description,
             ct.clock_in as timestamp,
             e.name as employee_name,
-            DATE_FORMAT(ct.clock_in, '%h:%i %p') as time_str
+            DATE_FORMAT(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago'), '%h:%i %p') as time_str
         FROM clock_times ct
         JOIN employees e ON e.id = ct.employee_id
-        WHERE DATE(ct.clock_in) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+        WHERE DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
 
         UNION ALL
 
         SELECT
             'clock_out' as type,
-            CONCAT(e.name, ' clocked out at ', DATE_FORMAT(ct.clock_out, '%h:%i %p')) as description,
+            CONCAT(e.name, ' clocked out at ', DATE_FORMAT(CONVERT_TZ(ct.clock_out, '+00:00', 'America/Chicago'), '%h:%i %p')) as description,
             ct.clock_out as timestamp,
             e.name as employee_name,
-            DATE_FORMAT(ct.clock_out, '%h:%i %p') as time_str
+            DATE_FORMAT(CONVERT_TZ(ct.clock_out, '+00:00', 'America/Chicago'), '%h:%i %p') as time_str
         FROM clock_times ct
         JOIN employees e ON e.id = ct.employee_id
         WHERE ct.clock_out IS NOT NULL
-        AND DATE(ct.clock_out) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+        AND DATE(CONVERT_TZ(ct.clock_out, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
         
         ORDER BY timestamp DESC
         LIMIT %s
@@ -1326,17 +1399,17 @@ def get_team_metrics():
                 -- Calculate total hours worked
                 COALESCE(ROUND(SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, ct.clock_in, COALESCE(ct.clock_out, UTC_TIMESTAMP())))) / 60.0, 1), 0) as total_hours_worked
             FROM clock_times ct
-            WHERE DATE(ct.clock_in) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+            WHERE DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
         """)
         
         metrics = cursor.fetchone()
         
         # Get QC Passed items separately with timezone handling
         cursor.execute("""
-            SELECT 
+            SELECT
                 COALESCE(SUM(al.items_count), 0) as items_today
-            FROM activity_logs al 
-            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = CURDATE()
+            FROM activity_logs al
+            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
             AND al.activity_type = 'QC Passed'
             AND al.source = 'podfactory'
         """)
@@ -1347,31 +1420,83 @@ def get_team_metrics():
         
         # Get total points with timezone handling
         cursor.execute("""
-            SELECT 
+            SELECT
                 COALESCE(SUM(al.items_count * rc.multiplier), 0) as points_today
             FROM activity_logs al
             JOIN role_configs rc ON rc.id = al.role_id
-            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = CURDATE()
+            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
             AND al.source = 'podfactory'
         """)
         
         points_result = cursor.fetchone()
         metrics['points_today'] = float(points_result['points_today'] or 0)
         
-        # Calculate overall efficiency
-        total_hours = float(metrics['total_hours_worked'] or 0)
-        if total_hours > 0:
-            expected_items = total_hours * 60  # Assuming 60 items/hour target
-            actual_items = float(metrics['items_today'] or 0)
-            overall_efficiency = round((actual_items / expected_items) * 100, 1) if expected_items > 0 else 0
-        else:
-            overall_efficiency = 0
+        # Calculate overall efficiency using role_configs (single source of truth)
+        # Formula: Σ(actual_items) / Σ(dept_hours × expected_per_hour) × 100
+        # Fixed: Aggregate by employee first to avoid duplicate hours
+        cursor.execute("""
+            SELECT
+                dept_emp.department,
+                SUM(dept_emp.emp_items) as dept_items,
+                COALESCE(SUM(ct.clock_hours), 0) as dept_hours,
+                COUNT(*) as emp_count,
+                COUNT(CASE WHEN ct.clock_hours > 0 THEN 1 END) as clocked_emp
+            FROM (
+                SELECT department, employee_id, SUM(items_count) as emp_items
+                FROM activity_logs
+                WHERE DATE(CONVERT_TZ(window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                AND source = 'podfactory'
+                GROUP BY department, employee_id
+            ) dept_emp
+            LEFT JOIN (
+                SELECT employee_id, SUM(total_minutes) / 60.0 as clock_hours
+                FROM clock_times
+                WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                GROUP BY employee_id
+            ) ct ON ct.employee_id = dept_emp.employee_id
+            GROUP BY dept_emp.department
+        """)
+        dept_stats = cursor.fetchall()
+
+        # Get role targets from role_configs
+        cursor.execute("SELECT role_name, expected_per_hour FROM role_configs")
+        role_targets = {row['role_name']: float(row['expected_per_hour']) for row in cursor.fetchall()}
+
+        # Map department names to role names
+        dept_to_role = {
+            'Heat Press': 'Heat Pressing',
+            'Packing': 'Packing and Shipping',
+            'Picking': 'Picker',
+            'Labeling': 'Labeler',
+            'Film Matching': 'Film Matching'
+        }
+
+        total_actual = 0
+        total_expected = 0
+        for dept in dept_stats:
+            dept_name = dept['department']
+            role_name = dept_to_role.get(dept_name, dept_name)
+            expected_per_hour = role_targets.get(role_name, 60.0)  # Default 60/hr
+            dept_hours = float(dept['dept_hours'] or 0)
+            dept_items = float(dept['dept_items'] or 0)
+            emp_count = int(dept['emp_count'] or 0)
+            clocked_emp = int(dept['clocked_emp'] or 0)
+
+            # Estimate hours for unclocked employees
+            if clocked_emp > 0 and emp_count > clocked_emp:
+                avg_hrs = dept_hours / clocked_emp
+                dept_hours += (emp_count - clocked_emp) * avg_hrs
+
+            total_actual += dept_items
+            total_expected += dept_hours * expected_per_hour
+
+        overall_efficiency = round((total_actual / total_expected) * 100, 1) if total_expected > 0 else 0
             
         # Get yesterday's data for comparison with timezone handling
         cursor.execute("""
             SELECT COALESCE(SUM(al.items_count), 0) as yesterday_items
             FROM activity_logs al
-            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE_SUB(DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago')), INTERVAL 1 DAY)
             AND al.activity_type = 'QC Passed'
             AND al.source = 'podfactory'
         """)
@@ -1387,12 +1512,12 @@ def get_team_metrics():
         
         # Get top department for shop floor
         cursor.execute("""
-            SELECT 
+            SELECT
                 al.department,
                 ROUND(SUM(al.items_count * rc.multiplier), 1) as dept_points
             FROM activity_logs al
             JOIN role_configs rc ON rc.id = al.role_id
-            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = CURDATE()
+            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
             AND al.source = 'podfactory'
             GROUP BY al.department
             ORDER BY dept_points DESC

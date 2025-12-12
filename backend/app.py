@@ -9,7 +9,7 @@ from api.connecteam import connecteam_bp
 from api.dashboard import dashboard_bp
 from api.employee_auth import employee_auth_bp
 from api.admin_auth import admin_auth_bp
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify
 from flask_cors import CORS
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
@@ -92,7 +92,7 @@ def create_app(config_name=None):
     app.config.from_object(config)
     
     # Enable CORS
-    CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type", "X-API-Key"]}})
+    CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "X-API-Key"]}})
     
     # Configure logging
     configure_logging(app)
@@ -166,21 +166,6 @@ def register_error_handlers(app):
 
 # Create Flask app
 app = create_app()
-
-# Frontend static file serving
-FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend')
-
-@app.route('/<path:filename>')
-def serve_frontend(filename):
-    """Serve frontend static files"""
-    # Serve HTML files
-    if filename.endswith('.html'):
-        return send_from_directory(FRONTEND_DIR, filename)
-    # Serve JS files
-    if filename.startswith('js/') or filename.endswith('.js'):
-        return send_from_directory(FRONTEND_DIR, filename)
-    # Serve other static files (css, images, etc.)
-    return send_from_directory(FRONTEND_DIR, filename)
 
 @app.route('/health', methods=['GET'])
 def health_check():

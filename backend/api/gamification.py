@@ -11,20 +11,29 @@ import logging
 logger = logging.getLogger(__name__)
 
 gamification_bp = Blueprint('gamification', __name__)
-engine = GamificationEngine()
 
-@gamification_bp.route('/api/gamification/achievements/<int:employee_id>', methods=['GET'])
+# Lazy-loaded engine
+_engine = None
+
+def get_engine():
+    """Get engine instance (lazy initialization)"""
+    global _engine
+    if _engine is None:
+        _engine = GamificationEngine()
+    return _engine
+
+@gamification_bp.route('/achievements/<int:employee_id>', methods=['GET'])
 @require_api_key
 def get_achievements(employee_id):
     """Get all achievements for an employee"""
     try:
-        achievements = engine.get_employee_achievements(employee_id)
+        achievements = get_engine().get_employee_achievements(employee_id)
         return jsonify(achievements)
     except Exception as e:
         logger.error(f"Error getting achievements: {e}")
         return jsonify({'error': str(e)}), 500
 
-@gamification_bp.route('/api/gamification/check-daily/<int:employee_id>', methods=['POST'])
+@gamification_bp.route('/check-daily/<int:employee_id>', methods=['POST'])
 @require_api_key
 def check_daily_achievements(employee_id):
     """Check and award daily achievements"""
@@ -37,7 +46,7 @@ def check_daily_achievements(employee_id):
         else:
             check_date = date.today()
         
-        earned = engine.check_daily_achievements(employee_id, check_date)
+        earned = get_engine().check_daily_achievements(employee_id, check_date)
         
         return jsonify({
             'employee_id': employee_id,
@@ -57,14 +66,14 @@ def check_daily_achievements(employee_id):
         logger.error(f"Error checking daily achievements: {e}")
         return jsonify({'error': str(e)}), 500
 
-@gamification_bp.route('/api/gamification/check-all/<int:employee_id>', methods=['POST'])
+@gamification_bp.route('/check-all/<int:employee_id>', methods=['POST'])
 @require_api_key
 def check_all_achievements(employee_id):
     """Check all achievement types for an employee"""
     try:
-        daily = engine.check_daily_achievements(employee_id)
-        streak = engine.check_streak_achievements(employee_id)
-        milestone = engine.check_milestone_achievements(employee_id)
+        daily = get_engine().check_daily_achievements(employee_id)
+        streak = get_engine().check_streak_achievements(employee_id)
+        milestone = get_engine().check_milestone_achievements(employee_id)
         
         all_earned = daily + streak + milestone
         
@@ -91,7 +100,7 @@ def check_all_achievements(employee_id):
         logger.error(f"Error checking all achievements: {e}")
         return jsonify({'error': str(e)}), 500
 
-@gamification_bp.route('/api/gamification/leaderboard', methods=['GET'])
+@gamification_bp.route('/leaderboard', methods=['GET'])
 @require_api_key
 def get_leaderboard():
     """Get gamification leaderboard"""
@@ -101,7 +110,7 @@ def get_leaderboard():
         if period not in ['daily', 'weekly', 'monthly', 'all']:
             return jsonify({'error': 'Invalid period. Use daily, weekly, monthly, or all'}), 400
         
-        leaderboard = engine.get_leaderboard(period)
+        leaderboard = get_engine().get_leaderboard(period)
         
         return jsonify({
             'period': period,
@@ -112,7 +121,7 @@ def get_leaderboard():
         logger.error(f"Error getting leaderboard: {e}")
         return jsonify({'error': str(e)}), 500
 
-@gamification_bp.route('/api/gamification/challenges', methods=['POST'])
+@gamification_bp.route('/challenges', methods=['POST'])
 @require_api_key
 def create_challenge():
     """Create a new team challenge"""
@@ -126,7 +135,7 @@ def create_challenge():
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
-        challenge_id = engine.create_team_challenge(
+        challenge_id = get_engine().create_team_challenge(
             role_id=data.get('role_id'),
             challenge_type=data['challenge_type'],
             target_value=float(data['target_value']),
@@ -144,7 +153,7 @@ def create_challenge():
         logger.error(f"Error creating challenge: {e}")
         return jsonify({'error': str(e)}), 500
 
-@gamification_bp.route('/api/gamification/challenges/active', methods=['GET'])
+@gamification_bp.route('/challenges/active', methods=['GET'])
 @require_api_key
 def get_active_challenges():
     """Get all active challenges"""

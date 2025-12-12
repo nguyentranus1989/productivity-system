@@ -2093,7 +2093,10 @@
                         </div>
                         <div class="stat-item">
                             <div class="stat-value">${avgItemsPerMinute.toFixed(1)}</div>
-                            <div class="stat-label">Avg Items/Min (Target: ${targetRate})</div>
+                            <div class="stat-label">
+                                Avg Items/Min (Target: <span class="target-value" data-dept="${dept.department_name || dept.name}">${targetRate}</span>
+                                <i class="fas fa-pencil-alt edit-target-btn" onclick="editDepartmentTarget('${dept.department_name || dept.name}', ${targetRate})" title="Edit target rate"></i>)
+                            </div>
                         </div>
                         <div class="stat-item">
                             <div class="stat-value" style="color: ${vsTarget >= 0 ? '#34d399' : '#ef4444'}">
@@ -2119,7 +2122,49 @@
             };
             return icons[deptName] || '📊';
         }
-        
+
+        // Edit department target rate
+        async function editDepartmentTarget(deptName, currentRate) {
+            const newRate = prompt(`Edit target rate for ${deptName}:\n(items per minute per person)`, currentRate);
+
+            if (newRate === null) return; // Cancelled
+
+            const rate = parseFloat(newRate);
+            if (isNaN(rate) || rate <= 0) {
+                alert('Please enter a valid positive number');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/dashboard/departments/targets/${encodeURIComponent(deptName)}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY
+                    },
+                    body: JSON.stringify({ target_rate_per_person: rate })
+                });
+
+                if (response.ok) {
+                    // Update the displayed value
+                    const targetSpan = document.querySelector(`.target-value[data-dept="${deptName}"]`);
+                    if (targetSpan) targetSpan.textContent = rate;
+
+                    // Reload department data to update calculations
+                    const departmentStats = await api.getDepartmentStats();
+                    updateDepartmentCards(departmentStats);
+
+                    showNotification(`Target for ${deptName} updated to ${rate} items/min/person`, 'success');
+                } else {
+                    const error = await response.json();
+                    alert('Error updating target: ' + (error.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error updating department target:', error);
+                alert('Error updating target: ' + error.message);
+            }
+        }
+
         // Update activity feed with clock in/out notifications
         function updateActivityFeed(activities) {
             const feed = document.getElementById('activityFeed');
