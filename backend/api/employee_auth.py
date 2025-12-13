@@ -417,3 +417,148 @@ def delete_employee_goal(employee_id, goal_id):
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+# ========== GAMIFICATION API ==========
+
+@employee_auth_bp.route('/api/employee/<int:employee_id>/achievements', methods=['GET'])
+def get_employee_achievements(employee_id):
+    """Get employee's earned achievements"""
+    try:
+        # Get earned achievements
+        achievements = get_db().execute_query("""
+            SELECT
+                a.achievement_key,
+                a.earned_at,
+                a.points_awarded
+            FROM employee_achievements a
+            WHERE a.employee_id = %s
+            ORDER BY a.earned_at DESC
+            LIMIT 50
+        """, (employee_id,))
+
+        # Achievement definitions
+        achievement_defs = {
+            'daily_target_met': {'name': 'Daily Champion', 'icon': '🎯', 'desc': 'Met daily points target'},
+            'perfect_efficiency': {'name': 'Efficiency Master', 'icon': '⚡', 'desc': '90%+ efficiency'},
+            'early_bird': {'name': 'Early Bird', 'icon': '🌅', 'desc': 'Started before 7:30 AM'},
+            'weekly_consistency': {'name': 'Consistency King', 'icon': '👑', 'desc': '5-day target streak'},
+            'improvement_week': {'name': 'Rising Star', 'icon': '🌟', 'desc': '10% weekly improvement'},
+            'speed_demon': {'name': 'Speed Demon', 'icon': '🏎️', 'desc': 'Fastest processor'},
+            'quality_queen': {'name': 'Quality Queen', 'icon': '💎', 'desc': 'Zero errors all day'},
+            'team_player': {'name': 'Team Player', 'icon': '🤝', 'desc': 'Helped teammate'},
+            'marathon_runner': {'name': 'Marathon Runner', 'icon': '🏃', 'desc': '8+ hours active'},
+            'century_club': {'name': 'Century Club', 'icon': '💯', 'desc': '100+ items in a day'},
+            'streak_week': {'name': 'Week Warrior', 'icon': '🔥', 'desc': '7-day streak'},
+            'streak_month': {'name': 'Month Master', 'icon': '🏆', 'desc': '30-day streak'},
+        }
+
+        result = []
+        for ach in (achievements or []):
+            key = ach['achievement_key']
+            defn = achievement_defs.get(key, {'name': key, 'icon': '🏅', 'desc': ''})
+            result.append({
+                'key': key,
+                'name': defn['name'],
+                'icon': defn['icon'],
+                'description': defn['desc'],
+                'points': ach['points_awarded'],
+                'earned_at': ach['earned_at'].strftime('%Y-%m-%d %H:%M') if ach['earned_at'] else None
+            })
+
+        # Get total achievement points
+        total = get_db().execute_one("""
+            SELECT COALESCE(SUM(points_awarded), 0) as total
+            FROM employee_achievements
+            WHERE employee_id = %s
+        """, (employee_id,))
+
+        return jsonify({
+            'success': True,
+            'achievements': result,
+            'total_points': total['total'] if total else 0,
+            'count': len(result)
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@employee_auth_bp.route('/api/employee/<int:employee_id>/streak', methods=['GET'])
+def get_employee_streak(employee_id):
+    """Get employee's current streak info"""
+    try:
+        ct_date = tz_helper.get_current_ct_date()
+
+        # Get current streak (consecutive days with activity)
+        streak_data = get_db().execute_query("""
+            SELECT score_date, items_processed
+            FROM daily_scores
+            WHERE employee_id = %s AND items_processed > 0
+            ORDER BY score_date DESC
+            LIMIT 60
+        """, (employee_id,))
+
+        current_streak = 0
+        if streak_data:
+            expected_date = ct_date
+            for row in streak_data:
+                if row['score_date'] == expected_date:
+                    current_streak += 1
+                    expected_date -= timedelta(days=1)
+                elif row['score_date'] == expected_date - timedelta(days=1):
+                    # Allow for today not having data yet
+                    expected_date = row['score_date']
+                    current_streak += 1
+                    expected_date -= timedelta(days=1)
+                else:
+                    break
+
+        # Get best streak (simplified calculation)
+        best_streak = current_streak
+
+        return jsonify({
+            'success': True,
+            'current_streak': current_streak,
+            'best_streak': best_streak,
+            'streak_goal': 7  # Weekly goal
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@employee_auth_bp.route('/api/employee/<int:employee_id>/recent-activity', methods=['GET'])
+def get_recent_activity(employee_id):
+    """Get employee's recent activity log"""
+    try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
+        # Get today's activity windows
+        activities = get_db().execute_query("""
+            SELECT
+                window_start,
+                window_end,
+                items_processed,
+                station
+            FROM activity_logs
+            WHERE employee_id = %s
+            AND window_end >= %s AND window_end < %s
+            ORDER BY window_end DESC
+            LIMIT 20
+        """, (employee_id, utc_start, utc_end))
+
+        result = []
+        for act in (activities or []):
+            result.append({
+                'time': act['window_end'].strftime('%H:%M'),
+                'items': act['items_processed'],
+                'station': act['station']
+            })
+
+        return jsonify({
+            'success': True,
+            'activities': result,
+            'date': ct_date.strftime('%Y-%m-%d')
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500

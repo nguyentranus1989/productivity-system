@@ -582,6 +582,179 @@
         }
 
         /* ============================================
+           TWO COLUMN GRID
+           ============================================ */
+
+        .two-column-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--space-lg);
+            margin-bottom: var(--space-lg);
+        }
+
+        @media (min-width: 768px) {
+            .two-column-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .two-column-grid .section-card {
+            margin-bottom: 0;
+        }
+
+        /* ============================================
+           STREAK DISPLAY
+           ============================================ */
+
+        .streak-display {
+            text-align: center;
+            padding: var(--space-md);
+        }
+
+        .streak-number {
+            font-family: var(--font-mono);
+            font-size: 4rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            line-height: 1;
+            text-shadow: 0 0 30px var(--accent-glow);
+        }
+
+        .streak-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: var(--space-md);
+        }
+
+        .streak-progress {
+            margin-bottom: var(--space-md);
+        }
+
+        .streak-bar {
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            margin-bottom: var(--space-xs);
+        }
+
+        .streak-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), #ef4444);
+            border-radius: var(--radius-full);
+            transition: width 0.5s ease;
+        }
+
+        .streak-goal-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .streak-best {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* ============================================
+           ACHIEVEMENTS
+           ============================================ */
+
+        .achievement-points {
+            font-family: var(--font-mono);
+            color: var(--accent-primary);
+            font-size: 0.875rem;
+        }
+
+        .achievements-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-sm);
+        }
+
+        .achievement-badge {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-md);
+            background: var(--bg-elevated);
+            border-radius: var(--radius-full);
+            border: 1px solid var(--border-subtle);
+            transition: all 0.2s ease;
+        }
+
+        .achievement-badge:hover {
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
+        }
+
+        .achievement-icon {
+            font-size: 1.25rem;
+        }
+
+        .achievement-name {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .achievements-empty {
+            text-align: center;
+            padding: var(--space-lg);
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* ============================================
+           ACTIVITY LOG
+           ============================================ */
+
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            padding: var(--space-sm) var(--space-md);
+            background: var(--bg-elevated);
+            border-radius: var(--radius-sm);
+        }
+
+        .activity-time {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            min-width: 50px;
+        }
+
+        .activity-items {
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            color: var(--accent-primary);
+            font-weight: 500;
+        }
+
+        .activity-station {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-left: auto;
+        }
+
+        .activity-empty {
+            text-align: center;
+            padding: var(--space-lg);
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* ============================================
            ALERTS
            ============================================ */
 
@@ -1025,6 +1198,59 @@
                     <!-- Goals loaded dynamically -->
                 </div>
             </section>
+
+            <!-- Streak & Achievements Row -->
+            <div class="two-column-grid">
+                <!-- Current Streak -->
+                <section class="section-card">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <i class="fas fa-fire"></i>
+                            Current Streak
+                        </h2>
+                    </div>
+                    <div class="streak-display">
+                        <div class="streak-number" id="currentStreak">0</div>
+                        <div class="streak-label">days</div>
+                        <div class="streak-progress">
+                            <div class="streak-bar">
+                                <div class="streak-fill" id="streakFill" style="width: 0%"></div>
+                            </div>
+                            <div class="streak-goal-text">Goal: <span id="streakGoal">7</span> day streak</div>
+                        </div>
+                        <div class="streak-best">
+                            Best: <span id="bestStreak">0</span> days
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Recent Achievements -->
+                <section class="section-card">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <i class="fas fa-medal"></i>
+                            Achievements
+                        </h2>
+                        <span class="achievement-points" id="totalAchievementPoints">0 pts</span>
+                    </div>
+                    <div id="achievementsContainer" class="achievements-grid">
+                        <!-- Achievements loaded dynamically -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- Today's Activity -->
+            <section class="section-card">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <i class="fas fa-history"></i>
+                        Today's Activity
+                    </h2>
+                </div>
+                <div id="activityContainer" class="activity-list">
+                    <!-- Activity loaded dynamically -->
+                </div>
+            </section>
         </div>
     </main>
 
@@ -1170,9 +1396,13 @@
             await updateDashboardStats();
             await loadTrendChart(30);
             await loadGoals();
+            await loadStreak();
+            await loadAchievements();
+            await loadRecentActivity();
 
             // Start auto-refresh (every 60 seconds)
             setInterval(updateDashboardStats, 60000);
+            setInterval(loadRecentActivity, 60000);
             setInterval(updateLastRefreshDisplay, 10000);
         }
 
@@ -1581,6 +1811,116 @@
             } catch (error) {
                 console.error('Error creating goal:', error);
                 alert('Failed to create goal');
+            }
+        }
+
+        // ============================================
+        // GAMIFICATION
+        // ============================================
+
+        async function loadStreak() {
+            const employeeId = getEmployeeId();
+            const token = getToken();
+
+            if (!employeeId || !token) return;
+
+            try {
+                const response = await fetch(`/api/employee/${employeeId}/streak`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                if (!data.success) return;
+
+                // Update streak display
+                document.getElementById('currentStreak').textContent = data.current_streak;
+                document.getElementById('bestStreak').textContent = data.best_streak;
+                document.getElementById('streakGoal').textContent = data.streak_goal;
+
+                // Update progress bar
+                const progress = Math.min(100, (data.current_streak / data.streak_goal) * 100);
+                document.getElementById('streakFill').style.width = progress + '%';
+
+            } catch (error) {
+                console.error('Error loading streak:', error);
+            }
+        }
+
+        async function loadAchievements() {
+            const employeeId = getEmployeeId();
+            const token = getToken();
+            const container = document.getElementById('achievementsContainer');
+
+            if (!employeeId || !token || !container) return;
+
+            try {
+                const response = await fetch(`/api/employee/${employeeId}/achievements`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                // Update total points
+                document.getElementById('totalAchievementPoints').textContent = (data.total_points || 0) + ' pts';
+
+                if (!data.success || !data.achievements || data.achievements.length === 0) {
+                    container.innerHTML = `
+                        <div class="achievements-empty">
+                            <p>No achievements yet. Keep working to earn badges!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Show recent achievements as badges
+                container.innerHTML = data.achievements.slice(0, 8).map(ach => `
+                    <div class="achievement-badge" title="${ach.description} (${ach.points} pts)">
+                        <span class="achievement-icon">${ach.icon}</span>
+                        <span class="achievement-name">${ach.name}</span>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error loading achievements:', error);
+                container.innerHTML = '<p class="achievements-empty">Failed to load achievements</p>';
+            }
+        }
+
+        async function loadRecentActivity() {
+            const employeeId = getEmployeeId();
+            const token = getToken();
+            const container = document.getElementById('activityContainer');
+
+            if (!employeeId || !token || !container) return;
+
+            try {
+                const response = await fetch(`/api/employee/${employeeId}/recent-activity`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                if (!data.success || !data.activities || data.activities.length === 0) {
+                    container.innerHTML = `
+                        <div class="activity-empty">
+                            <p>No activity recorded today yet</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = data.activities.map(act => `
+                    <div class="activity-item">
+                        <span class="activity-time">${act.time}</span>
+                        <span class="activity-items">${act.items} items</span>
+                        <span class="activity-station">${act.station || ''}</span>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error loading activity:', error);
+                container.innerHTML = '<p class="activity-empty">Failed to load activity</p>';
             }
         }
 
