@@ -1103,6 +1103,178 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<!-- Real-Time Dashboard Stats -->
+<script>
+// Real-time stats refresh system
+let lastStatsUpdate = null;
+let statsRefreshInterval = null;
+
+async function updateDashboardStats() {
+    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
+    const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
+
+    if (!employeeId || !token) return;
+
+    try {
+        const response = await fetch(`/api/employee/${employeeId}/stats`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch stats');
+
+        const data = await response.json();
+
+        // Update stat cards with animation
+        updateStatWithPulse('itemsToday', data.items_processed || 0);
+        updateStatWithPulse('itemsPerMinute', (data.items_per_minute || 0).toFixed(1));
+        updateStatWithPulse('streakDays', data.streak_days || 0);
+        updateStatWithPulse('currentRank', '#' + (data.employee_rank || '-'));
+
+        // Update team context (vs Team avg)
+        updateTeamContext('itemsChange', data.items_processed, data.team_avg_items, 'items');
+        updateTeamContext('speedChange', data.items_per_minute || 0, data.team_avg_efficiency / 10, 'speed'); // rough proxy
+
+        // Update rank message
+        const rankEl = document.getElementById('rankChange');
+        if (rankEl && data.total_employees) {
+            const percentile = Math.round((1 - (data.employee_rank / data.total_employees)) * 100);
+            if (percentile >= 80) {
+                rankEl.textContent = `Top ${100 - percentile}%! 🔥`;
+                rankEl.className = 'stat-change positive';
+            } else if (percentile >= 50) {
+                rankEl.textContent = `Top ${100 - percentile}%`;
+                rankEl.className = 'stat-change';
+            } else {
+                rankEl.textContent = 'Keep pushing!';
+                rankEl.className = 'stat-change';
+            }
+        }
+
+        // Update streak message
+        const streakEl = document.getElementById('streakMessage');
+        if (streakEl) {
+            const streak = data.streak_days || 0;
+            if (streak >= 5) {
+                streakEl.textContent = `${streak} days! Amazing! 🔥`;
+            } else if (streak > 0) {
+                streakEl.textContent = `${streak} day streak!`;
+            } else {
+                streakEl.textContent = 'Start your streak!';
+            }
+        }
+
+        // Update last refresh indicator
+        lastStatsUpdate = new Date();
+        updateLastRefreshDisplay();
+
+        console.log('Dashboard stats updated:', new Date().toLocaleTimeString());
+
+    } catch (error) {
+        console.error('Error updating dashboard stats:', error);
+    }
+}
+
+function updateStatWithPulse(elementId, value) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    const oldValue = el.textContent;
+    const newValue = String(value);
+
+    if (oldValue !== newValue) {
+        el.textContent = newValue;
+        // Add pulse animation
+        el.style.transition = 'transform 0.2s ease, color 0.2s ease';
+        el.style.transform = 'scale(1.1)';
+        el.style.color = '#667eea';
+
+        setTimeout(() => {
+            el.style.transform = 'scale(1)';
+            el.style.color = '';
+        }, 200);
+    }
+}
+
+function updateTeamContext(elementId, myValue, teamAvg, type) {
+    const el = document.getElementById(elementId);
+    if (!el || !teamAvg || teamAvg === 0) {
+        if (el) el.style.display = 'none';
+        return;
+    }
+
+    el.style.display = 'inline-flex';
+    el.style.alignItems = 'center';
+    el.style.gap = '4px';
+    el.style.fontSize = '12px';
+    el.style.marginTop = '5px';
+
+    const diff = myValue - teamAvg;
+    const pctDiff = Math.round((diff / teamAvg) * 100);
+
+    if (diff > 0) {
+        el.innerHTML = `<i class="fas fa-arrow-up"></i> ${Math.abs(pctDiff)}% above avg`;
+        el.style.color = '#22c55e';
+        el.className = 'stat-change positive';
+    } else if (diff < 0) {
+        el.innerHTML = `<i class="fas fa-arrow-down"></i> ${Math.abs(pctDiff)}% below avg`;
+        el.style.color = '#ef4444';
+        el.className = 'stat-change negative';
+    } else {
+        el.innerHTML = `<i class="fas fa-minus"></i> At team avg`;
+        el.style.color = '#888';
+        el.className = 'stat-change';
+    }
+}
+
+function updateLastRefreshDisplay() {
+    let indicator = document.getElementById('lastRefreshIndicator');
+
+    if (!indicator) {
+        // Create the indicator if it doesn't exist
+        const statsGrid = document.querySelector('.stats-grid');
+        if (statsGrid) {
+            indicator = document.createElement('div');
+            indicator.id = 'lastRefreshIndicator';
+            indicator.style.cssText = 'text-align: center; color: #888; font-size: 12px; margin-top: 15px; padding: 8px; background: rgba(255,255,255,0.5); border-radius: 20px;';
+            statsGrid.parentElement.insertBefore(indicator, statsGrid.nextSibling);
+        }
+    }
+
+    if (indicator && lastStatsUpdate) {
+        const now = new Date();
+        const diff = Math.round((now - lastStatsUpdate) / 1000);
+
+        if (diff < 5) {
+            indicator.innerHTML = '<i class="fas fa-sync-alt" style="color: #22c55e;"></i> Just updated';
+        } else if (diff < 60) {
+            indicator.innerHTML = `<i class="fas fa-clock"></i> Updated ${diff}s ago`;
+        } else {
+            const mins = Math.floor(diff / 60);
+            indicator.innerHTML = `<i class="fas fa-clock"></i> Updated ${mins}m ago`;
+        }
+    }
+}
+
+// Start real-time updates when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
+        if (token) {
+            // Initial load
+            updateDashboardStats();
+
+            // Refresh stats every 60 seconds
+            statsRefreshInterval = setInterval(updateDashboardStats, 60000);
+
+            // Update the "time ago" display every 10 seconds
+            setInterval(updateLastRefreshDisplay, 10000);
+
+            console.log('Real-time dashboard refresh enabled (60s interval)');
+        }
+    }, 2000);
+});
+</script>
+
 <!-- Change PIN Modal -->
 <div id="changePinModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
     <div style="background: white; border-radius: 12px; padding: 30px; width: 350px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">

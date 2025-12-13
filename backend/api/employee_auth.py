@@ -165,7 +165,17 @@ def get_employee_stats(employee_id):
             FROM clock_times
             WHERE clock_in >= %s AND clock_in < %s
         """, (utc_start, utc_end))
-        
+
+        # Get team average stats for context
+        team_avg = get_db().execute_one("""
+            SELECT
+                AVG(items_processed) as avg_items,
+                AVG(efficiency_rate) as avg_efficiency,
+                AVG(points_earned) as avg_points
+            FROM daily_scores
+            WHERE score_date = %s AND items_processed > 0
+        """, (ct_date,))
+
         return jsonify({
             'success': True,
             'employee_id': employee_id,
@@ -174,8 +184,11 @@ def get_employee_stats(employee_id):
             'points_earned': stats['points_earned'],
             'efficiency': stats['efficiency'],
             'idle_minutes': min(stats['idle_minutes'], 999),  # Cap at 999
-            'employee_rank': rank_result['employee_rank'] if rank_result else 999,
-            'total_employees': total_result['total'] if total_result else 1
+            'employee_rank': rank_result['rank'] if rank_result else 999,
+            'total_employees': total_result['total'] if total_result else 1,
+            # Team context
+            'team_avg_items': round(team_avg['avg_items'], 1) if team_avg and team_avg['avg_items'] else 0,
+            'team_avg_efficiency': round(team_avg['avg_efficiency'], 1) if team_avg and team_avg['avg_efficiency'] else 0
         })
 
     except Exception as e:
