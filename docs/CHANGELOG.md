@@ -2,13 +2,14 @@
 
 All notable changes to the Productivity Tracker system.
 
-## [2.3.7] - 2025-12-12 (PENDING)
+## [2.3.7] - 2025-12-12
 
-### Discovered - Connecteam Sync Bug
-- **Root Cause**: `connecteam_sync.py` detects 6hr timezone offset but SKIPS instead of CORRECTING
-- **Impact**: Dec 1-9 data has mismatches between clock_times and daily_scores
-- **Location**: `_sync_clock_time()` lines 325-332
-- **Status**: Bug identified, fix pending
+### Fixed - Connecteam Sync Bug
+- **Root Cause**: `connecteam_sync.py` detected 6hr timezone offset but SKIPPED instead of CORRECTING
+- **Impact**: Dec 1-9 data had mismatches between clock_times and daily_scores
+- **Location**: `_sync_clock_time()` lines 329-362
+- **Fix**: Now UPDATES existing shifted records with correct UTC times
+- **Status**: DEPLOYED to server (commit 941114c)
 
 ### Data Quality Issues Found
 - Dec 2: Connecteam API had 52 shifts, DB only had 31 (10 employees missing)
