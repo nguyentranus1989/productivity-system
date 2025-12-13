@@ -3547,7 +3547,7 @@ def test_bottleneck():
         }), 500
     
 @dashboard_bp.route('/cost-analysis', methods=['GET'])
-@cached_endpoint(ttl_seconds=120)  # Increased from 30s to improve cache hit rate
+@cached_endpoint(ttl_seconds=120)
 def get_cost_analysis():
     """Get comprehensive cost analysis data with support for date ranges"""
     try:
@@ -3584,10 +3584,10 @@ def get_cost_analysis():
             
             # Calculate UTC boundaries
             utc_start = f"{start_date} {offset_start:02d}:00:00"
-            
-            # End date needs next day for boundary
+
+            # End date needs next day for boundary (exclusive end for range queries)
             end_next = datetime(end_year, end_month, end_day) + timedelta(days=1)
-            utc_end = f"{end_next.strftime('%Y-%m-%d')} {offset_end-1:02d}:59:59"
+            utc_end = f"{end_next.strftime('%Y-%m-%d')} {offset_end:02d}:00:00"  # Exclusive end
         
         # Define is_date_range variable
         is_date_range = (start_date != end_date)
@@ -3600,18 +3600,18 @@ def get_cost_analysis():
         logger.info(f"Cost analysis for: {start_date} to {end_date} (UTC: {utc_start} to {utc_end}, is_today_only: {is_today_only})")
 
         # Get employee costs for the date range
-        # OPTIMIZED: Uses JOINs instead of correlated subqueries for 10-20x performance improvement
-        # NOTE: Filter by CT date using CONVERT_TZ since clock_in is stored in UTC
+        # OPTIMIZED: Uses UTC range filter (not CONVERT_TZ) for index usage on clock_times
+        # OPTIMIZED: Uses JOINs instead of correlated subqueries
         employee_costs_query = """
         WITH clock_hours AS (
-            -- Pre-aggregate clock_times once (filter by CT date)
+            -- Pre-aggregate clock_times once (filter by UTC range for index usage)
             SELECT
                 employee_id,
                 SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, UTC_TIMESTAMP())))) / 60.0 as clocked_hours,
                 COUNT(DISTINCT DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago'))) as days_worked,
                 MIN(clock_in) as first_clock_in
             FROM clock_times
-            WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
+            WHERE clock_in >= %s AND clock_in < %s
             GROUP BY employee_id
         ),
         score_agg AS (
@@ -3667,13 +3667,13 @@ def get_cost_analysis():
         ORDER BY e.name
         """
 
-        # Optimized params: only 4 date params needed (was 13)
+        # Optimized params: UTC range for clock_times (uses index), dates for daily_scores
         employee_costs = db_manager.execute_query(
             employee_costs_query,
-            (start_date, end_date,  # clock_hours CTE
-            start_date, end_date)   # score_agg CTE
+            (utc_start, utc_end,    # clock_hours CTE (UTC range for index)
+            start_date, end_date)   # score_agg CTE (date range)
         )
-        
+
         # OPTIMIZED: Get activity breakdown for ALL employees in a single batch query (was N+1)
         employee_ids = [emp['id'] for emp in employee_costs]
         if employee_ids:

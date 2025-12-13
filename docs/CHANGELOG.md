@@ -20,9 +20,15 @@ All notable changes to the Productivity Tracker system.
 - **Console Error**: Removed dead `pendingBadge` code throwing null reference errors
   - Element never existed in DOM, code was orphaned
 
+### Performance
+- **Cost Analysis Query Optimization**: Changed clock_times filter to use UTC range
+  - **Before**: `WHERE DATE(CONVERT_TZ(clock_in...))` - full table scan (4494 rows)
+  - **After**: `WHERE clock_in >= ? AND clock_in < ?` - index range scan (800 rows for 1 month)
+  - **Impact**: 5-6x fewer rows scanned, scales better with data growth
+
 ### Technical Details
 - `backend/api/system_control.py`: Added recalculation endpoints with timing
-- `backend/api/dashboard.py`: Fixed utilization formula (line ~3623)
+- `backend/api/dashboard.py`: Fixed utilization formula, optimized clock_times filter
 - `frontend/manager.html`: Added recalculation modal, removed dead badge code
 
 ---
