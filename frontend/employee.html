@@ -3,1732 +3,1667 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Employee Portal - My Performance</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>My Performance | PodFactory</title>
+    <!-- Distinctive Typography: JetBrains Mono for data, DM Sans for UI -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
+        /* ============================================
+           INDUSTRIAL DASHBOARD AESTHETIC
+           Dark slate + amber accents + data-focused
+           ============================================ */
+
+        :root {
+            /* Core palette - Industrial */
+            --bg-primary: #0f1419;
+            --bg-secondary: #1a1f26;
+            --bg-card: #1e252e;
+            --bg-elevated: #262d38;
+
+            /* Accent - Safety amber */
+            --accent-primary: #f59e0b;
+            --accent-secondary: #fbbf24;
+            --accent-glow: rgba(245, 158, 11, 0.15);
+
+            /* Semantic colors */
+            --success: #22c55e;
+            --success-muted: rgba(34, 197, 94, 0.15);
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --danger-muted: rgba(239, 68, 68, 0.15);
+
+            /* Text */
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+
+            /* Border */
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-accent: rgba(245, 158, 11, 0.3);
+
+            /* Typography */
+            --font-ui: 'DM Sans', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+
+            /* Spacing scale */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+            --space-2xl: 48px;
+
+            /* Radius */
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-full: 9999px;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            font-family: var(--font-ui);
+            background: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
-            color: #333;
+            line-height: 1.5;
         }
-        
-        /* Header */
+
+        /* Subtle grid texture overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ============================================
+           HEADER
+           ============================================ */
+
         .app-header {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-subtle);
             position: sticky;
             top: 0;
-            z-index: 1000;
+            z-index: 100;
+            backdrop-filter: blur(12px);
         }
-        
+
         .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--space-md) var(--space-lg);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 30px;
-            max-width: 1400px;
-            margin: 0 auto;
         }
-        
+
         .logo {
-            font-size: 1.8em;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
             font-weight: 700;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-size: 1.25rem;
+            color: var(--text-primary);
         }
-        
-        .user-menu {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        .notification-bell {
-            position: relative;
-            cursor: pointer;
-            font-size: 1.3em;
-            color: #666;
-            transition: color 0.3s ease;
-        }
-        
-        .notification-bell:hover {
-            color: #667eea;
-        }
-        
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #ef4444;
-            color: white;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
+
+        .logo-mark {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: var(--radius-sm);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.7em;
-            font-weight: bold;
+            font-size: 14px;
         }
-        
-        .user-avatar {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+        .user-section {
             display: flex;
             align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 1.2em;
+            gap: var(--space-md);
+        }
+
+        .user-name {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            display: none;
+        }
+
+        @media (min-width: 640px) {
+            .user-name { display: block; }
+        }
+
+        .header-btn {
+            padding: var(--space-sm) var(--space-md);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-family: var(--font-ui);
+            font-size: 0.875rem;
             cursor: pointer;
-            transition: transform 0.3s ease;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
-        
-        .user-avatar:hover {
-            transform: scale(1.05);
+
+        .header-btn:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-color: var(--border-accent);
         }
-        
-        /* Main Container */
+
+        .header-btn.danger {
+            color: var(--danger);
+        }
+
+        .header-btn.danger:hover {
+            background: var(--danger-muted);
+            border-color: var(--danger);
+        }
+
+        /* ============================================
+           MAIN CONTAINER
+           ============================================ */
+
         .main-container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 30px;
+            padding: var(--space-lg);
+            position: relative;
+            z-index: 1;
         }
-        
-        /* Welcome Section */
-        .welcome-section {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            margin-bottom: 30px;
-            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-        
-        .welcome-title {
-            font-size: 2.5em;
-            font-weight: 700;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .welcome-subtitle {
-            color: #666;
-            font-size: 1.2em;
-            margin-bottom: 30px;
-        }
-        
-        .clock-actions {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .clock-btn {
-            padding: 15px 40px;
-            border: none;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 1.1em;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .clock-in {
-            background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-            color: white;
-        }
-        
-        .clock-in:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(16, 185, 129, 0.4);
-        }
-        
-        .clock-out {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-        }
-        
-        .clock-out:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(239, 68, 68, 0.4);
-        }
-        
-        .clock-status {
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(102, 126, 234, 0.1);
-            border-radius: 12px;
-            color: #667eea;
-            font-weight: 600;
-        }
-        
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-card {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
+
+        /* ============================================
+           HERO SECTION - Employee Status
+           ============================================ */
+
+        .hero-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: var(--space-xl);
+            margin-bottom: var(--space-lg);
             position: relative;
             overflow: hidden;
         }
-        
-        .stat-card::before {
+
+        /* Accent glow */
+        .hero-section::before {
             content: '';
             position: absolute;
             top: 0;
             right: 0;
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            border-radius: 0 0 0 100%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            pointer-events: none;
         }
-        
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-greeting {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: var(--space-xs);
+        }
+
+        .hero-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: var(--space-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .hero-title span {
+            color: var(--accent-primary);
+        }
+
+        .hero-subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-bottom: var(--space-lg);
+        }
+
+        .clock-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-md);
+            background: var(--success-muted);
+            border: 1px solid var(--success);
+            border-radius: var(--radius-full);
+            color: var(--success);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .clock-status-badge.inactive {
+            background: var(--danger-muted);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* ============================================
+           STATS GRID - Key Metrics
+           ============================================ */
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-md);
+            margin-bottom: var(--space-lg);
+        }
+
+        @media (min-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: var(--space-lg);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
         .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            border-color: var(--border-accent);
+            transform: translateY(-2px);
         }
-        
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: var(--space-md);
+            right: var(--space-md);
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-primary), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .stat-card:hover::after {
+            opacity: 1;
+        }
+
         .stat-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 15px;
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.8em;
-            margin-bottom: 20px;
+            margin-bottom: var(--space-md);
+            font-size: 1.25rem;
         }
-        
-        .stat-icon.blue { background: rgba(102, 126, 234, 0.1); color: #667eea; }
-        .stat-icon.green { background: rgba(52, 211, 153, 0.1); color: #34d399; }
-        .stat-icon.purple { background: rgba(168, 85, 247, 0.1); color: #a855f7; }
-        .stat-icon.yellow { background: rgba(251, 191, 36, 0.1); color: #fbbf24; }
-        
+
+        .stat-icon.amber { background: var(--accent-glow); color: var(--accent-primary); }
+        .stat-icon.green { background: var(--success-muted); color: var(--success); }
+        .stat-icon.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+        .stat-icon.purple { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+
         .stat-value {
-            font-size: 2.5em;
+            font-family: var(--font-mono);
+            font-size: 2rem;
             font-weight: 700;
-            margin-bottom: 5px;
-            color: #1a1a1a;
+            color: var(--text-primary);
+            line-height: 1;
+            margin-bottom: var(--space-xs);
         }
-        
+
+        .stat-value.updating {
+            animation: valueFlash 0.3s ease;
+        }
+
+        @keyframes valueFlash {
+            0% { color: var(--accent-primary); transform: scale(1.05); }
+            100% { color: var(--text-primary); transform: scale(1); }
+        }
+
         .stat-label {
-            color: #666;
-            font-size: 1em;
-            margin-bottom: 15px;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--space-sm);
         }
-        
-        .stat-change {
-            display: inline-flex;
+
+        .stat-context {
+            font-size: 0.75rem;
+            display: flex;
             align-items: center;
-            gap: 5px;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            font-weight: 600;
+            gap: 4px;
         }
-        
-        .stat-change.positive {
-            background: rgba(52, 211, 153, 0.1);
-            color: #10b981;
+
+        .stat-context.positive { color: var(--success); }
+        .stat-context.negative { color: var(--danger); }
+        .stat-context.neutral { color: var(--text-muted); }
+
+        /* ============================================
+           SECTION CARDS
+           ============================================ */
+
+        .section-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            margin-bottom: var(--space-lg);
         }
-        
-        .stat-change.negative {
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
-        }
-        
-        /* Progress Section */
-        .progress-section {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.1);
-        }
-        
+
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
+            margin-bottom: var(--space-lg);
         }
-        
+
         .section-title {
-            font-size: 1.5em;
-            font-weight: 700;
-            color: #1a1a1a;
-        }
-        
-        .view-toggle {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
             display: flex;
-            gap: 10px;
+            align-items: center;
+            gap: var(--space-sm);
         }
-        
+
+        .section-title i {
+            color: var(--accent-primary);
+        }
+
+        .section-actions {
+            display: flex;
+            gap: var(--space-sm);
+        }
+
         .toggle-btn {
-            padding: 8px 16px;
-            border: 1px solid #e0e0e0;
-            background: white;
-            border-radius: 8px;
-            color: #666;
+            padding: 6px 12px;
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            font-family: var(--font-ui);
+            font-size: 0.75rem;
             cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.9em;
+            transition: all 0.2s ease;
         }
-        
+
+        .toggle-btn:hover {
+            border-color: var(--text-muted);
+            color: var(--text-secondary);
+        }
+
         .toggle-btn.active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: var(--bg-primary);
         }
-        
-        /* Daily Goals */
+
+        .btn-primary {
+            padding: var(--space-sm) var(--space-md);
+            background: var(--accent-primary);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: var(--bg-primary);
+            font-family: var(--font-ui);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-secondary);
+            transform: translateY(-1px);
+        }
+
+        /* ============================================
+           TREND CHART
+           ============================================ */
+
+        .chart-container {
+            position: relative;
+            height: 220px;
+        }
+
+        .chart-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: var(--text-muted);
+        }
+
+        .chart-empty i {
+            font-size: 3rem;
+            opacity: 0.3;
+            margin-bottom: var(--space-md);
+        }
+
+        /* ============================================
+           GOALS
+           ============================================ */
+
+        .goals-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+        }
+
         .goal-item {
-            padding: 20px;
-            border: 1px solid #e0e0e0;
-            border-radius: 15px;
-            margin-bottom: 15px;
-            transition: all 0.3s ease;
+            background: var(--bg-elevated);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            position: relative;
         }
-        
-        .goal-item:hover {
-            border-color: #667eea;
-            transform: translateX(5px);
-        }
-        
+
         .goal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: var(--space-sm);
         }
-        
-        .goal-title {
-            font-weight: 600;
-            color: #1a1a1a;
-            font-size: 1.1em;
+
+        .goal-metric {
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 0.9375rem;
         }
-        
-        .goal-value {
-            font-weight: 700;
-            color: #667eea;
-            font-size: 1.2em;
+
+        .goal-progress-text {
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            color: var(--accent-primary);
         }
-        
-        .progress-bar {
-            height: 10px;
-            background: #f0f0f0;
-            border-radius: 10px;
+
+        .goal-progress-bar {
+            height: 6px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-full);
             overflow: hidden;
-            margin-bottom: 10px;
+            margin-bottom: var(--space-xs);
         }
-        
-        .progress-fill {
+
+        .goal-progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
-            transition: width 0.5s ease;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: var(--radius-full);
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
-        .goal-status {
-            font-size: 0.9em;
-            color: #666;
+
+        .goal-progress-fill.complete {
+            background: linear-gradient(90deg, var(--success), #4ade80);
         }
-        
-        /* Achievement Section */
-        .achievements-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 20px;
-        }
-        
-        .achievement-card {
-            background: white;
-            border: 2px solid #e0e0e0;
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            position: relative;
-        }
-        
-        .achievement-card.earned {
-            border-color: #667eea;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
-        }
-        
-        .achievement-card:hover {
-            transform: scale(1.05);
-        }
-        
-        .achievement-icon {
-            font-size: 3em;
-            margin-bottom: 10px;
-            filter: grayscale(100%);
-            opacity: 0.5;
-        }
-        
-        .achievement-card.earned .achievement-icon {
-            filter: none;
-            opacity: 1;
-        }
-        
-        .achievement-name {
-            font-weight: 600;
-            color: #666;
-            font-size: 0.9em;
-        }
-        
-        .achievement-card.earned .achievement-name {
-            color: #1a1a1a;
-        }
-        
-        /* Activity History */
-        .activity-timeline {
-            position: relative;
-            padding-left: 30px;
-        }
-        
-        .activity-timeline::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: #e0e0e0;
-        }
-        
-        .timeline-item {
-            position: relative;
-            padding-bottom: 30px;
-        }
-        
-        .timeline-dot {
-            position: absolute;
-            left: -35px;
-            top: 5px;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #667eea;
-            border: 2px solid white;
-        }
-        
-        .timeline-content {
-            background: #f8f9fa;
-            padding: 15px 20px;
-            border-radius: 12px;
-            margin-left: 10px;
-        }
-        
-        .timeline-title {
-            font-weight: 600;
-            color: #1a1a1a;
-            margin-bottom: 5px;
-        }
-        
-        .timeline-time {
-            font-size: 0.9em;
-            color: #666;
-        }
-        
-        /* Bottom Navigation (Mobile) */
-        .bottom-nav {
-            display: none;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.1);
-            padding: 10px 0;
-            z-index: 1000;
-        }
-        
-        .nav-items {
+
+        .goal-footer {
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
             align-items: center;
         }
-        
-        .nav-item {
+
+        .goal-percent {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .goal-delete {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            opacity: 0;
+            transition: opacity 0.2s ease, color 0.2s ease;
+        }
+
+        .goal-item:hover .goal-delete {
+            opacity: 1;
+        }
+
+        .goal-delete:hover {
+            color: var(--danger);
+        }
+
+        .goals-empty {
+            text-align: center;
+            padding: var(--space-xl);
+            color: var(--text-muted);
+        }
+
+        .goals-empty i {
+            font-size: 2.5rem;
+            opacity: 0.3;
+            margin-bottom: var(--space-md);
+        }
+
+        /* ============================================
+           ALERTS
+           ============================================ */
+
+        .alerts-container {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-lg);
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            padding: var(--space-md);
+            background: var(--bg-card);
+            border-left: 3px solid;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            animation: slideIn 0.3s ease;
+        }
+
+        .alert-item.success { border-color: var(--success); }
+        .alert-item.warning { border-color: var(--warning); }
+        .alert-item.danger { border-color: var(--danger); }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .alert-icon {
+            font-size: 1.25rem;
+        }
+
+        .alert-item.success .alert-icon { color: var(--success); }
+        .alert-item.warning .alert-icon { color: var(--warning); }
+        .alert-item.danger .alert-icon { color: var(--danger); }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 2px;
+        }
+
+        .alert-item.success .alert-title { color: var(--success); }
+        .alert-item.warning .alert-title { color: var(--warning); }
+        .alert-item.danger .alert-title { color: var(--danger); }
+
+        .alert-message {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .alert-dismiss {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        /* ============================================
+           LAST UPDATE INDICATOR
+           ============================================ */
+
+        .update-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .update-indicator i {
+            font-size: 0.875rem;
+        }
+
+        .update-indicator.fresh i {
+            color: var(--success);
+        }
+
+        /* ============================================
+           MODALS
+           ============================================ */
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: var(--space-lg);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 400px;
+            padding: var(--space-xl);
+            animation: modalIn 0.3s ease;
+        }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-lg);
+        }
+
+        .modal-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .modal-title i {
+            color: var(--accent-primary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .form-group {
+            margin-bottom: var(--space-md);
+        }
+
+        .form-label {
+            display: block;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--space-xs);
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: var(--space-md);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-ui);
+            font-size: 1rem;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .form-select {
+            cursor: pointer;
+        }
+
+        .form-error {
+            background: var(--danger-muted);
+            color: var(--danger);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            margin-bottom: var(--space-md);
+            display: none;
+        }
+
+        .form-success {
+            background: var(--success-muted);
+            color: var(--success);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            margin-bottom: var(--space-md);
+            display: none;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: var(--space-sm);
+            margin-top: var(--space-lg);
+        }
+
+        .btn-secondary {
+            flex: 1;
+            padding: var(--space-md);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-family: var(--font-ui);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .modal-actions .btn-primary {
+            flex: 1;
+            padding: var(--space-md);
+        }
+
+        /* ============================================
+           LOADING STATE
+           ============================================ */
+
+        .loading-state {
             display: flex;
             flex-direction: column;
             align-items: center;
-            color: #666;
-            text-decoration: none;
-            padding: 5px 10px;
-            transition: color 0.3s ease;
+            justify-content: center;
+            min-height: 60vh;
+            color: var(--text-muted);
         }
-        
-        .nav-item.active {
-            color: #667eea;
-        }
-        
-        .nav-item i {
-            font-size: 1.5em;
-            margin-bottom: 5px;
-        }
-        
-        .nav-item span {
-            font-size: 0.8em;
-        }
-        
-        /* Loading State */
-        .loading {
-            text-align: center;
-            padding: 50px;
-            color: #666;
-        }
-        
-        .loading i {
-            font-size: 3em;
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--border-subtle);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
             animation: spin 1s linear infinite;
+            margin-bottom: var(--space-md);
         }
-        
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
         }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+
+        @media (max-width: 640px) {
             .main-container {
-                padding: 20px;
-                padding-bottom: 80px;
+                padding: var(--space-md);
             }
-            
-            .welcome-section {
-                padding: 30px 20px;
+
+            .hero-section {
+                padding: var(--space-lg);
             }
-            
-            .welcome-title {
-                font-size: 2em;
+
+            .hero-title {
+                font-size: 1.5rem;
             }
-            
-            .stats-grid {
-                grid-template-columns: 1fr 1fr;
-                gap: 15px;
+
+            .stat-value {
+                font-size: 1.5rem;
             }
-            
-            .stat-card {
-                padding: 20px;
-            }
-            
-            .bottom-nav {
-                display: block;
+
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-md);
             }
         }
-/* Mobile Scrolling Fix */
-@media only screen and (max-width: 768px) {
-    body {
-        overflow: auto !important;
-        overflow-x: hidden !important;
-        height: auto !important;
-    }
-    .main-container, .container, .dashboard-container {
-        height: auto !important;
-        overflow: visible !important;
-    }
-}
+
+        /* Hide employee selector for logged-in employees */
+        #employeeSelector { display: none !important; }
     </style>
 </head>
-
 <body>
-    <!-- Login Overlay -->
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; color: #555; margin-bottom: 8px; font-weight: 600;">PIN</label>
-                <input type="password" id="pin" maxlength="4" pattern="[0-9]{4}" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;" placeholder="Enter 4-digit PIN">
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; color: #555; cursor: pointer;">
-                    <input type="checkbox" id="rememberMe" style="margin-right: 8px;">
-                    Remember me for 7 days
-                </label>
-            </div>
-            <div id="loginError" style="color: red; margin-top: 15px; text-align: center; display: none;"></div>
-        </div>
-    </div>
-    <script>
-        }
-        
-        function showLoginError(message) {
-            const errorDiv = document.getElementById("loginError");
-            if (errorDiv) {
-                errorDiv.textContent = message;
-                errorDiv.style.display = "block";
-            }
-        }
-        
-        function logout() {
-            localStorage.clear();
-            sessionStorage.clear();
-            location.reload();
-        }
-        
-        // Check if already logged in
-        document.addEventListener("DOMContentLoaded", function() {
-            const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-            if (token) {
-                const name = localStorage.getItem("employeeName") || sessionStorage.getItem("employeeName");
-                const userNameElement = document.querySelector(".user-name");
-                if (userNameElement && name) {
-                    userNameElement.textContent = name;
-                }
-            }
-        });
-    </script>
-    <script>
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    if (rememberMe) {
-                        localStorage.setItem("employeeToken", data.token);
-                        localStorage.setItem("employeeId", data.employee_id);
-                        localStorage.setItem("employeeName", data.name);
-                    } else {
-                        sessionStorage.setItem("employeeToken", data.token);
-                        sessionStorage.setItem("employeeId", data.employee_id);
-                        sessionStorage.setItem("employeeName", data.name);
-                    }
-                    
-                    location.reload();
-                } else {
-                    showLoginError(data.message || "Invalid credentials");
-                }
-            } catch (error) {
-                showLoginError("Connection error. Please try again.");
-                console.error("Login error:", error);
-            }
-        }
-        
-        function showLoginError(message) {
-            const errorDiv = document.getElementById("loginError");
-            if (errorDiv) {
-                errorDiv.textContent = message;
-                errorDiv.style.display = "block";
-            }
-        }
-        
-        function logout() {
-            localStorage.clear();
-            sessionStorage.clear();
-            location.reload();
-        }
-        
-        // Check if already logged in
-        document.addEventListener("DOMContentLoaded", function() {
-            const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-            if (token) {
-                const name = localStorage.getItem("employeeName") || sessionStorage.getItem("employeeName");
-                const userNameElement = document.querySelector(".user-name");
-                if (userNameElement && name) {
-                    userNameElement.textContent = name;
-                }
-            } else {
-            }
-        });
-    </script>
     <!-- Header -->
     <header class="app-header">
         <div class="header-content">
-            <div class="logo">PodFactory Employee Portal</div>
-            <div class="user-menu">
-                <span class="user-name" style="margin-right: 15px; font-weight: 600; color: #333;"></span>
-                <button onclick="openChangePinModal()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
-                    <i class="fas fa-key"></i> Change PIN
+            <div class="logo">
+                <div class="logo-mark"><i class="fas fa-industry"></i></div>
+                PodFactory
+            </div>
+            <div class="user-section">
+                <span class="user-name" id="headerUserName"></span>
+                <button onclick="openChangePinModal()" class="header-btn">
+                    <i class="fas fa-key"></i>
+                    <span class="btn-text">PIN</span>
                 </button>
-                <button onclick="logout()" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">Logout</button>
-                <select id="employeeSelector" class="form-select" style="width: 200px; margin-right: 20px;">
-                    <option value="">Select Employee...</option>
-                </select>
-                <div class="notification-bell">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-badge" style="display: none;">0</span>
-                </div>
-                <div class="user-avatar" id="userAvatar">--</div>
+                <button onclick="logout()" class="header-btn danger">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span class="btn-text">Logout</span>
+                </button>
             </div>
         </div>
     </header>
-    
+
     <!-- Main Container -->
-    <div class="main-container">
+    <main class="main-container">
         <!-- Loading State -->
-        <div id="loadingState" class="loading">
-            <i class="fas fa-spinner"></i>
-            <p>Loading your data...</p>
+        <div id="loadingState" class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Loading your dashboard...</p>
         </div>
-        
-        <!-- Content (hidden initially) -->
+
+        <!-- Main Content (hidden initially) -->
         <div id="mainContent" style="display: none;">
-            <!-- Welcome Section -->
-            <div class="welcome-section">
-                <h1 class="welcome-title">Welcome back, <span id="employeeName">Employee</span>!</h1>
-                <p class="welcome-subtitle" id="welcomeMessage">Let's make today productive!</p>
-                
-                <div class="clock-actions" id="clockActions">
-                    <!-- Clock buttons will be inserted here based on status -->
+            <!-- Hero Section -->
+            <section class="hero-section">
+                <div class="hero-content">
+                    <p class="hero-greeting">Welcome back</p>
+                    <h1 class="hero-title">
+                        <span id="employeeName">Employee</span>
+                    </h1>
+                    <p class="hero-subtitle" id="welcomeMessage">Let's make today count.</p>
+                    <div id="clockStatus">
+                        <span class="clock-status-badge">
+                            <span class="status-dot"></span>
+                            Active
+                        </span>
+                    </div>
                 </div>
-                
-                <div class="clock-status" id="clockStatus" style="display: none;">
-                    <!-- Clock status will be shown here -->
-                </div>
-            </div>
-            
+            </section>
+
+            <!-- Alerts Container -->
+            <div id="alertsContainer" class="alerts-container"></div>
+
             <!-- Stats Grid -->
-            <div class="stats-grid">
+            <section class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-icon blue">
+                    <div class="stat-icon amber">
                         <i class="fas fa-box"></i>
                     </div>
                     <div class="stat-value" id="itemsToday">0</div>
                     <div class="stat-label">Items Today</div>
-                    <span class="stat-change" id="itemsChange" style="display: none;">
-                        <i class="fas fa-arrow-up"></i> <span></span>
-                    </span>
+                    <div class="stat-context neutral" id="itemsContext">
+                        <i class="fas fa-minus"></i> Loading...
+                    </div>
                 </div>
-                
+
                 <div class="stat-card">
                     <div class="stat-icon green">
-                        <i class="fas fa-tachometer-alt"></i>
+                        <i class="fas fa-gauge-high"></i>
                     </div>
-                    <div class="stat-value" id="itemsPerMinute">0</div>
-                    <div class="stat-label">Items/Minute</div>
-                    <span class="stat-change" id="speedChange" style="display: none;">
-                        <i class="fas fa-arrow-up"></i> <span></span>
-                    </span>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon purple">
-                        <i class="fas fa-fire"></i>
+                    <div class="stat-value" id="efficiency">0%</div>
+                    <div class="stat-label">Efficiency</div>
+                    <div class="stat-context neutral" id="efficiencyContext">
+                        <i class="fas fa-minus"></i> Loading...
                     </div>
-                    <div class="stat-value" id="streakDays">0</div>
-                    <div class="stat-label">Day Streak</div>
-                    <span class="stat-change positive" id="streakMessage">
-                        Start your streak!
-                    </span>
                 </div>
-                
+
                 <div class="stat-card">
-                    <div class="stat-icon yellow">
-                        <i class="fas fa-medal"></i>
+                    <div class="stat-icon blue">
+                        <i class="fas fa-trophy"></i>
                     </div>
                     <div class="stat-value" id="currentRank">#-</div>
-                    <div class="stat-label">Current Rank</div>
-                    <span class="stat-change" id="rankChange">
-                        Keep going!
-                    </span>
-                </div>
-            </div>
-
-            <!-- Performance Trend Chart -->
-            <div class="progress-section" style="background: white; border-radius: 16px; padding: 25px; margin-bottom: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="font-size: 1.3em; font-weight: 600; color: #333; margin: 0;">
-                        <i class="fas fa-chart-line" style="color: #667eea; margin-right: 10px;"></i>Performance Trend
-                    </h2>
-                    <div style="display: flex; gap: 8px;">
-                        <button onclick="loadTrendChart(7)" class="trend-btn" data-days="7" style="padding: 6px 12px; border: 1px solid #ddd; background: white; border-radius: 20px; cursor: pointer; font-size: 12px;">7 Days</button>
-                        <button onclick="loadTrendChart(30)" class="trend-btn active" data-days="30" style="padding: 6px 12px; border: 1px solid #667eea; background: #667eea; color: white; border-radius: 20px; cursor: pointer; font-size: 12px;">30 Days</button>
-                        <button onclick="loadTrendChart(90)" class="trend-btn" data-days="90" style="padding: 6px 12px; border: 1px solid #ddd; background: white; border-radius: 20px; cursor: pointer; font-size: 12px;">90 Days</button>
+                    <div class="stat-label">Team Rank</div>
+                    <div class="stat-context neutral" id="rankContext">
+                        <span>of - employees</span>
                     </div>
                 </div>
-                <div style="position: relative; height: 250px;">
+
+                <div class="stat-card">
+                    <div class="stat-icon purple">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="stat-value" id="pointsToday">0</div>
+                    <div class="stat-label">Points Earned</div>
+                    <div class="stat-context neutral" id="pointsContext">
+                        <i class="fas fa-minus"></i> Today
+                    </div>
+                </div>
+            </section>
+
+            <!-- Update Indicator -->
+            <div class="update-indicator" id="updateIndicator">
+                <i class="fas fa-sync-alt"></i>
+                <span>Updated just now</span>
+            </div>
+
+            <!-- Performance Trend -->
+            <section class="section-card">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <i class="fas fa-chart-line"></i>
+                        Performance Trend
+                    </h2>
+                    <div class="section-actions">
+                        <button onclick="loadTrendChart(7)" class="toggle-btn trend-btn" data-days="7">7D</button>
+                        <button onclick="loadTrendChart(30)" class="toggle-btn trend-btn active" data-days="30">30D</button>
+                        <button onclick="loadTrendChart(90)" class="toggle-btn trend-btn" data-days="90">90D</button>
+                    </div>
+                </div>
+                <div class="chart-container">
                     <canvas id="trendChart"></canvas>
                 </div>
-                <div id="trendNoData" style="display: none; text-align: center; padding: 40px; color: #888;">
-                    <i class="fas fa-chart-area" style="font-size: 48px; opacity: 0.3; margin-bottom: 15px;"></i>
-                    <p>No trend data available yet. Keep working to build your history!</p>
+                <div id="trendNoData" class="chart-empty" style="display: none;">
+                    <i class="fas fa-chart-area"></i>
+                    <p>No trend data yet. Keep working to build your history!</p>
                 </div>
-            </div>
+            </section>
 
             <!-- Daily Goals -->
-            <div class="progress-section" style="background: white; border-radius: 16px; padding: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="font-size: 1.3em; font-weight: 600; color: #333; margin: 0;">
-                        <i class="fas fa-bullseye" style="color: #667eea; margin-right: 10px;"></i>Today's Goals
+            <section class="section-card">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <i class="fas fa-bullseye"></i>
+                        Today's Goals
                     </h2>
-                    <button onclick="openAddGoalModal()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 13px;">
-                        <i class="fas fa-plus"></i> Add Goal
+                    <button onclick="openAddGoalModal()" class="btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Add Goal
                     </button>
                 </div>
-                <div id="goalsContainer">
-                    <div style="text-align: center; padding: 30px; color: #888;">
-                        <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
-                        <p style="margin-top: 10px;">Loading goals...</p>
-                    </div>
+                <div id="goalsContainer" class="goals-list">
+                    <!-- Goals loaded dynamically -->
                 </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Add Goal Modal -->
+    <div id="addGoalModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-bullseye"></i>
+                    Set Daily Goal
+                </h3>
+                <button onclick="closeAddGoalModal()" class="modal-close">&times;</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Metric</label>
+                <select id="goalMetric" class="form-select">
+                    <option value="">Select what to track...</option>
+                    <option value="items_processed">Items Processed</option>
+                    <option value="points_earned">Points Earned</option>
+                    <option value="active_minutes">Active Minutes</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Target Value</label>
+                <input type="number" id="goalTarget" class="form-input" min="1" placeholder="e.g. 200">
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeAddGoalModal()" class="btn-secondary">Cancel</button>
+                <button onclick="submitNewGoal()" class="btn-primary">
+                    <i class="fas fa-check"></i>
+                    Create Goal
+                </button>
             </div>
         </div>
     </div>
-<script>
-        // Employee Authentication
-        let currentEmployee = null;
-        let authToken = localStorage.getItem("employeeToken");
-        
-        // Check for existing session on page load
-        window.addEventListener("DOMContentLoaded", async () => {
-            if (authToken) {
-                const verified = await verifyToken();
-                if (!verified) {
-                    showLogin();
-                }
-            } else {
-                showLogin();
-            }
-        });
-        
-        function showLogin() {
-        }
-        
-        
-});
-</script>
-<script>
-// Hide employee selector for regular employees
-document.addEventListener("DOMContentLoaded", function() {
-    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
-    if (employeeId) {
-        // Hide the employee selector dropdown
-        const selectorContainer = document.querySelector('.employee-selector-container');
-        const selector = document.getElementById('employeeSelector');
-        if (selectorContainer) selectorContainer.style.display = 'none';
-        if (selector) selector.style.display = 'none';
-        
-        // Also hide any parent container that might have the selector
-        const userMenu = document.querySelector('.user-menu select');
-        if (userMenu) userMenu.style.display = 'none';
-    }
-});
-</script>
-<script>
-// Allow Enter key to submit login
-document.addEventListener("DOMContentLoaded", function() {
-    const pinInput = document.getElementById("pin");
-    const employeeIdInput = document.getElementById("employeeId");
-    
-    if (pinInput) {
-        pinInput.addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {
-                event.preventDefault();
-            }
-        });
-    }
-    
-    if (employeeIdInput) {
-        employeeIdInput.addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                // Move focus to PIN field if it's empty
-                const pin = document.getElementById("pin");
-                if (pin && !pin.value) {
-                    pin.focus();
-                } else {
-                }
-            }
-        });
-    }
-});
-</script>
-<script>
-// Update to show loading for both click and Enter key
-(function() {
-</script>
-<script>
-// Override the employee loading for logged-in users
-document.addEventListener("DOMContentLoaded", function() {
-    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
-    const employeeName = localStorage.getItem("employeeName") || sessionStorage.getItem("employeeName");
-    const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-    
-    if (employeeId && token) {
-        console.log("Logged in as:", employeeName, "(ID:", employeeId + ")");
-        
-        // Hide the employee selector completely
-        const selector = document.getElementById('employeeSelector');
-        if (selector) {
-            // Hide the selector and its parent container
-            selector.style.display = 'none';
-            if (selector.parentElement) {
-                selector.parentElement.style.display = 'none';
-            }
-        }
-        
-        // Override the API call to not load all employees
-        if (window.api && window.api.getEmployees) {
-            const originalGetEmployees = window.api.getEmployees;
-            window.api.getEmployees = async function() {
-                // Return only the logged-in employee instead of all employees
-                return [{
-                    id: parseInt(employeeId),
-                    name: employeeName
-                }];
-            };
-        }
-        
-        // Auto-trigger loading of employee data
-        setTimeout(function() {
-            const changeEvent = new Event('change');
-            const selector = document.getElementById('employeeSelector');
-            if (selector) {
-                selector.value = employeeId;
-                selector.dispatchEvent(changeEvent);
-            }
-        }, 1000);
-    }
-});
-</script>
-<script>
-// Ensure logout button is visible
-document.addEventListener("DOMContentLoaded", function() {
-    const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-    
-    if (token) {
-        // Find the logout button and make sure it's visible
-        const logoutBtn = document.querySelector('button[onclick="logout()"]');
-        if (logoutBtn) {
-            logoutBtn.style.display = 'inline-block';
-            logoutBtn.style.visibility = 'visible';
-            logoutBtn.style.zIndex = '9999';
-            console.log("Logout button found and made visible");
-        } else {
-            // If button doesn't exist, create it
-            const userMenu = document.querySelector('.user-menu');
-            if (userMenu) {
-                const newLogoutBtn = document.createElement('button');
-                newLogoutBtn.textContent = 'Logout';
-                newLogoutBtn.style.cssText = 'padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; margin-right: 15px;';
-                newLogoutBtn.onclick = function() { logout(); };
-                userMenu.insertBefore(newLogoutBtn, userMenu.firstChild);
-                console.log("Logout button created");
-            }
-        }
-    }
-});
-</script>
-<style>
-.fixed-logout-btn {
-}
-</style>
-<script>
-// Add permanent logout button for logged-in users
-document.addEventListener("DOMContentLoaded", function() {
-    setTimeout(function() {
-        const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-        
-        if (token) {
-            // Remove any existing fixed logout button
-            const existing = document.querySelector('.fixed-logout-btn');
-            if (existing) existing.remove();
-            
-            // Create new logout button
-            const logoutBtn = document.createElement('button');
-            logoutBtn.textContent = 'Logout';
-            logoutBtn.className = 'fixed-logout-btn';
-            logoutBtn.onclick = function() { logout(); };
-            document.body.appendChild(logoutBtn);
-            console.log("Fixed logout button added");
-        }
-    }, 2000); // Wait 2 seconds for page to fully load
-});
-</script>
-<script>
-// Performance Alerts System
-function checkPerformanceAlerts() {
-    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
-    if (!employeeId) return;
-    
-    // Create alerts container if it doesn't exist
-    let alertsContainer = document.getElementById('performanceAlerts');
-    if (!alertsContainer) {
-        // Find where to insert alerts (after welcome section)
-        const welcomeSection = document.querySelector('.welcome-section');
-        if (welcomeSection) {
-            alertsContainer = document.createElement('div');
-            alertsContainer.id = 'performanceAlerts';
-            alertsContainer.style.cssText = 'margin: 20px; padding: 0;';
-            welcomeSection.parentElement.insertBefore(alertsContainer, welcomeSection.nextSibling);
-        }
-    }
-    
-    // Fetch employee performance data
-    fetchPerformanceData(employeeId).then(data => {
-        displayAlerts(data, alertsContainer);
-    });
-}
 
-async function fetchPerformanceData(employeeId) {
-    try {
-        // Get employee stats from API
-        const response = await fetch(`/api/employee/${employeeId}/stats`);
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error('Error fetching performance data:', error);
-        return null;
-    }
-}
-
-function displayAlerts(data, container) {
-    if (!container) return;
-    
-    // Clear existing alerts
-    container.innerHTML = '';
-    
-    const alerts = [];
-    
-    // Mock data for testing - replace with actual data from API
-    const idleMinutes = data?.idle_minutes || 0;
-    const efficiency = data?.efficiency || 0;
-    const rank = data?.employee_rank || data?.rank || 999;
-    const totalEmployees = data?.total_employees || 20;
-    
-    // Check for idle warning
-    if (idleMinutes >= 10) {
-        alerts.push({
-            type: 'warning',
-            icon: '⚠️',
-            title: 'Idle Alert',
-            message: `You've been inactive for ${idleMinutes} minutes. Time to get back to work!`,
-            color: '#ffc107'
-        });
-    }
-    
-    // Check for low efficiency
-    if (efficiency > 0 && efficiency < 80) {
-        alerts.push({
-            type: 'danger',
-            icon: '📉',
-            title: 'Performance Alert',
-            message: `Your efficiency is ${efficiency}%. Target is 80%. Pick up the pace!`,
-            color: '#fd7e14'
-        });
-    }
-    
-    // Check for positive feedback
-    if (rank > 0 && rank <= 5) {
-        alerts.push({
-            type: 'success',
-            icon: '🌟',
-            title: 'Great Job!',
-            message: `You're ranked #${rank} out of ${totalEmployees} employees today! Keep it up!`,
-            color: '#28a745'
-        });
-    }
-    
-    // Display alerts
-    alerts.forEach(alert => {
-        const alertDiv = document.createElement('div');
-        alertDiv.style.cssText = `
-            background: white;
-            border-left: 4px solid ${alert.color};
-            border-radius: 8px;
-            padding: 15px 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            animation: slideIn 0.3s ease;
-        `;
-        
-        alertDiv.innerHTML = `
-            <span style="font-size: 24px; margin-right: 15px;">${alert.icon}</span>
-            <div style="flex: 1;">
-                <strong style="color: ${alert.color}; font-size: 14px; text-transform: uppercase;">${alert.title}</strong>
-                <p style="margin: 5px 0 0 0; color: #333; font-size: 14px;">${alert.message}</p>
+    <!-- Change PIN Modal -->
+    <div id="changePinModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-key"></i>
+                    Change PIN
+                </h3>
+                <button onclick="closeChangePinModal()" class="modal-close">&times;</button>
             </div>
-            <button onclick="this.parentElement.style.display='none'" style="
-                background: none;
-                border: none;
-                color: #999;
-                font-size: 20px;
-                cursor: pointer;
-                padding: 0;
-                margin-left: 10px;
-            ">×</button>
-        `;
-        
-        container.appendChild(alertDiv);
-    });
-    
-    // If no alerts, show encouragement
-    if (alerts.length === 0) {
-        const noAlertDiv = document.createElement('div');
-        noAlertDiv.style.cssText = `
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        `;
-        noAlertDiv.innerHTML = `
-            <span style="font-size: 24px;">✨</span>
-            <p style="margin: 10px 0 0 0; font-size: 16px;">You're doing great! No alerts at this time.</p>
-        `;
-        container.appendChild(noAlertDiv);
-    }
-}
+            <div id="changePinError" class="form-error"></div>
+            <div id="changePinSuccess" class="form-success"></div>
+            <div class="form-group">
+                <label class="form-label">Current PIN</label>
+                <input type="password" id="currentPinInput" class="form-input" maxlength="6" placeholder="Enter current PIN">
+            </div>
+            <div class="form-group">
+                <label class="form-label">New PIN (4-6 digits)</label>
+                <input type="password" id="newPinInput" class="form-input" maxlength="6" placeholder="Enter new PIN">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Confirm New PIN</label>
+                <input type="password" id="confirmPinInput" class="form-input" maxlength="6" placeholder="Confirm new PIN">
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeChangePinModal()" class="btn-secondary">Cancel</button>
+                <button onclick="submitChangePin()" class="btn-primary">
+                    <i class="fas fa-check"></i>
+                    Update PIN
+                </button>
+            </div>
+        </div>
+    </div>
 
-// Add animation styles
-if (!document.getElementById('alertAnimations')) {
-    const style = document.createElement('style');
-    style.id = 'alertAnimations';
-    style.textContent = `
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
+    <script>
+        // ============================================
+        // CORE FUNCTIONALITY
+        // ============================================
+
+        let lastStatsUpdate = null;
+        let trendChart = null;
+
+        // Get stored credentials
+        function getEmployeeId() {
+            return localStorage.getItem('employeeId') || sessionStorage.getItem('employeeId');
+        }
+
+        function getToken() {
+            return localStorage.getItem('employeeToken') || sessionStorage.getItem('employeeToken');
+        }
+
+        function getEmployeeName() {
+            return localStorage.getItem('employeeName') || sessionStorage.getItem('employeeName');
+        }
+
+        // Logout function
+        function logout() {
+            localStorage.removeItem('employeeToken');
+            localStorage.removeItem('employeeId');
+            localStorage.removeItem('employeeName');
+            sessionStorage.clear();
+            window.location.href = '/login.html';
+        }
+
+        // Initialize dashboard
+        async function initDashboard() {
+            const employeeId = getEmployeeId();
+            const token = getToken();
+            const name = getEmployeeName();
+
+            if (!employeeId || !token) {
+                window.location.href = '/login.html';
+                return;
             }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-    `;
-    document.head.appendChild(style);
-}
 
-// Check alerts when page loads and every 60 seconds
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(function() {
-        const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-        if (token) {
-            checkPerformanceAlerts();
-            // Refresh alerts every minute
-            setInterval(checkPerformanceAlerts, 60000);
-        }
-    }, 3000); // Wait 3 seconds for page to load
-});
-</script>
+            // Set user name
+            document.getElementById('employeeName').textContent = name || 'Employee';
+            document.getElementById('headerUserName').textContent = name || '';
 
-<!-- Real-Time Dashboard Stats -->
-<script>
-// Real-time stats refresh system
-let lastStatsUpdate = null;
-let statsRefreshInterval = null;
+            // Show main content
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
 
-async function updateDashboardStats() {
-    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
-    const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
+            // Load initial data
+            await updateDashboardStats();
+            await loadTrendChart(30);
+            await loadGoals();
 
-    if (!employeeId || !token) return;
-
-    try {
-        const response = await fetch(`/api/employee/${employeeId}/stats`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!response.ok) throw new Error('Failed to fetch stats');
-
-        const data = await response.json();
-
-        // Update stat cards with animation
-        updateStatWithPulse('itemsToday', data.items_processed || 0);
-        updateStatWithPulse('itemsPerMinute', (data.items_per_minute || 0).toFixed(1));
-        updateStatWithPulse('streakDays', data.streak_days || 0);
-        updateStatWithPulse('currentRank', '#' + (data.employee_rank || '-'));
-
-        // Update team context (vs Team avg)
-        updateTeamContext('itemsChange', data.items_processed, data.team_avg_items, 'items');
-        updateTeamContext('speedChange', data.items_per_minute || 0, data.team_avg_efficiency / 10, 'speed'); // rough proxy
-
-        // Update rank message
-        const rankEl = document.getElementById('rankChange');
-        if (rankEl && data.total_employees) {
-            const percentile = Math.round((1 - (data.employee_rank / data.total_employees)) * 100);
-            if (percentile >= 80) {
-                rankEl.textContent = `Top ${100 - percentile}%! 🔥`;
-                rankEl.className = 'stat-change positive';
-            } else if (percentile >= 50) {
-                rankEl.textContent = `Top ${100 - percentile}%`;
-                rankEl.className = 'stat-change';
-            } else {
-                rankEl.textContent = 'Keep pushing!';
-                rankEl.className = 'stat-change';
-            }
-        }
-
-        // Update streak message
-        const streakEl = document.getElementById('streakMessage');
-        if (streakEl) {
-            const streak = data.streak_days || 0;
-            if (streak >= 5) {
-                streakEl.textContent = `${streak} days! Amazing! 🔥`;
-            } else if (streak > 0) {
-                streakEl.textContent = `${streak} day streak!`;
-            } else {
-                streakEl.textContent = 'Start your streak!';
-            }
-        }
-
-        // Update last refresh indicator
-        lastStatsUpdate = new Date();
-        updateLastRefreshDisplay();
-
-        console.log('Dashboard stats updated:', new Date().toLocaleTimeString());
-
-    } catch (error) {
-        console.error('Error updating dashboard stats:', error);
-    }
-}
-
-function updateStatWithPulse(elementId, value) {
-    const el = document.getElementById(elementId);
-    if (!el) return;
-
-    const oldValue = el.textContent;
-    const newValue = String(value);
-
-    if (oldValue !== newValue) {
-        el.textContent = newValue;
-        // Add pulse animation
-        el.style.transition = 'transform 0.2s ease, color 0.2s ease';
-        el.style.transform = 'scale(1.1)';
-        el.style.color = '#667eea';
-
-        setTimeout(() => {
-            el.style.transform = 'scale(1)';
-            el.style.color = '';
-        }, 200);
-    }
-}
-
-function updateTeamContext(elementId, myValue, teamAvg, type) {
-    const el = document.getElementById(elementId);
-    if (!el || !teamAvg || teamAvg === 0) {
-        if (el) el.style.display = 'none';
-        return;
-    }
-
-    el.style.display = 'inline-flex';
-    el.style.alignItems = 'center';
-    el.style.gap = '4px';
-    el.style.fontSize = '12px';
-    el.style.marginTop = '5px';
-
-    const diff = myValue - teamAvg;
-    const pctDiff = Math.round((diff / teamAvg) * 100);
-
-    if (diff > 0) {
-        el.innerHTML = `<i class="fas fa-arrow-up"></i> ${Math.abs(pctDiff)}% above avg`;
-        el.style.color = '#22c55e';
-        el.className = 'stat-change positive';
-    } else if (diff < 0) {
-        el.innerHTML = `<i class="fas fa-arrow-down"></i> ${Math.abs(pctDiff)}% below avg`;
-        el.style.color = '#ef4444';
-        el.className = 'stat-change negative';
-    } else {
-        el.innerHTML = `<i class="fas fa-minus"></i> At team avg`;
-        el.style.color = '#888';
-        el.className = 'stat-change';
-    }
-}
-
-function updateLastRefreshDisplay() {
-    let indicator = document.getElementById('lastRefreshIndicator');
-
-    if (!indicator) {
-        // Create the indicator if it doesn't exist
-        const statsGrid = document.querySelector('.stats-grid');
-        if (statsGrid) {
-            indicator = document.createElement('div');
-            indicator.id = 'lastRefreshIndicator';
-            indicator.style.cssText = 'text-align: center; color: #888; font-size: 12px; margin-top: 15px; padding: 8px; background: rgba(255,255,255,0.5); border-radius: 20px;';
-            statsGrid.parentElement.insertBefore(indicator, statsGrid.nextSibling);
-        }
-    }
-
-    if (indicator && lastStatsUpdate) {
-        const now = new Date();
-        const diff = Math.round((now - lastStatsUpdate) / 1000);
-
-        if (diff < 5) {
-            indicator.innerHTML = '<i class="fas fa-sync-alt" style="color: #22c55e;"></i> Just updated';
-        } else if (diff < 60) {
-            indicator.innerHTML = `<i class="fas fa-clock"></i> Updated ${diff}s ago`;
-        } else {
-            const mins = Math.floor(diff / 60);
-            indicator.innerHTML = `<i class="fas fa-clock"></i> Updated ${mins}m ago`;
-        }
-    }
-}
-
-// Start real-time updates when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(function() {
-        const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-        if (token) {
-            // Initial load
-            updateDashboardStats();
-
-            // Refresh stats every 60 seconds
-            statsRefreshInterval = setInterval(updateDashboardStats, 60000);
-
-            // Update the "time ago" display every 10 seconds
+            // Start auto-refresh (every 60 seconds)
+            setInterval(updateDashboardStats, 60000);
             setInterval(updateLastRefreshDisplay, 10000);
-
-            // Load trend chart
-            loadTrendChart(30);
-
-            console.log('Real-time dashboard refresh enabled (60s interval)');
-        }
-    }, 2000);
-});
-</script>
-
-<!-- Trend Chart Script -->
-<script>
-let trendChart = null;
-
-async function loadTrendChart(days = 30) {
-    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
-    const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-
-    if (!employeeId || !token) return;
-
-    // Update button styles
-    document.querySelectorAll('.trend-btn').forEach(btn => {
-        if (parseInt(btn.dataset.days) === days) {
-            btn.style.background = '#667eea';
-            btn.style.color = 'white';
-            btn.style.borderColor = '#667eea';
-        } else {
-            btn.style.background = 'white';
-            btn.style.color = '#333';
-            btn.style.borderColor = '#ddd';
-        }
-    });
-
-    try {
-        const response = await fetch(`/api/employee/${employeeId}/trends?days=${days}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        const data = await response.json();
-
-        const chartCanvas = document.getElementById('trendChart');
-        const noDataDiv = document.getElementById('trendNoData');
-
-        if (!data.has_data || !data.trend || data.trend.length === 0) {
-            chartCanvas.style.display = 'none';
-            noDataDiv.style.display = 'block';
-            return;
         }
 
-        chartCanvas.style.display = 'block';
-        noDataDiv.style.display = 'none';
+        // ============================================
+        // STATS UPDATE
+        // ============================================
 
-        // Prepare chart data
-        const labels = data.trend.map(d => {
-            const date = new Date(d.date);
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        });
+        async function updateDashboardStats() {
+            const employeeId = getEmployeeId();
+            const token = getToken();
 
-        const itemsData = data.trend.map(d => d.items);
-        const pointsData = data.trend.map(d => d.points);
+            if (!employeeId || !token) return;
 
-        // Destroy existing chart
-        if (trendChart) {
-            trendChart.destroy();
-        }
+            try {
+                const response = await fetch(`/api/employee/${employeeId}/stats`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
 
-        // Create new chart
-        const ctx = chartCanvas.getContext('2d');
-        trendChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Items Processed',
-                    data: itemsData,
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 3,
-                    pointHoverRadius: 6
-                }, {
-                    label: 'Points Earned',
-                    data: pointsData,
-                    borderColor: '#22c55e',
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                    fill: false,
-                    tension: 0.4,
-                    pointRadius: 3,
-                    pointHoverRadius: 6,
-                    hidden: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
-                },
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { usePointStyle: true, padding: 20 }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0,0,0,0.8)',
-                        padding: 12,
-                        titleFont: { size: 14 },
-                        bodyFont: { size: 13 }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: 'rgba(0,0,0,0.05)' }
-                    },
-                    x: {
-                        grid: { display: false }
-                    }
+                if (!response.ok) throw new Error('Failed to fetch stats');
+
+                const data = await response.json();
+
+                if (!data.success) return;
+
+                // Update stat values with animation
+                updateStatValue('itemsToday', data.items_processed || 0);
+                updateStatValue('efficiency', (data.efficiency || 0) + '%');
+                updateStatValue('currentRank', '#' + (data.employee_rank || '-'));
+                updateStatValue('pointsToday', Math.round(data.points_earned || 0));
+
+                // Update context indicators
+                updateContext('itemsContext', data.items_processed, data.team_avg_items);
+                updateContext('efficiencyContext', data.efficiency, data.team_avg_efficiency);
+
+                // Update rank context
+                const rankCtx = document.getElementById('rankContext');
+                if (rankCtx && data.total_employees) {
+                    rankCtx.innerHTML = `<span>of ${data.total_employees} employees</span>`;
                 }
+
+                // Update alerts
+                displayAlerts(data);
+
+                // Update timestamp
+                lastStatsUpdate = new Date();
+                updateLastRefreshDisplay();
+
+            } catch (error) {
+                console.error('Error updating stats:', error);
             }
-        });
-
-        console.log(`Trend chart loaded for ${days} days`);
-
-    } catch (error) {
-        console.error('Error loading trend chart:', error);
-    }
-}
-</script>
-
-<!-- Goals Script -->
-<script>
-async function loadGoals() {
-    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
-    const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-    const container = document.getElementById('goalsContainer');
-
-    if (!employeeId || !token || !container) return;
-
-    try {
-        const response = await fetch(`/api/employee/${employeeId}/goals`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        const data = await response.json();
-
-        if (!data.success || !data.goals || data.goals.length === 0) {
-            container.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #888;">
-                    <i class="fas fa-flag-checkered" style="font-size: 48px; opacity: 0.3; margin-bottom: 15px;"></i>
-                    <p>No goals set yet.</p>
-                    <p style="font-size: 13px;">Click "Add Goal" to set your first daily target!</p>
-                </div>
-            `;
-            return;
         }
 
-        // Render goals
-        container.innerHTML = data.goals.map(goal => {
-            const metricLabels = {
-                'items_processed': 'Items',
-                'points_earned': 'Points',
-                'efficiency': 'Efficiency %',
-                'active_minutes': 'Active Minutes'
-            };
+        function updateStatValue(elementId, newValue) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
 
-            const progressColor = goal.progress >= 100 ? '#22c55e' :
-                                  goal.progress >= 50 ? '#667eea' : '#f59e0b';
+            const oldValue = el.textContent;
+            if (oldValue !== String(newValue)) {
+                el.textContent = newValue;
+                el.classList.add('updating');
+                setTimeout(() => el.classList.remove('updating'), 300);
+            }
+        }
 
-            return `
-                <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin-bottom: 12px; position: relative;">
-                    <button onclick="deleteGoal(${goal.id})" style="position: absolute; top: 10px; right: 10px; background: none; border: none; color: #999; cursor: pointer; font-size: 14px;" title="Remove goal">
+        function updateContext(elementId, myValue, teamAvg) {
+            const el = document.getElementById(elementId);
+            if (!el || !teamAvg || teamAvg === 0) return;
+
+            const diff = myValue - teamAvg;
+            const pctDiff = Math.abs(Math.round((diff / teamAvg) * 100));
+
+            if (diff > 0) {
+                el.innerHTML = `<i class="fas fa-arrow-up"></i> ${pctDiff}% above avg`;
+                el.className = 'stat-context positive';
+            } else if (diff < 0) {
+                el.innerHTML = `<i class="fas fa-arrow-down"></i> ${pctDiff}% below avg`;
+                el.className = 'stat-context negative';
+            } else {
+                el.innerHTML = `<i class="fas fa-minus"></i> At team avg`;
+                el.className = 'stat-context neutral';
+            }
+        }
+
+        function updateLastRefreshDisplay() {
+            const indicator = document.getElementById('updateIndicator');
+            if (!indicator || !lastStatsUpdate) return;
+
+            const now = new Date();
+            const diff = Math.round((now - lastStatsUpdate) / 1000);
+
+            if (diff < 10) {
+                indicator.innerHTML = '<i class="fas fa-check-circle"></i> <span>Updated just now</span>';
+                indicator.className = 'update-indicator fresh';
+            } else if (diff < 60) {
+                indicator.innerHTML = `<i class="fas fa-clock"></i> <span>Updated ${diff}s ago</span>`;
+                indicator.className = 'update-indicator';
+            } else {
+                const mins = Math.floor(diff / 60);
+                indicator.innerHTML = `<i class="fas fa-clock"></i> <span>Updated ${mins}m ago</span>`;
+                indicator.className = 'update-indicator';
+            }
+        }
+
+        // ============================================
+        // ALERTS
+        // ============================================
+
+        function displayAlerts(data) {
+            const container = document.getElementById('alertsContainer');
+            if (!container) return;
+
+            container.innerHTML = '';
+            const alerts = [];
+
+            const idleMinutes = data.idle_minutes || 0;
+            const efficiency = parseFloat(data.efficiency) || 0;
+            const rank = data.employee_rank || 999;
+            const total = data.total_employees || 20;
+
+            // Idle warning
+            if (idleMinutes >= 10) {
+                alerts.push({
+                    type: 'warning',
+                    icon: 'fas fa-hourglass-half',
+                    title: 'Idle Alert',
+                    message: `Inactive for ${idleMinutes} minutes`
+                });
+            }
+
+            // Top performer
+            if (rank > 0 && rank <= 3) {
+                alerts.push({
+                    type: 'success',
+                    icon: 'fas fa-star',
+                    title: 'Top Performer',
+                    message: `You're ranked #${rank} out of ${total} today!`
+                });
+            }
+
+            // Low efficiency warning
+            if (efficiency > 0 && efficiency < 60) {
+                alerts.push({
+                    type: 'danger',
+                    icon: 'fas fa-exclamation-triangle',
+                    title: 'Low Efficiency',
+                    message: `Current efficiency is ${efficiency}%. Target is 80%+`
+                });
+            }
+
+            alerts.forEach(alert => {
+                const div = document.createElement('div');
+                div.className = `alert-item ${alert.type}`;
+                div.innerHTML = `
+                    <i class="${alert.icon} alert-icon"></i>
+                    <div class="alert-content">
+                        <div class="alert-title">${alert.title}</div>
+                        <div class="alert-message">${alert.message}</div>
+                    </div>
+                    <button class="alert-dismiss" onclick="this.parentElement.remove()">
                         <i class="fas fa-times"></i>
                     </button>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <span style="font-weight: 600; color: #333;">${metricLabels[goal.metric] || goal.metric}</span>
-                        <span style="font-size: 14px; color: ${progressColor}; font-weight: 600;">
-                            ${goal.current} / ${goal.target}
-                            ${goal.progress >= 100 ? ' ✓' : ''}
-                        </span>
-                    </div>
-                    <div style="background: #e0e0e0; border-radius: 10px; height: 8px; overflow: hidden;">
-                        <div style="background: ${progressColor}; height: 100%; width: ${Math.min(goal.progress, 100)}%; transition: width 0.5s ease;"></div>
-                    </div>
-                    <div style="text-align: right; font-size: 12px; color: #888; margin-top: 5px;">
-                        ${goal.progress.toFixed(0)}% complete
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-    } catch (error) {
-        console.error('Error loading goals:', error);
-        container.innerHTML = '<p style="color: #ef4444; text-align: center;">Failed to load goals</p>';
-    }
-}
-
-async function deleteGoal(goalId) {
-    if (!confirm('Remove this goal?')) return;
-
-    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
-    const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-
-    try {
-        await fetch(`/api/employee/${employeeId}/goals/${goalId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        loadGoals(); // Refresh
-    } catch (error) {
-        console.error('Error deleting goal:', error);
-    }
-}
-
-function openAddGoalModal() {
-    document.getElementById('addGoalModal').style.display = 'flex';
-}
-
-function closeAddGoalModal() {
-    document.getElementById('addGoalModal').style.display = 'none';
-}
-
-async function submitNewGoal() {
-    const metric = document.getElementById('goalMetric').value;
-    const target = parseFloat(document.getElementById('goalTarget').value);
-
-    if (!metric || !target || target <= 0) {
-        alert('Please select a metric and enter a valid target');
-        return;
-    }
-
-    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
-    const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-
-    try {
-        const response = await fetch(`/api/employee/${employeeId}/goals`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ metric, target, type: 'daily' })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            closeAddGoalModal();
-            loadGoals(); // Refresh
-        } else {
-            alert(data.message || 'Failed to create goal');
-        }
-    } catch (error) {
-        console.error('Error creating goal:', error);
-        alert('Failed to create goal');
-    }
-}
-
-// Load goals on page load
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(function() {
-        const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
-        if (token) {
-            loadGoals();
-        }
-    }, 2500);
-});
-</script>
-
-<!-- Add Goal Modal -->
-<div id="addGoalModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
-    <div style="background: white; border-radius: 12px; padding: 30px; width: 350px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3 style="margin: 0; color: #333;"><i class="fas fa-bullseye" style="color: #667eea; margin-right: 10px;"></i>Set Daily Goal</h3>
-            <button onclick="closeAddGoalModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">&times;</button>
-        </div>
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">What do you want to track?</label>
-            <select id="goalMetric" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
-                <option value="">Select metric...</option>
-                <option value="items_processed">Items Processed</option>
-                <option value="points_earned">Points Earned</option>
-                <option value="active_minutes">Active Minutes</option>
-            </select>
-        </div>
-        <div style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Daily Target</label>
-            <input type="number" id="goalTarget" min="1" placeholder="Enter target value"
-                   style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box;">
-        </div>
-        <div style="display: flex; gap: 10px;">
-            <button onclick="closeAddGoalModal()" style="flex: 1; padding: 12px; background: #f0f0f0; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">Cancel</button>
-            <button onclick="submitNewGoal()" style="flex: 1; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
-                <i class="fas fa-check"></i> Create Goal
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Change PIN Modal -->
-<div id="changePinModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
-    <div style="background: white; border-radius: 12px; padding: 30px; width: 350px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3 style="margin: 0; color: #333;"><i class="fas fa-key" style="color: #667eea; margin-right: 10px;"></i>Change PIN</h3>
-            <button onclick="closeChangePinModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">&times;</button>
-        </div>
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Current PIN</label>
-            <input type="password" id="currentPinInput" maxlength="6" placeholder="Enter current PIN"
-                   style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box;">
-        </div>
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">New PIN (4-6 digits)</label>
-            <input type="password" id="newPinInput" maxlength="6" placeholder="Enter new PIN"
-                   style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box;">
-        </div>
-        <div style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Confirm New PIN</label>
-            <input type="password" id="confirmPinInput" maxlength="6" placeholder="Confirm new PIN"
-                   style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box;">
-        </div>
-        <div id="changePinError" style="display: none; background: #fee; color: #c00; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 14px;"></div>
-        <div id="changePinSuccess" style="display: none; background: #efe; color: #060; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 14px;"></div>
-        <div style="display: flex; gap: 10px;">
-            <button onclick="closeChangePinModal()" style="flex: 1; padding: 12px; background: #f0f0f0; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">Cancel</button>
-            <button onclick="submitChangePin()" style="flex: 1; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
-                <i class="fas fa-check"></i> Change PIN
-            </button>
-        </div>
-    </div>
-</div>
-
-<script>
-// Change PIN Functions
-function openChangePinModal() {
-    document.getElementById('changePinModal').style.display = 'flex';
-    document.getElementById('currentPinInput').value = '';
-    document.getElementById('newPinInput').value = '';
-    document.getElementById('confirmPinInput').value = '';
-    document.getElementById('changePinError').style.display = 'none';
-    document.getElementById('changePinSuccess').style.display = 'none';
-}
-
-function closeChangePinModal() {
-    document.getElementById('changePinModal').style.display = 'none';
-}
-
-async function submitChangePin() {
-    const currentPin = document.getElementById('currentPinInput').value;
-    const newPin = document.getElementById('newPinInput').value;
-    const confirmPin = document.getElementById('confirmPinInput').value;
-    const errorEl = document.getElementById('changePinError');
-    const successEl = document.getElementById('changePinSuccess');
-
-    // Hide previous messages
-    errorEl.style.display = 'none';
-    successEl.style.display = 'none';
-
-    // Validation
-    if (!currentPin || !newPin || !confirmPin) {
-        errorEl.textContent = 'Please fill in all fields';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    if (!/^\d{4,6}$/.test(newPin)) {
-        errorEl.textContent = 'New PIN must be 4-6 digits';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    if (newPin !== confirmPin) {
-        errorEl.textContent = 'New PINs do not match';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    try {
-        const token = localStorage.getItem('employeeToken') || sessionStorage.getItem('employeeToken');
-
-        const response = await fetch('/api/employee/change-pin', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                current_pin: currentPin,
-                new_pin: newPin
-            })
-        });
-
-        const data = await response.json();
-
-        if (!data.success) {
-            errorEl.textContent = data.message || 'Failed to change PIN';
-            errorEl.style.display = 'block';
-            return;
+                `;
+                container.appendChild(div);
+            });
         }
 
-        successEl.textContent = 'PIN changed successfully!';
-        successEl.style.display = 'block';
+        // ============================================
+        // TREND CHART
+        // ============================================
 
-        // Close modal after 2 seconds
-        setTimeout(() => {
-            closeChangePinModal();
-        }, 2000);
+        async function loadTrendChart(days = 30) {
+            const employeeId = getEmployeeId();
+            const token = getToken();
 
-    } catch (error) {
-        errorEl.textContent = 'Network error. Please try again.';
-        errorEl.style.display = 'block';
-    }
-}
+            if (!employeeId || !token) return;
 
-// Close modal on escape key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeChangePinModal();
-    }
-});
+            // Update button states
+            document.querySelectorAll('.trend-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.days) === days);
+            });
 
-// Close modal on background click
-document.getElementById('changePinModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeChangePinModal();
-    }
-});
-</script>
+            try {
+                const response = await fetch(`/api/employee/${employeeId}/trends?days=${days}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
 
-<script src="/js/auth-check.js"></script>
+                const data = await response.json();
+
+                const chartCanvas = document.getElementById('trendChart');
+                const noDataDiv = document.getElementById('trendNoData');
+
+                if (!data.has_data || !data.trend || data.trend.length === 0) {
+                    chartCanvas.style.display = 'none';
+                    noDataDiv.style.display = 'flex';
+                    return;
+                }
+
+                chartCanvas.style.display = 'block';
+                noDataDiv.style.display = 'none';
+
+                // Prepare data
+                const labels = data.trend.map(d => {
+                    const date = new Date(d.date);
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                });
+
+                const itemsData = data.trend.map(d => d.items);
+
+                // Destroy existing chart
+                if (trendChart) {
+                    trendChart.destroy();
+                }
+
+                // Create chart with industrial theme
+                const ctx = chartCanvas.getContext('2d');
+                trendChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Items Processed',
+                            data: itemsData,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#f59e0b',
+                            pointBorderColor: '#0f1419',
+                            pointBorderWidth: 2,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: '#1e252e',
+                                titleColor: '#f8fafc',
+                                bodyColor: '#94a3b8',
+                                borderColor: '#f59e0b',
+                                borderWidth: 1,
+                                padding: 12,
+                                displayColors: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.05)',
+                                    drawBorder: false
+                                },
+                                ticks: {
+                                    color: '#64748b',
+                                    font: { family: 'JetBrains Mono' }
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    color: '#64748b',
+                                    maxRotation: 0
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error loading trend chart:', error);
+            }
+        }
+
+        // ============================================
+        // GOALS
+        // ============================================
+
+        async function loadGoals() {
+            const employeeId = getEmployeeId();
+            const token = getToken();
+            const container = document.getElementById('goalsContainer');
+
+            if (!employeeId || !token || !container) return;
+
+            try {
+                const response = await fetch(`/api/employee/${employeeId}/goals`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                if (!data.success || !data.goals || data.goals.length === 0) {
+                    container.innerHTML = `
+                        <div class="goals-empty">
+                            <i class="fas fa-flag-checkered"></i>
+                            <p>No goals set yet</p>
+                            <p style="font-size: 0.75rem; margin-top: 4px;">Set a daily target to track your progress</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const metricLabels = {
+                    'items_processed': 'Items Processed',
+                    'points_earned': 'Points Earned',
+                    'efficiency': 'Efficiency %',
+                    'active_minutes': 'Active Minutes'
+                };
+
+                container.innerHTML = data.goals.map(goal => {
+                    const isComplete = goal.progress >= 100;
+
+                    return `
+                        <div class="goal-item">
+                            <div class="goal-header">
+                                <span class="goal-metric">${metricLabels[goal.metric] || goal.metric}</span>
+                                <span class="goal-progress-text">${goal.current} / ${goal.target}${isComplete ? ' ✓' : ''}</span>
+                            </div>
+                            <div class="goal-progress-bar">
+                                <div class="goal-progress-fill ${isComplete ? 'complete' : ''}" style="width: ${Math.min(goal.progress, 100)}%"></div>
+                            </div>
+                            <div class="goal-footer">
+                                <span class="goal-percent">${goal.progress.toFixed(0)}% complete</span>
+                                <button class="goal-delete" onclick="deleteGoal(${goal.id})" title="Remove goal">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading goals:', error);
+                container.innerHTML = '<p style="color: var(--danger); text-align: center;">Failed to load goals</p>';
+            }
+        }
+
+        async function deleteGoal(goalId) {
+            if (!confirm('Remove this goal?')) return;
+
+            const employeeId = getEmployeeId();
+            const token = getToken();
+
+            try {
+                await fetch(`/api/employee/${employeeId}/goals/${goalId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                loadGoals();
+            } catch (error) {
+                console.error('Error deleting goal:', error);
+            }
+        }
+
+        function openAddGoalModal() {
+            document.getElementById('addGoalModal').classList.add('active');
+            document.getElementById('goalMetric').value = '';
+            document.getElementById('goalTarget').value = '';
+        }
+
+        function closeAddGoalModal() {
+            document.getElementById('addGoalModal').classList.remove('active');
+        }
+
+        async function submitNewGoal() {
+            const metric = document.getElementById('goalMetric').value;
+            const target = parseFloat(document.getElementById('goalTarget').value);
+
+            if (!metric || !target || target <= 0) {
+                alert('Please select a metric and enter a valid target');
+                return;
+            }
+
+            const employeeId = getEmployeeId();
+            const token = getToken();
+
+            try {
+                const response = await fetch(`/api/employee/${employeeId}/goals`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ metric, target, type: 'daily' })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    closeAddGoalModal();
+                    loadGoals();
+                } else {
+                    alert(data.message || 'Failed to create goal');
+                }
+            } catch (error) {
+                console.error('Error creating goal:', error);
+                alert('Failed to create goal');
+            }
+        }
+
+        // ============================================
+        // CHANGE PIN
+        // ============================================
+
+        function openChangePinModal() {
+            document.getElementById('changePinModal').classList.add('active');
+            document.getElementById('currentPinInput').value = '';
+            document.getElementById('newPinInput').value = '';
+            document.getElementById('confirmPinInput').value = '';
+            document.getElementById('changePinError').style.display = 'none';
+            document.getElementById('changePinSuccess').style.display = 'none';
+        }
+
+        function closeChangePinModal() {
+            document.getElementById('changePinModal').classList.remove('active');
+        }
+
+        async function submitChangePin() {
+            const currentPin = document.getElementById('currentPinInput').value;
+            const newPin = document.getElementById('newPinInput').value;
+            const confirmPin = document.getElementById('confirmPinInput').value;
+            const errorEl = document.getElementById('changePinError');
+            const successEl = document.getElementById('changePinSuccess');
+
+            errorEl.style.display = 'none';
+            successEl.style.display = 'none';
+
+            if (!currentPin || !newPin || !confirmPin) {
+                errorEl.textContent = 'Please fill in all fields';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (!/^\d{4,6}$/.test(newPin)) {
+                errorEl.textContent = 'New PIN must be 4-6 digits';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (newPin !== confirmPin) {
+                errorEl.textContent = 'New PINs do not match';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                const token = getToken();
+
+                const response = await fetch('/api/employee/change-pin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        current_pin: currentPin,
+                        new_pin: newPin
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    errorEl.textContent = data.message || 'Failed to change PIN';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                successEl.textContent = 'PIN changed successfully!';
+                successEl.style.display = 'block';
+
+                setTimeout(closeChangePinModal, 2000);
+
+            } catch (error) {
+                errorEl.textContent = 'Network error. Please try again.';
+                errorEl.style.display = 'block';
+            }
+        }
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+
+        // Close modals on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeAddGoalModal();
+                closeChangePinModal();
+            }
+        });
+
+        // Close modals on background click
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
 </body>
 </html>
