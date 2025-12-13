@@ -1,0 +1,720 @@
+/**
+ * Manager Dashboard - Executive Premium Theme
+ * Created: 2025-12-13
+ *
+ * Color Palette:
+ * - Background: #09090b (near-black)
+ * - Surface: #18181b (dark slate)
+ * - Accent: #8b5cf6 (purple)
+ * - Success: #22c55e
+ * - Warning: #eab308
+ * - Danger: #ef4444
+ */
+
+/* ========================================
+   CSS VARIABLES
+   ======================================== */
+:root {
+    /* Backgrounds */
+    --exec-bg: #09090b;
+    --exec-surface: #18181b;
+    --exec-surface-elevated: #27272a;
+    --exec-border: #3f3f46;
+
+    /* Accent Colors */
+    --exec-accent: #8b5cf6;
+    --exec-accent-hover: #a78bfa;
+    --exec-success: #22c55e;
+    --exec-warning: #eab308;
+    --exec-danger: #ef4444;
+    --exec-info: #3b82f6;
+
+    /* Text */
+    --exec-text: #fafafa;
+    --exec-text-secondary: #a1a1aa;
+    --exec-text-muted: #71717a;
+
+    /* Semantic backgrounds */
+    --exec-purple-bg: rgba(139, 92, 246, 0.15);
+    --exec-green-bg: rgba(34, 197, 94, 0.15);
+    --exec-blue-bg: rgba(59, 130, 246, 0.15);
+    --exec-orange-bg: rgba(249, 115, 22, 0.15);
+    --exec-yellow-bg: rgba(234, 179, 8, 0.15);
+    --exec-red-bg: rgba(239, 68, 68, 0.15);
+}
+
+/* ========================================
+   FONTS
+   ======================================== */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+/* ========================================
+   BASE STYLES
+   ======================================== */
+body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    background: var(--exec-bg) !important;
+    color: var(--exec-text) !important;
+    min-height: 100vh;
+}
+
+/* Remove cyberpunk grid/scanline effects */
+body::before,
+body::after {
+    display: none !important;
+}
+
+/* ========================================
+   SIDEBAR
+   ======================================== */
+.sidebar {
+    background: var(--exec-surface) !important;
+    border-right: 1px solid var(--exec-border) !important;
+    box-shadow: none !important;
+}
+
+.sidebar-header h2 {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 1.25em !important;
+    font-weight: 700 !important;
+    letter-spacing: 0 !important;
+    color: var(--exec-text) !important;
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: var(--exec-text) !important;
+    animation: none !important;
+}
+
+.sidebar-header p {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.75em !important;
+    letter-spacing: 0.5px !important;
+    color: var(--exec-text-muted) !important;
+    text-transform: uppercase;
+}
+
+/* Navigation Items */
+.nav-item {
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 500 !important;
+    letter-spacing: 0 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+    color: var(--exec-text-secondary) !important;
+}
+
+.nav-item::before {
+    display: none !important;
+}
+
+.nav-item:hover {
+    background: var(--exec-surface-elevated) !important;
+    color: var(--exec-text) !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.nav-item.active {
+    background: var(--exec-accent) !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.nav-item i {
+    text-shadow: none !important;
+}
+
+/* Sidebar User Panel */
+.sidebar-user-panel {
+    position: absolute;
+    bottom: 20px;
+    left: 16px;
+    right: 16px;
+}
+
+.user-info-card {
+    padding: 12px 16px;
+    background: var(--exec-surface-elevated);
+    border: 1px solid var(--exec-border);
+    border-radius: 10px;
+    clip-path: none;
+    text-align: left;
+}
+
+.user-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--exec-text-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin: 0 0 4px 0;
+    text-shadow: none;
+}
+
+.user-name {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--exec-text);
+    margin: 0 0 6px 0;
+}
+
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--exec-success);
+    letter-spacing: 0;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--exec-success);
+    border-radius: 50%;
+    box-shadow: none;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ========================================
+   MAIN CONTENT
+   ======================================== */
+.main-content {
+    position: relative;
+    z-index: 1;
+    background: var(--exec-bg);
+}
+
+/* ========================================
+   HEADER
+   ======================================== */
+.dashboard-header {
+    border-bottom: 1px solid var(--exec-border) !important;
+    background: transparent !important;
+}
+
+.dashboard-title h1 {
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 24px !important;
+    letter-spacing: 0 !important;
+    color: var(--exec-text) !important;
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: var(--exec-text) !important;
+}
+
+.dashboard-title p {
+    font-family: 'DM Sans', sans-serif !important;
+    color: var(--exec-text-muted) !important;
+    letter-spacing: 0 !important;
+    font-size: 14px !important;
+}
+
+/* Header Buttons */
+.btn-action {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0 !important;
+    border: 1px solid var(--exec-border) !important;
+    background: var(--exec-surface) !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+    color: var(--exec-text-secondary) !important;
+}
+
+.btn-action:hover {
+    background: var(--exec-surface-elevated) !important;
+    border-color: var(--exec-accent) !important;
+    color: var(--exec-text) !important;
+    box-shadow: none !important;
+}
+
+.btn-action.btn-primary {
+    background: var(--exec-accent) !important;
+    border-color: var(--exec-accent) !important;
+    color: white !important;
+}
+
+.btn-action.btn-primary:hover {
+    background: var(--exec-accent-hover) !important;
+    border-color: var(--exec-accent-hover) !important;
+}
+
+/* Date Filter */
+.date-filter-container input[type="date"] {
+    background: var(--exec-surface) !important;
+    color: var(--exec-text) !important;
+    border: 1px solid var(--exec-border) !important;
+    border-radius: 8px !important;
+}
+
+.date-filter-container input[type="date"]:focus {
+    border-color: var(--exec-accent) !important;
+    box-shadow: none !important;
+    outline: none;
+}
+
+/* ========================================
+   SYSTEM STATUS BAR
+   ======================================== */
+#system-status-container {
+    background: var(--exec-surface) !important;
+    border-bottom: 1px solid var(--exec-border) !important;
+}
+
+#system-status-container span {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0 !important;
+}
+
+/* Status Indicators */
+#connecteam-indicator,
+#podfactory-indicator,
+#flask-indicator,
+#database-indicator {
+    box-shadow: none !important;
+    animation: none !important;
+}
+
+/* ========================================
+   METRIC CARDS
+   ======================================== */
+.metric-card {
+    background: var(--exec-surface) !important;
+    border: 1px solid var(--exec-border) !important;
+    border-radius: 12px !important;
+    clip-path: none !important;
+    position: relative;
+    transition: all 0.2s ease !important;
+}
+
+.metric-card::before,
+.metric-card::after {
+    display: none !important;
+}
+
+.metric-card:hover {
+    border-color: var(--exec-accent) !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+/* Metric Icons - Colored backgrounds */
+.metric-icon {
+    clip-path: none !important;
+    border-radius: 10px !important;
+    width: 48px !important;
+    height: 48px !important;
+}
+
+.metrics-grid .metric-card:nth-child(1) .metric-icon {
+    background: var(--exec-purple-bg) !important;
+    color: var(--exec-accent) !important;
+}
+
+.metrics-grid .metric-card:nth-child(2) .metric-icon {
+    background: var(--exec-green-bg) !important;
+    color: var(--exec-success) !important;
+}
+
+.metrics-grid .metric-card:nth-child(3) .metric-icon {
+    background: var(--exec-blue-bg) !important;
+    color: var(--exec-info) !important;
+}
+
+.metrics-grid .metric-card:nth-child(4) .metric-icon {
+    background: var(--exec-orange-bg) !important;
+    color: #f97316 !important;
+}
+
+/* Metric Values */
+.metric-value {
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 700 !important;
+    color: var(--exec-text) !important;
+    text-shadow: none !important;
+}
+
+.metric-label {
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 500 !important;
+    color: var(--exec-text-muted) !important;
+}
+
+.metric-trend {
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 500 !important;
+}
+
+.metric-trend.positive {
+    color: var(--exec-success) !important;
+}
+
+.metric-trend.negative {
+    color: var(--exec-danger) !important;
+}
+
+/* ========================================
+   SECTION CARDS / PANELS
+   ======================================== */
+.chart-container,
+.leaderboard-container,
+.activity-container,
+.alert-container,
+.panel,
+.card {
+    background: var(--exec-surface) !important;
+    border: 1px solid var(--exec-border) !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+}
+
+.section-title,
+.panel-title,
+.card-title {
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 600 !important;
+    color: var(--exec-text) !important;
+    letter-spacing: 0 !important;
+}
+
+/* ========================================
+   LEADERBOARD
+   ======================================== */
+.leaderboard-item {
+    background: transparent !important;
+    border-bottom: 1px solid var(--exec-border) !important;
+    transition: all 0.2s ease !important;
+}
+
+.leaderboard-item:hover {
+    background: var(--exec-surface-elevated) !important;
+}
+
+.leaderboard-item:last-child {
+    border-bottom: none !important;
+}
+
+/* Rank badges */
+.rank-badge {
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+}
+
+.rank-badge.gold {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+    color: #1a1a1a !important;
+}
+
+.rank-badge.silver {
+    background: linear-gradient(135deg, #e2e8f0, #94a3b8) !important;
+    color: #1a1a1a !important;
+}
+
+.rank-badge.bronze {
+    background: linear-gradient(135deg, #f97316, #ea580c) !important;
+    color: white !important;
+}
+
+.leaderboard-name {
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 600 !important;
+    color: var(--exec-text) !important;
+}
+
+.leaderboard-stats {
+    font-family: 'DM Sans', sans-serif !important;
+    color: var(--exec-text-secondary) !important;
+}
+
+.leaderboard-score {
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 700 !important;
+    color: var(--exec-accent) !important;
+    text-shadow: none !important;
+}
+
+/* ========================================
+   PROGRESS BARS
+   ======================================== */
+.progress-bar {
+    background: var(--exec-surface-elevated) !important;
+    border-radius: 4px !important;
+    overflow: hidden;
+}
+
+.progress-fill {
+    border-radius: 4px !important;
+    transition: width 0.3s ease !important;
+}
+
+.progress-fill.purple {
+    background: var(--exec-accent) !important;
+}
+
+.progress-fill.green {
+    background: var(--exec-success) !important;
+}
+
+.progress-fill.orange {
+    background: #f97316 !important;
+}
+
+.progress-fill.blue {
+    background: var(--exec-info) !important;
+}
+
+/* ========================================
+   TABLES
+   ======================================== */
+table {
+    font-family: 'DM Sans', sans-serif !important;
+}
+
+th {
+    background: var(--exec-surface-elevated) !important;
+    color: var(--exec-text-secondary) !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    font-size: 11px !important;
+    letter-spacing: 0.5px !important;
+    border-bottom: 1px solid var(--exec-border) !important;
+}
+
+td {
+    border-bottom: 1px solid var(--exec-border) !important;
+    color: var(--exec-text) !important;
+}
+
+tr:hover td {
+    background: var(--exec-surface-elevated) !important;
+}
+
+/* ========================================
+   ALERTS
+   ======================================== */
+.alert {
+    background: var(--exec-surface) !important;
+    border: 1px solid var(--exec-border) !important;
+    border-radius: 10px !important;
+    border-left: 4px solid !important;
+}
+
+.alert.alert-warning {
+    border-left-color: var(--exec-warning) !important;
+    background: var(--exec-yellow-bg) !important;
+}
+
+.alert.alert-danger {
+    border-left-color: var(--exec-danger) !important;
+    background: var(--exec-red-bg) !important;
+}
+
+.alert.alert-success {
+    border-left-color: var(--exec-success) !important;
+    background: var(--exec-green-bg) !important;
+}
+
+.alert.alert-info {
+    border-left-color: var(--exec-info) !important;
+    background: var(--exec-blue-bg) !important;
+}
+
+/* ========================================
+   MODALS
+   ======================================== */
+.modal-overlay {
+    background: rgba(0, 0, 0, 0.75) !important;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: var(--exec-surface) !important;
+    border: 1px solid var(--exec-border) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--exec-border) !important;
+}
+
+.modal-title {
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 700 !important;
+    color: var(--exec-text) !important;
+}
+
+.modal-body {
+    color: var(--exec-text-secondary) !important;
+}
+
+/* ========================================
+   FORM INPUTS
+   ======================================== */
+input,
+select,
+textarea {
+    font-family: 'DM Sans', sans-serif !important;
+    background: var(--exec-bg) !important;
+    border: 1px solid var(--exec-border) !important;
+    border-radius: 8px !important;
+    color: var(--exec-text) !important;
+    transition: border-color 0.2s ease !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--exec-accent) !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--exec-text-muted) !important;
+}
+
+/* ========================================
+   BUTTONS
+   ======================================== */
+button {
+    font-family: 'DM Sans', sans-serif !important;
+}
+
+.btn {
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+}
+
+.btn-primary {
+    background: var(--exec-accent) !important;
+    border-color: var(--exec-accent) !important;
+    color: white !important;
+}
+
+.btn-primary:hover {
+    background: var(--exec-accent-hover) !important;
+    border-color: var(--exec-accent-hover) !important;
+}
+
+.btn-secondary {
+    background: var(--exec-surface-elevated) !important;
+    border: 1px solid var(--exec-border) !important;
+    color: var(--exec-text) !important;
+}
+
+.btn-secondary:hover {
+    border-color: var(--exec-accent) !important;
+}
+
+.btn-danger {
+    background: var(--exec-danger) !important;
+    border-color: var(--exec-danger) !important;
+    color: white !important;
+}
+
+.btn-success {
+    background: var(--exec-success) !important;
+    border-color: var(--exec-success) !important;
+    color: white !important;
+}
+
+/* ========================================
+   CHARTS
+   ======================================== */
+.chart-container {
+    padding: 20px !important;
+}
+
+/* ========================================
+   SCROLLBAR
+   ======================================== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--exec-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--exec-border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--exec-text-muted);
+}
+
+/* ========================================
+   DEPARTMENT STATUS INDICATORS
+   ======================================== */
+.department-indicator {
+    width: 4px;
+    border-radius: 2px;
+}
+
+.department-indicator.qc {
+    background: var(--exec-accent) !important;
+}
+
+.department-indicator.picking {
+    background: var(--exec-success) !important;
+}
+
+.department-indicator.labeling {
+    background: #f97316 !important;
+}
+
+/* ========================================
+   TOOLTIPS
+   ======================================== */
+.tooltip {
+    background: var(--exec-surface-elevated) !important;
+    border: 1px solid var(--exec-border) !important;
+    border-radius: 8px !important;
+    color: var(--exec-text) !important;
+    font-family: 'DM Sans', sans-serif !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ========================================
+   LIVE INDICATOR
+   ======================================== */
+.live-indicator {
+    background: var(--exec-success) !important;
+    box-shadow: none !important;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+@media (max-width: 768px) {
+    .sidebar {
+        background: var(--exec-surface) !important;
+    }
+
+    .metric-card {
+        border-radius: 10px !important;
+    }
+}

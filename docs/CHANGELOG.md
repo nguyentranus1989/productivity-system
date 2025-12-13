@@ -2,6 +2,30 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.3.11] - 2025-12-13
+
+### Added - Theme Switcher System
+- **3 Themes Available**: Original, Cyberpunk, Executive
+- **Manager Dashboard**: Settings modal in sidebar with theme picker
+- **Shop Floor Display**: Settings button (bottom-right) with theme modal
+- **Persistence**: Theme saved to localStorage, syncs across pages
+
+### New Files
+- `frontend/js/theme-switcher.js` - Core theme switching logic
+- `frontend/css/manager-cyberpunk.css` - Neon cyan/pink futuristic theme
+- `frontend/css/manager-executive.css` - Premium dark slate professional theme
+- `frontend/css/shop-floor-cyberpunk.css` - Cyberpunk variable overrides
+- `frontend/css/shop-floor-executive.css` - Executive variable overrides
+
+### Theme Characteristics
+| Theme | Background | Accent | Style |
+|-------|-----------|--------|-------|
+| Original | #1a1a2e | #667eea | Classic dark purple |
+| Cyberpunk | #0a0a0f | #00f5ff | Neon glow, grid animation |
+| Executive | #09090b | #8b5cf6 | Minimal, clean borders |
+
+---
+
 ## [2.3.10] - 2025-12-13
 
 ### Fixed - Critical Timezone Bug in SQL Queries

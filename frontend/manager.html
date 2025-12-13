@@ -4,10 +4,12 @@
 <!-- Auth protection disabled temporarily -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manager Dashboard - Productivity System</title>
+    <title>PodFactory Command Center</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/manager.css">
+    <link rel="stylesheet" href="css/manager-cyberpunk.css" id="theme-css">
 </head>
 <body>
     <!-- Mobile Menu Toggle Button (only visible on mobile) -->
@@ -16,8 +18,8 @@
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h2>PodFactory Manager</h2>
-            <p style="color: #808080; font-size: 0.9em;">Operations Control</p>
+            <h2>PODFACTORY</h2>
+            <p style="color: #606080; font-size: 0.7em; letter-spacing: 2px;">COMMAND CENTER</p>
         </div>
         
         <nav class="sidebar-nav">
@@ -52,16 +54,17 @@
                 <i class="fas fa-chart-line"></i>
                 <span>Analytics</span>
             </a>
-            <a href="#" class="nav-item">
+            <a href="#" class="nav-item" onclick="openSettingsModal(); return false;">
                 <i class="fas fa-cog"></i>
                 <span>Settings</span>
             </a>
         </nav>
         
-        <div style="position: absolute; bottom: 20px; left: 20px; right: 20px;">
-            <div style="padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 12px; text-align: center;">
-                <p style="font-size: 0.9em; color: #808080; margin: 0;">Logged in as</p>
-                <p style="font-weight: 600; color: #e0e0e0; margin: 5px 0 0 0;">Manager Admin</p>
+        <div class="sidebar-user-panel">
+            <div class="user-info-card">
+                <p class="user-label">OPERATOR</p>
+                <p class="user-name">Manager Admin</p>
+                <div class="status-indicator"><span class="status-dot"></span>ONLINE</div>
             </div>
         </div>
     </div>
@@ -71,8 +74,8 @@
         <!-- Header -->
         <div class="dashboard-header">
             <div class="dashboard-title">
-                <h1>Operations Dashboard</h1>
-                <p>Real-time productivity monitoring and team management</p>
+                <h1>OPERATIONS MATRIX</h1>
+                <p>REAL-TIME PRODUCTIVITY MONITORING // TEAM ANALYTICS</p>
             </div>
             <div class="header-actions">
                 <div id="currentDateTime"></div>
@@ -783,6 +786,142 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div id="settings-modal" style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.85);
+        z-index: 10001;
+        backdrop-filter: blur(4px);
+    " onclick="if(event.target === this) closeSettingsModal()">
+        <div style="
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #18181b;
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid #3f3f46;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        ">
+            <!-- Modal Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #3f3f46;">
+                <h2 style="margin: 0; color: #fafafa; font-size: 20px; font-weight: 600;">
+                    <i class="fas fa-cog" style="color: #8b5cf6; margin-right: 10px;"></i>Settings
+                </h2>
+                <button onclick="closeSettingsModal()" style="
+                    background: none;
+                    border: none;
+                    color: #71717a;
+                    font-size: 1.5em;
+                    cursor: pointer;
+                    padding: 0;
+                    line-height: 1;
+                ">&times;</button>
+            </div>
+
+            <!-- Theme Section -->
+            <div style="margin-bottom: 24px;">
+                <h3 style="margin: 0 0 16px 0; color: #a1a1aa; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Theme
+                </h3>
+                <div id="theme-options" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                    <!-- Original Theme -->
+                    <button class="theme-option-btn" data-theme="original" onclick="selectTheme('original')" style="
+                        background: #27272a;
+                        border: 2px solid #3f3f46;
+                        border-radius: 12px;
+                        padding: 16px 12px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        position: relative;
+                    ">
+                        <div style="
+                            width: 100%;
+                            height: 60px;
+                            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                            border-radius: 8px;
+                            margin-bottom: 10px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <div style="width: 20px; height: 20px; background: #667eea; border-radius: 4px;"></div>
+                        </div>
+                        <span style="color: #fafafa; font-size: 13px; font-weight: 500;">Original</span>
+                        <div class="theme-active-indicator" style="display: none; position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></div>
+                    </button>
+
+                    <!-- Cyberpunk Theme -->
+                    <button class="theme-option-btn" data-theme="cyberpunk" onclick="selectTheme('cyberpunk')" style="
+                        background: #27272a;
+                        border: 2px solid #3f3f46;
+                        border-radius: 12px;
+                        padding: 16px 12px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        position: relative;
+                    ">
+                        <div style="
+                            width: 100%;
+                            height: 60px;
+                            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+                            border-radius: 8px;
+                            margin-bottom: 10px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 4px;
+                        ">
+                            <div style="width: 16px; height: 16px; background: #00f5ff; border-radius: 2px; box-shadow: 0 0 10px #00f5ff;"></div>
+                            <div style="width: 16px; height: 16px; background: #ff00ff; border-radius: 2px; box-shadow: 0 0 10px #ff00ff;"></div>
+                        </div>
+                        <span style="color: #fafafa; font-size: 13px; font-weight: 500;">Cyberpunk</span>
+                        <div class="theme-active-indicator" style="display: none; position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></div>
+                    </button>
+
+                    <!-- Executive Theme -->
+                    <button class="theme-option-btn" data-theme="executive" onclick="selectTheme('executive')" style="
+                        background: #27272a;
+                        border: 2px solid #3f3f46;
+                        border-radius: 12px;
+                        padding: 16px 12px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        position: relative;
+                    ">
+                        <div style="
+                            width: 100%;
+                            height: 60px;
+                            background: linear-gradient(135deg, #09090b 0%, #18181b 100%);
+                            border-radius: 8px;
+                            margin-bottom: 10px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #8b5cf6, #a78bfa); border-radius: 4px;"></div>
+                        </div>
+                        <span style="color: #fafafa; font-size: 13px; font-weight: 500;">Executive</span>
+                        <div class="theme-active-indicator" style="display: none; position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; background: #22c55e; border-radius: 50%;"></div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Info Text -->
+            <p style="margin: 0; color: #71717a; font-size: 12px; text-align: center;">
+                Theme preference is saved to your browser
+            </p>
+        </div>
+    </div>
+
     <!-- System Control Modal -->
     <div id="system-control-modal" style="
         display: none;
@@ -1256,10 +1395,57 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.1/dist/chart.umd.min.js"></script>
     <script src="dashboard-api.js"></script>
+    <script src="js/theme-switcher.js"></script>
     <script>
         // API base for inline fetch calls (uses same logic as dashboard-api.js)
         const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:5000' : '';
+
+        // ============= SETTINGS & THEME SYSTEM =============
+        // Open settings modal
+        function openSettingsModal() {
+            document.getElementById('settings-modal').style.display = 'block';
+            updateThemeSelection();
+        }
+
+        // Close settings modal
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        // Update theme selection UI
+        function updateThemeSelection() {
+            const currentTheme = localStorage.getItem('selectedTheme') || 'cyberpunk';
+            document.querySelectorAll('.theme-option-btn').forEach(btn => {
+                const isActive = btn.dataset.theme === currentTheme;
+                btn.style.borderColor = isActive ? '#8b5cf6' : '#3f3f46';
+                btn.querySelector('.theme-active-indicator').style.display = isActive ? 'block' : 'none';
+            });
+        }
+
+        // Select and apply theme
+        function selectTheme(themeName) {
+            const themeLink = document.getElementById('theme-css');
+            const themeCssMap = {
+                'original': 'css/manager.css',
+                'cyberpunk': 'css/manager-cyberpunk.css',
+                'executive': 'css/manager-executive.css'
+            };
+
+            if (themeCssMap[themeName]) {
+                themeLink.href = themeCssMap[themeName];
+                localStorage.setItem('selectedTheme', themeName);
+                updateThemeSelection();
+            }
+        }
+
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('selectedTheme');
+            if (savedTheme) {
+                selectTheme(savedTheme);
+            }
+        });
 
         // ============= NOTIFICATION & MODAL SYSTEM =============
         // Toast notification function

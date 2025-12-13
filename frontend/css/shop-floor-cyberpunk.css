@@ -1,0 +1,61 @@
+/**
+ * Shop Floor Display - Cyberpunk Theme Override
+ * Overrides :root variables from inline styles
+ */
+
+:root {
+    /* Core Gaming Colors - Cyberpunk variant */
+    --bg-dark: #0a0a12 !important;
+    --bg-panel: #0d0d18 !important;
+    --bg-card: rgba(10, 20, 40, 0.85) !important;
+    --bg-card-glow: rgba(20, 40, 60, 0.9) !important;
+
+    /* Neon Accents - Enhanced cyan/pink focus */
+    --neon-pink: #ff00ff !important;
+    --neon-cyan: #00f5ff !important;
+    --neon-purple: #a855f7 !important;
+    --neon-blue: #3b82f6 !important;
+    --neon-green: #39ff14 !important;
+    --neon-yellow: #ffff00 !important;
+    --neon-orange: #ff6600 !important;
+    --neon-red: #ff0044 !important;
+
+    /* Rank Colors */
+    --gold: #ffd700 !important;
+    --silver: #c0c0c0 !important;
+    --bronze: #cd7f32 !important;
+
+    /* Text */
+    --text-primary: #ffffff !important;
+    --text-secondary: rgba(255, 255, 255, 0.8) !important;
+    --text-muted: rgba(255, 255, 255, 0.5) !important;
+
+    /* Gradients - Cyberpunk style */
+    --gradient-pink-cyan: linear-gradient(135deg, #ff00ff 0%, #00f5ff 100%) !important;
+    --gradient-purple-blue: linear-gradient(135deg, #a855f7 0%, #00f5ff 100%) !important;
+    --gradient-fire: linear-gradient(135deg, #ff0044 0%, #ff6600 50%, #ffff00 100%) !important;
+
+    /* Shadows/Glows - Intensified */
+    --glow-pink: 0 0 40px rgba(255, 0, 255, 0.6) !important;
+    --glow-cyan: 0 0 40px rgba(0, 245, 255, 0.6) !important;
+    --glow-purple: 0 0 40px rgba(168, 85, 247, 0.6) !important;
+}
+
+/* Enhanced scan line effect */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 245, 255, 0.02) 2px,
+        rgba(0, 245, 255, 0.02) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+}
