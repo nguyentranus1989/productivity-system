@@ -42,19 +42,15 @@ class ProductivityAPI {
     }
     // Add this helper method
     getCentralDate() {
-        // Get current time
+        // Use Intl API for accurate Central Time conversion
         const now = new Date();
-        
-        // Calculate Central Time offset (UTC-6 for CST, UTC-5 for CDT)
-        // During August, it's CDT (UTC-5)
-        const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-        const centralTime = new Date(utcTime + (3600000 * -5)); // UTC-5 for CDT
-        
+        const centralTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Chicago"}));
+
         // Format as YYYY-MM-DD
         const year = centralTime.getFullYear();
         const month = String(centralTime.getMonth() + 1).padStart(2, '0');
         const day = String(centralTime.getDate()).padStart(2, '0');
-        
+
         return `${year}-${month}-${day}`;
     }
 
@@ -65,25 +61,29 @@ class ProductivityAPI {
      */
     getUTCBoundariesForCTDate(ctDate) {
         const [year, month, day] = ctDate.split('-').map(Number);
-        
-        // Check if date is in DST (rough approximation for Central Time)
-        // CDT runs March - November
-        const isDST = (month >= 3 && month <= 11);
-        const offsetHours = isDST ? 5 : 6; // CDT = UTC-5, CST = UTC-6
-        
+
+        // Use Intl API to properly detect DST for the given date
+        const testDate = new Date(year, month - 1, day, 12, 0, 0); // noon on target date
+        const ctString = testDate.toLocaleString("en-US", {timeZone: "America/Chicago"});
+        const utcString = testDate.toLocaleString("en-US", {timeZone: "UTC"});
+        const ctTime = new Date(ctString);
+        const utcTime = new Date(utcString);
+        const offsetHours = Math.round((utcTime - ctTime) / 3600000);
+        const isDST = offsetHours === 5; // CDT = UTC-5, CST = UTC-6
+
         // Format date strings for SQL
         const pad = (n) => String(n).padStart(2, '0');
-        
-        // Start: midnight CT on the given date
+
+        // Start: midnight CT on the given date = offsetHours:00:00 UTC
         const utcStart = `${year}-${pad(month)}-${pad(day)} ${pad(offsetHours)}:00:00`;
-        
+
         // End: 23:59:59 CT on the given date
         const nextDay = new Date(year, month - 1, day + 1);
         const endYear = nextDay.getFullYear();
         const endMonth = nextDay.getMonth() + 1;
         const endDay = nextDay.getDate();
         const utcEnd = `${endYear}-${pad(endMonth)}-${pad(endDay)} ${pad(offsetHours - 1)}:59:59`;
-        
+
         return {
             utc_start: utcStart,
             utc_end: utcEnd,
