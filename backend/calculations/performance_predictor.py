@@ -6,14 +6,16 @@ import statistics
 from collections import defaultdict
 
 from database.db_manager import get_db
+from utils.timezone_helpers import TimezoneHelper
 
 logger = logging.getLogger(__name__)
 
 class PerformancePredictor:
     """Predict employee performance using historical data patterns"""
-    
+
     def __init__(self):
         self.db = get_db()
+        self.tz_helper = TimezoneHelper()
     
     def predict_next_day_performance(self, employee_id: int) -> Dict:
         """
@@ -27,9 +29,11 @@ class PerformancePredictor:
         day_name = tomorrow.strftime('%A')
         
         # Get historical performance for this day of week
+        past_60_days = self.tz_helper.get_current_ct_date() - timedelta(days=60)
+
         historical_data = self.db.execute_query(
             """
-            SELECT 
+            SELECT
                 AVG(points_earned) as avg_points,
                 AVG(efficiency_rate) as avg_efficiency,
                 AVG(items_processed) as avg_items,
@@ -37,9 +41,9 @@ class PerformancePredictor:
             FROM daily_scores
             WHERE employee_id = %s
             AND DAYNAME(score_date) = %s
-            AND score_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            AND score_date >= %s
             """,
-            (employee_id, day_name)
+            (employee_id, day_name, past_60_days)
         )
         
         if not historical_data or not historical_data[0]['sample_size']:
@@ -53,19 +57,21 @@ class PerformancePredictor:
         hist_data = historical_data[0]
         
         # Get recent trend (last 7 days)
+        past_7_days = self.tz_helper.get_current_ct_date() - timedelta(days=7)
+
         recent_data = self.db.execute_query(
             """
-            SELECT 
+            SELECT
                 score_date,
                 points_earned,
                 efficiency_rate,
                 items_processed
             FROM daily_scores
             WHERE employee_id = %s
-            AND score_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+            AND score_date >= %s
             ORDER BY score_date DESC
             """,
-            (employee_id,)
+            (employee_id, past_7_days)
         )
         
         if recent_data:
@@ -99,9 +105,9 @@ class PerformancePredictor:
             FROM daily_scores
             WHERE employee_id = %s
             AND DAYNAME(score_date) = %s
-            AND score_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            AND score_date >= %s
             """,
-            (employee_id, day_name)
+            (employee_id, day_name, past_60_days)
         )
         
         std_dev = float(variance_data['std_dev'] or 0)
@@ -137,15 +143,17 @@ class PerformancePredictor:
             day_name = future_date.strftime('%A')
             
             # Skip weekends if employee doesn't usually work weekends
+            past_30_days = self.tz_helper.get_current_ct_date() - timedelta(days=30)
+
             weekend_check = self.db.execute_one(
                 """
                 SELECT COUNT(*) as weekend_days
                 FROM daily_scores
                 WHERE employee_id = %s
                 AND DAYOFWEEK(score_date) IN (1, 7)
-                AND score_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                AND score_date >= %s
                 """,
-                (employee_id,)
+                (employee_id, past_30_days)
             )
             
             if day_name in ['Saturday', 'Sunday'] and weekend_check['weekend_days'] == 0:
@@ -198,19 +206,23 @@ class PerformancePredictor:
         risk_factors = []
         
         # 1. Declining trend
+        ct_date = self.tz_helper.get_current_ct_date()
+        past_7_days = ct_date - timedelta(days=7)
+        past_14_days = ct_date - timedelta(days=14)
+
         trend_data = self.db.execute_query(
             """
-            SELECT 
-                AVG(CASE WHEN score_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) 
+            SELECT
+                AVG(CASE WHEN score_date >= %s
                     THEN points_earned END) as recent_avg,
-                AVG(CASE WHEN score_date < DATE_SUB(CURDATE(), INTERVAL 7 DAY) 
-                    AND score_date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+                AVG(CASE WHEN score_date < %s
+                    AND score_date >= %s
                     THEN points_earned END) as previous_avg
             FROM daily_scores
             WHERE employee_id = %s
-            AND score_date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+            AND score_date >= %s
             """,
-            (employee_id,)
+            (past_7_days, past_7_days, past_14_days, employee_id, past_14_days)
         )
         
         if trend_data and trend_data[0]['recent_avg'] and trend_data[0]['previous_avg']:
@@ -226,16 +238,18 @@ class PerformancePredictor:
                 })
         
         # 2. High idle time recently
+        past_7_utc_start, _ = self.tz_helper.ct_date_to_utc_range(past_7_days)
+
         idle_data = self.db.execute_one(
             """
-            SELECT 
+            SELECT
                 COUNT(*) as idle_periods,
                 SUM(duration_minutes) as total_idle
             FROM idle_periods
             WHERE employee_id = %s
-            AND start_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            AND start_time >= %s
             """,
-            (employee_id,)
+            (employee_id, past_7_utc_start)
         )
         
         if idle_data and idle_data['idle_periods'] > 10:
@@ -247,16 +261,17 @@ class PerformancePredictor:
             })
         
         # 3. Inconsistent attendance
+        past_14_utc_start, _ = self.tz_helper.ct_date_to_utc_range(past_14_days)
+
         attendance_data = self.db.execute_one(
             """
-            SELECT 
-                COUNT(DISTINCT DATE(clock_in)) as days_worked,
-                DATEDIFF(CURDATE(), DATE_SUB(CURDATE(), INTERVAL 14 DAY)) as expected_days
+            SELECT
+                COUNT(DISTINCT DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago'))) as days_worked
             FROM clock_times
             WHERE employee_id = %s
-            AND clock_in >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+            AND clock_in >= %s
             """,
-            (employee_id,)
+            (employee_id, past_14_utc_start)
         )
         
         if attendance_data:
@@ -270,18 +285,20 @@ class PerformancePredictor:
                 })
         
         # 4. Below target trajectory
+        month_year = ct_date.strftime('%Y-%m')
+
         current_month = self.db.execute_one(
             """
-            SELECT 
-                SUM(points_earned) as current_points,
-                DAY(CURDATE()) as days_elapsed
+            SELECT
+                SUM(points_earned) as current_points
             FROM daily_scores
             WHERE employee_id = %s
-            AND MONTH(score_date) = MONTH(CURDATE())
-            AND YEAR(score_date) = YEAR(CURDATE())
+            AND DATE_FORMAT(score_date, '%%Y-%%m') = %s
             """,
-            (employee_id,)
+            (employee_id, month_year)
         )
+
+        days_elapsed = ct_date.day
         
         if current_month and current_month['current_points']:
             # Get monthly target
@@ -296,9 +313,9 @@ class PerformancePredictor:
             )
             
             if target_data:
-                expected_progress = (current_month['days_elapsed'] / 30) * float(target_data['monthly_target'])
+                expected_progress = (days_elapsed / 30) * float(target_data['monthly_target'])
                 actual_progress = float(current_month['current_points'])
-                
+
                 if actual_progress < expected_progress * 0.8:
                     risk_factors.append({
                         'type': 'behind_target',
@@ -312,29 +329,33 @@ class PerformancePredictor:
     def _predict_specific_day(self, employee_id: int, target_date: date, day_name: str) -> Dict:
         """Helper to predict performance for a specific day"""
         # Get historical average for this day of week
+        past_60_days = self.tz_helper.get_current_ct_date() - timedelta(days=60)
+
         hist_data = self.db.execute_one(
             """
-            SELECT 
+            SELECT
                 AVG(points_earned) as avg_points,
                 COUNT(*) as sample_size
             FROM daily_scores
             WHERE employee_id = %s
             AND DAYNAME(score_date) = %s
-            AND score_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            AND score_date >= %s
             """,
-            (employee_id, day_name)
+            (employee_id, day_name, past_60_days)
         )
-        
+
         if not hist_data or not hist_data['sample_size']:
             # No data for this day, use overall average
+            past_30_days = self.tz_helper.get_current_ct_date() - timedelta(days=30)
+
             overall = self.db.execute_one(
                 """
                 SELECT AVG(points_earned) as avg_points
                 FROM daily_scores
                 WHERE employee_id = %s
-                AND score_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                AND score_date >= %s
                 """,
-                (employee_id,)
+                (employee_id, past_30_days)
             )
             
             return {

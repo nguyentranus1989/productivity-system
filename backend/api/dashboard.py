@@ -2,6 +2,7 @@ import os
 # backend/api/dashboard.py
 from database.db_manager import DatabaseManager, get_db
 from flask import Blueprint, jsonify, request
+from utils.timezone_helpers import TimezoneHelper
 
 # Redis-backed cache with in-memory fallback
 import time
@@ -105,6 +106,9 @@ load_dotenv()
 
 # Create logger
 logger = logging.getLogger(__name__)
+
+# Initialize timezone helper
+tz_helper = TimezoneHelper()
 
 ACTION_TO_DEPARTMENT_MAP = {
     'In Production': 'Heat Press',
@@ -791,13 +795,17 @@ def get_server_time():
 def get_live_leaderboard():
     """Enhanced leaderboard with position changes and badges"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+        yesterday_ct = ct_date - timedelta(days=1)
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         # Get current rankings with position changes
         cursor.execute("""
             WITH current_ranks AS (
-                SELECT 
+                SELECT
                     e.id,
                     e.name,
                     ds.items_processed,
@@ -807,14 +815,14 @@ def get_live_leaderboard():
                     ROW_NUMBER() OVER (ORDER BY ds.points_earned DESC) as current_rank,
                     LAG(ds.points_earned, 1) OVER (ORDER BY ds.points_earned DESC) as prev_points,
                     -- Calculate items per minute based on clock time
-                    CASE 
+                    CASE
                         WHEN ct.clock_minutes > 0 THEN ROUND(ds.items_processed / ct.clock_minutes * 60, 1)
                         ELSE 0
                     END as items_per_minute
                 FROM daily_scores ds
                 JOIN employees e ON e.id = ds.employee_id
                 LEFT JOIN (
-                    SELECT 
+                    SELECT
                         employee_id,
                         -- Calculate actual worked time without duplicates (UTC comparison)
                         ROUND(
@@ -829,23 +837,23 @@ def get_live_leaderboard():
                             COALESCE(MAX(clock_out), UTC_TIMESTAMP())
                         ) as clock_minutes
                     FROM clock_times
-                    WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                    WHERE clock_in >= %s AND clock_in < %s
                     GROUP BY employee_id
                 ) ct ON ct.employee_id = e.id
-                WHERE ds.score_date = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                WHERE ds.score_date = %s
                 AND ds.points_earned > 0
             ),
             yesterday_ranks AS (
-                SELECT 
+                SELECT
                     employee_id,
                     ROW_NUMBER() OVER (ORDER BY points_earned DESC) as yesterday_rank
                 FROM daily_scores
-                WHERE score_date = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+                WHERE score_date = %s
             )
-            SELECT 
+            SELECT
                 cr.*,
                 COALESCE(yr.yesterday_rank, 999) as yesterday_rank,
-                CASE 
+                CASE
                     WHEN yr.yesterday_rank IS NULL THEN 'new'
                     WHEN cr.current_rank < yr.yesterday_rank THEN 'up'
                     WHEN cr.current_rank > yr.yesterday_rank THEN 'down'
@@ -856,7 +864,7 @@ def get_live_leaderboard():
             LEFT JOIN yesterday_ranks yr ON yr.employee_id = cr.id
             ORDER BY cr.current_rank
             LIMIT 10
-        """)
+        """, (utc_start, utc_end, ct_date, yesterday_ct))
         
         leaderboard = cursor.fetchall()
         
@@ -925,12 +933,15 @@ def get_live_leaderboard():
 def get_streak_leaders():
     """Get top employees by current streak"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         # Get top 5 employees with longest streaks
         cursor.execute("""
-            SELECT 
+            SELECT
                 e.id,
                 e.name,
                 e.current_streak as streak_days,
@@ -941,18 +952,18 @@ def get_streak_leaders():
                     SELECT al.department
                     FROM activity_logs al
                     WHERE al.employee_id = e.id
-                    AND DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                    AND al.window_start >= %s AND al.window_start < %s
                     ORDER BY al.window_start DESC
                     LIMIT 1
                 ) as department
             FROM employees e
             LEFT JOIN daily_scores ds ON ds.employee_id = e.id
-                AND ds.score_date = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                AND ds.score_date = %s
             WHERE e.is_active = 1
             AND e.current_streak > 0
             ORDER BY e.current_streak DESC, ds.points_earned DESC
             LIMIT 5
-        """)
+        """, (utc_start, utc_end, ct_date))
         
         streak_leaders = cursor.fetchall()
         
@@ -985,23 +996,26 @@ def get_streak_leaders():
 def get_achievement_ticker():
     """Get achievements and milestones for the ticker"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         achievements = []
-        
+
         # 1. Top performer of the day
         cursor.execute("""
-            SELECT 
+            SELECT
                 e.name,
                 ds.points_earned,
                 ds.items_processed
             FROM daily_scores ds
             JOIN employees e ON e.id = ds.employee_id
-            WHERE ds.score_date = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+            WHERE ds.score_date = %s
             ORDER BY ds.points_earned DESC
             LIMIT 1
-        """)
+        """, (ct_date,))
 
         top_performer = cursor.fetchone()
         if top_performer:
@@ -1019,15 +1033,15 @@ def get_achievement_ticker():
                     employee_id,
                     GREATEST(0, TIMESTAMPDIFF(MINUTE, MIN(clock_in), COALESCE(MAX(clock_out), UTC_TIMESTAMP()))) as clock_minutes
                 FROM clock_times
-                WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                WHERE clock_in >= %s AND clock_in < %s
                 GROUP BY employee_id
             ) ct ON ct.employee_id = e.id
-            WHERE ds.score_date = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+            WHERE ds.score_date = %s
             AND ct.clock_minutes > 30
             HAVING items_per_hour >= 50
             ORDER BY items_per_hour DESC
             LIMIT 3
-        """)
+        """, (utc_start, utc_end, ct_date))
         
         speed_demons = cursor.fetchall()
         for emp in speed_demons:
@@ -1056,15 +1070,15 @@ def get_achievement_ticker():
             SELECT
                 COALESCE(SUM(al.items_count), 0) as qc_passed_total
             FROM activity_logs al
-            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+            WHERE al.window_start >= %s AND al.window_start < %s
             AND al.activity_type = 'QC Passed'
             AND al.source = 'podfactory'
-        """)
-        
+        """, (utc_start, utc_end))
+
         team_stats = cursor.fetchone()
         if team_stats and team_stats['qc_passed_total'] > 0:
             achievements.append(f"📊 Team total: {int(team_stats['qc_passed_total'])} items QC passed today!")
-        
+
         # 6. Recent milestones
         cursor.execute("""
             SELECT
@@ -1072,15 +1086,15 @@ def get_achievement_ticker():
                 ds.items_processed
             FROM daily_scores ds
             JOIN employees e ON e.id = ds.employee_id
-            WHERE ds.score_date = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+            WHERE ds.score_date = %s
             AND (
-                ds.items_processed >= 500 
-                OR ds.items_processed = 100 
+                ds.items_processed >= 500
+                OR ds.items_processed = 100
                 OR ds.items_processed = 250
             )
             ORDER BY ds.updated_at DESC
             LIMIT 2
-        """)
+        """, (ct_date,))
         
         milestones = cursor.fetchall()
         for emp in milestones:
@@ -1119,22 +1133,25 @@ def get_achievement_ticker():
 def get_hourly_heatmap():
     """Get hourly productivity heatmap data"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         cursor.execute("""
-            SELECT 
-                HOUR(al.window_start) as hour,
+            SELECT
+                HOUR(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) as hour,
                 COUNT(DISTINCT al.employee_id) as active_employees,
                 SUM(al.items_count) as items_processed,
                 ROUND(SUM(al.items_count * rc.multiplier), 1) as points_earned
             FROM activity_logs al
             JOIN role_configs rc ON rc.id = al.role_id
-            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = CURDATE()
+            WHERE al.window_start >= %s AND al.window_start < %s
             AND al.source = 'podfactory'
             GROUP BY HOUR(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago'))
             ORDER BY hour
-        """)
+        """, (utc_start, utc_end))
         
         hourly_data = cursor.fetchall()
         
@@ -1170,16 +1187,18 @@ def get_hourly_heatmap():
 
 # Gamification Achievements
 @dashboard_bp.route('/gamification/achievements', methods=['GET'])
-@require_api_key  
+@require_api_key
 def get_achievements():
     """Get achievement progress for gamification"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         # Daily achievements
         cursor.execute("""
-            SELECT 
+            SELECT
                 COUNT(CASE WHEN ds.points_earned >= 100 THEN 1 END) as century_club,
                 COUNT(CASE WHEN ds.points_earned >= 250 THEN 1 END) as quarter_master,
                 COUNT(CASE WHEN ds.points_earned >= 500 THEN 1 END) as half_hero,
@@ -1187,8 +1206,8 @@ def get_achievements():
                 MAX(ds.points_earned) as top_score,
                 SUM(ds.points_earned) as total_team_points
             FROM daily_scores ds
-            WHERE ds.score_date = CURDATE()
-        """)
+            WHERE ds.score_date = %s
+        """, (ct_date,))
         
         achievements = cursor.fetchone()
         
@@ -1246,11 +1265,14 @@ def get_achievements():
 def get_department_battle():
     """Get department vs department competition data"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         cursor.execute("""
-            SELECT 
+            SELECT
                 al.department,
                 COUNT(DISTINCT al.employee_id) as employees,
                 SUM(al.items_count) as items,
@@ -1258,11 +1280,11 @@ def get_department_battle():
                 ROUND(AVG(al.items_count * rc.multiplier), 1) as avg_points_per_activity
             FROM activity_logs al
             JOIN role_configs rc ON rc.id = al.role_id
-            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = CURDATE()
+            WHERE al.window_start >= %s AND al.window_start < %s
             AND al.source = 'podfactory'
             GROUP BY al.department
             ORDER BY points DESC
-        """)
+        """, (utc_start, utc_end))
         
         departments = cursor.fetchall()
         
@@ -1300,14 +1322,17 @@ def get_department_battle():
 @dashboard_bp.route('/activities/recent', methods=['GET'])
 @require_api_key
 def get_recent_activities():
-    
+
     """Get recent system activities for the activity feed"""
     limit = request.args.get('limit', 10, type=int)
-    
+
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         query = """
         SELECT
             'clock_in' as type,
@@ -1317,7 +1342,7 @@ def get_recent_activities():
             DATE_FORMAT(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago'), '%h:%i %p') as time_str
         FROM clock_times ct
         JOIN employees e ON e.id = ct.employee_id
-        WHERE DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+        WHERE ct.clock_in >= %s AND ct.clock_in < %s
 
         UNION ALL
 
@@ -1330,13 +1355,13 @@ def get_recent_activities():
         FROM clock_times ct
         JOIN employees e ON e.id = ct.employee_id
         WHERE ct.clock_out IS NOT NULL
-        AND DATE(CONVERT_TZ(ct.clock_out, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
-        
+        AND ct.clock_out >= %s AND ct.clock_out < %s
+
         ORDER BY timestamp DESC
         LIMIT %s
         """
-        
-        cursor.execute(query, (limit,))
+
+        cursor.execute(query, (utc_start, utc_end, utc_start, utc_end, limit))
         activities = cursor.fetchall()
         
         cursor.close()
@@ -1353,25 +1378,27 @@ def get_recent_activities():
 def get_active_alerts():
     """Get active system alerts"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         alerts = []
-        
+
         # Check for employees with low productivity
         cursor.execute("""
-            SELECT 
+            SELECT
                 e.name,
                 ds.points_earned,
                 ds.items_processed
             FROM employees e
             JOIN daily_scores ds ON ds.employee_id = e.id
-            WHERE ds.score_date = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+            WHERE ds.score_date = %s
             AND ds.points_earned < 50
             AND ds.points_earned > 0
             ORDER BY ds.points_earned ASC
             LIMIT 3
-        """)
+        """, (ct_date,))
         
         low_performers = cursor.fetchall()
         for emp in low_performers:
@@ -1455,9 +1482,12 @@ def get_hourly_productivity():
 def get_team_metrics():
     """Get overall team metrics"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         # Get metrics with correct calculations
         # Use Central Time consistently for both data and current date comparison
         cursor.execute("""
@@ -1469,38 +1499,38 @@ def get_team_metrics():
                 -- Calculate total hours worked
                 COALESCE(ROUND(SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, ct.clock_in, COALESCE(ct.clock_out, UTC_TIMESTAMP())))) / 60.0, 1), 0) as total_hours_worked
             FROM clock_times ct
-            WHERE DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
-        """)
-        
+            WHERE ct.clock_in >= %s AND ct.clock_in < %s
+        """, (utc_start, utc_end))
+
         metrics = cursor.fetchone()
-        
+
         # Get QC Passed items separately with timezone handling
         cursor.execute("""
             SELECT
                 COALESCE(SUM(al.items_count), 0) as items_today
             FROM activity_logs al
-            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+            WHERE al.window_start >= %s AND al.window_start < %s
             AND al.activity_type = 'QC Passed'
             AND al.source = 'podfactory'
-        """)
-        
+        """, (utc_start, utc_end))
+
         qc_result = cursor.fetchone()
         metrics['items_today'] = int(qc_result['items_today'] or 0)
         metrics['items_finished'] = metrics['items_today']  # Add this for shop floor
-        
+
         # Get total points with timezone handling
         cursor.execute("""
             SELECT
                 COALESCE(SUM(al.items_count * rc.multiplier), 0) as points_today
             FROM activity_logs al
             JOIN role_configs rc ON rc.id = al.role_id
-            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+            WHERE al.window_start >= %s AND al.window_start < %s
             AND al.source = 'podfactory'
-        """)
-        
+        """, (utc_start, utc_end))
+
         points_result = cursor.fetchone()
         metrics['points_today'] = float(points_result['points_today'] or 0)
-        
+
         # Calculate overall efficiency using role_configs (single source of truth)
         # Formula: Σ(actual_items) / Σ(dept_hours × expected_per_hour) × 100
         # Fixed: Aggregate by employee first to avoid duplicate hours
@@ -1514,18 +1544,18 @@ def get_team_metrics():
             FROM (
                 SELECT department, employee_id, SUM(items_count) as emp_items
                 FROM activity_logs
-                WHERE DATE(CONVERT_TZ(window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                WHERE window_start >= %s AND window_start < %s
                 AND source = 'podfactory'
                 GROUP BY department, employee_id
             ) dept_emp
             LEFT JOIN (
                 SELECT employee_id, SUM(total_minutes) / 60.0 as clock_hours
                 FROM clock_times
-                WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                WHERE clock_in >= %s AND clock_in < %s
                 GROUP BY employee_id
             ) ct ON ct.employee_id = dept_emp.employee_id
             GROUP BY dept_emp.department
-        """)
+        """, (utc_start, utc_end, utc_start, utc_end))
         dept_stats = cursor.fetchall()
 
         # Get role targets from role_configs
@@ -1563,23 +1593,26 @@ def get_team_metrics():
         overall_efficiency = round((total_actual / total_expected) * 100, 1) if total_expected > 0 else 0
             
         # Get yesterday's data for comparison with timezone handling
+        yesterday_ct = ct_date - timedelta(days=1)
+        utc_start_yesterday, utc_end_yesterday = tz_helper.ct_date_to_utc_range(yesterday_ct)
+
         cursor.execute("""
             SELECT COALESCE(SUM(al.items_count), 0) as yesterday_items
             FROM activity_logs al
-            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE_SUB(DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago')), INTERVAL 1 DAY)
+            WHERE al.window_start >= %s AND al.window_start < %s
             AND al.activity_type = 'QC Passed'
             AND al.source = 'podfactory'
-        """)
-        
+        """, (utc_start_yesterday, utc_end_yesterday))
+
         yesterday = cursor.fetchone()
         yesterday_items = float(yesterday['yesterday_items'] or 0)
         today_items = float(metrics['items_today'] or 0)
-        
+
         if yesterday_items > 0:
             vs_yesterday = ((today_items - yesterday_items) / yesterday_items) * 100
         else:
             vs_yesterday = 0 if today_items == 0 else 100
-        
+
         # Get top department for shop floor
         cursor.execute("""
             SELECT
@@ -1587,12 +1620,12 @@ def get_team_metrics():
                 ROUND(SUM(al.items_count * rc.multiplier), 1) as dept_points
             FROM activity_logs al
             JOIN role_configs rc ON rc.id = al.role_id
-            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+            WHERE al.window_start >= %s AND al.window_start < %s
             AND al.source = 'podfactory'
             GROUP BY al.department
             ORDER BY dept_points DESC
             LIMIT 1
-        """)
+        """, (utc_start, utc_end))
         
         top_dept = cursor.fetchone()
         
@@ -1643,53 +1676,56 @@ def get_team_metrics():
 def get_employee_stats(employee_id):
     """Get detailed stats for a specific employee"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         cursor.execute("""
-            SELECT 
+            SELECT
                 e.id,
                 e.name,
                 e.current_streak as streak_days,
                 COALESCE(ds.items_processed, 0) as items_today,
                 COALESCE(ds.points_earned, 0) as points_today,
-                CASE 
-                    WHEN ct.clock_minutes > 0 THEN 
+                CASE
+                    WHEN ct.clock_minutes > 0 THEN
                         ROUND(COALESCE(ds.items_processed, 0) / ct.clock_minutes * 60, 1)
                     ELSE 0
                 END as items_per_hour
             FROM employees e
-            LEFT JOIN daily_scores ds ON ds.employee_id = e.id 
-                AND ds.score_date = CURDATE()
+            LEFT JOIN daily_scores ds ON ds.employee_id = e.id
+                AND ds.score_date = %s
             LEFT JOIN (
                 SELECT employee_id,
                        MIN(clock_in) as clock_in,
                        MAX(clock_out) as clock_out,
                        GREATEST(0, TIMESTAMPDIFF(MINUTE, MIN(clock_in), COALESCE(MAX(clock_out), UTC_TIMESTAMP()))) as clock_minutes
                 FROM clock_times
-                WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+                WHERE clock_in >= %s AND clock_in < %s
                 GROUP BY employee_id
             ) ct ON ct.employee_id = e.id
             WHERE e.id = %s
-        """, (employee_id,))
-        
+        """, (ct_date, utc_start, utc_end, employee_id))
+
         employee = cursor.fetchone()
-        
+
         if not employee:
             return jsonify({'error': 'Employee not found'}), 404
-        
+
         # Get rank
         cursor.execute("""
             SELECT COUNT(*) + 1 as rank
             FROM daily_scores
-            WHERE score_date = CURDATE()
+            WHERE score_date = %s
             AND points_earned > (
-                SELECT points_earned 
-                FROM daily_scores 
-                WHERE employee_id = %s 
-                AND score_date = CURDATE()
+                SELECT points_earned
+                FROM daily_scores
+                WHERE employee_id = %s
+                AND score_date = %s
             )
-        """, (employee_id,))
+        """, (ct_date, employee_id, ct_date))
         
         rank_data = cursor.fetchone()
         
@@ -1782,23 +1818,26 @@ def get_employee_activities():
     """Get activities for employee portal"""
     employee_id = request.args.get('employee_id', type=int)
     limit = request.args.get('limit', 10, type=int)
-    
+
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         if employee_id:
             cursor.execute("""
-                SELECT 
+                SELECT
                     al.activity_type as type,
                     CONCAT(al.items_count, ' items - ', al.activity_type) as description,
                     al.window_start as timestamp
                 FROM activity_logs al
                 WHERE al.employee_id = %s
-                AND DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) = CURDATE()
+                AND al.window_start >= %s AND al.window_start < %s
                 ORDER BY al.window_start DESC
                 LIMIT %s
-            """, (employee_id, limit))
+            """, (employee_id, utc_start, utc_end, limit))
             
             activities = cursor.fetchall()
         else:
@@ -2809,26 +2848,28 @@ def get_all_payrates():
 def update_employee_payrate(employee_id):
     """Update payrate for specific employee"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+
         data = request.json
         pay_rate = data.get('pay_rate')
         pay_type = data.get('pay_type', 'hourly')
         notes = data.get('notes', '')
-        
+
         if pay_rate is None:
             return jsonify({'success': False, 'error': 'pay_rate is required'}), 400
-            
+
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
         # Check if payrate record exists
         cursor.execute("SELECT id FROM employee_payrates WHERE employee_id = %s", (employee_id,))
         exists = cursor.fetchone()
-        
+
         if exists:
             # Update existing
             cursor.execute("""
-                UPDATE employee_payrates 
-                SET pay_rate = %s, 
+                UPDATE employee_payrates
+                SET pay_rate = %s,
                     pay_type = %s,
                     notes = %s
                 WHERE employee_id = %s
@@ -2837,8 +2878,8 @@ def update_employee_payrate(employee_id):
             # Insert new
             cursor.execute("""
                 INSERT INTO employee_payrates (employee_id, pay_rate, pay_type, effective_date, notes)
-                VALUES (%s, %s, %s, CURDATE(), %s)
-            """, (employee_id, pay_rate, pay_type, notes))
+                VALUES (%s, %s, %s, %s, %s)
+            """, (employee_id, pay_rate, pay_type, ct_date, notes))
         
         conn.commit()
         cursor.close()
@@ -2854,17 +2895,20 @@ def update_employee_payrate(employee_id):
 def archive_employee(employee_id):
     """Archive an employee (soft delete)"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         # Check if employee is currently clocked in
         cursor.execute("""
-            SELECT COUNT(*) as count 
-            FROM time_tracking 
-            WHERE employee_id = %s 
-            AND clock_out_time IS NULL 
-            AND DATE(clock_in_time) = CURDATE()
-        """, (employee_id,))
+            SELECT COUNT(*) as count
+            FROM time_tracking
+            WHERE employee_id = %s
+            AND clock_out_time IS NULL
+            AND clock_in_time >= %s AND clock_in_time < %s
+        """, (employee_id, utc_start, utc_end))
         
         result = cursor.fetchone()
         if result['count'] > 0:
@@ -3575,29 +3619,32 @@ def mark_employee_contractor(employee_id):
 def test_bottleneck():
     """Test endpoint for bottleneck detection"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
+
         # Test 1: Check today's activities
         cursor.execute("""
-            SELECT 
+            SELECT
                 activity_type,
                 COUNT(*) as count,
                 SUM(items_count) as total_items
-            FROM activity_logs 
-            WHERE DATE(CONVERT_TZ(window_start, '+00:00', 'America/Chicago')) = CURDATE()
+            FROM activity_logs
+            WHERE window_start >= %s AND window_start < %s
                 AND source = 'podfactory'
             GROUP BY activity_type
-        """)
+        """, (utc_start, utc_end))
         activities = cursor.fetchall()
-        
+
         # Test 2: Check active workers
         cursor.execute("""
             SELECT COUNT(*) as active_workers
             FROM clock_times
-            WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', 'America/Chicago'))
+            WHERE clock_in >= %s AND clock_in < %s
                 AND clock_out IS NULL
-        """)
+        """, (utc_start, utc_end))
         workers = cursor.fetchone()
         
         cursor.close()

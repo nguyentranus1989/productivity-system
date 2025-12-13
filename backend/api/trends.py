@@ -1,12 +1,15 @@
 """Trends and analytics API endpoints"""
 from flask import Blueprint, request, jsonify
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import logging
 
 from calculations.trend_analyzer import TrendAnalyzer
 from api.auth import require_api_key, rate_limit
 from database.cache_manager import get_cache_manager
+from utils.timezone_helpers import TimezoneHelper
+
 cache = get_cache_manager()
+tz_helper = TimezoneHelper()
 
 logger = logging.getLogger(__name__)
 
@@ -178,9 +181,13 @@ def get_insights():
                 })
         
         # 2. At-risk employees
+        ct_date = tz_helper.get_current_ct_date()
+        month_year = ct_date.strftime('%Y-%m')
+        day_of_month = ct_date.day
+
         at_risk = db.execute_query(
             """
-            SELECT 
+            SELECT
                 e.id,
                 e.name,
                 rc.role_name,
@@ -190,12 +197,13 @@ def get_insights():
             FROM monthly_summaries ms
             JOIN employees e ON ms.employee_id = e.id
             JOIN role_configs rc ON e.role_id = rc.id
-            WHERE ms.month_year = DATE_FORMAT(CURDATE(), '%%Y-%%m')
+            WHERE ms.month_year = %s
             AND ms.total_points < ms.target_points * 0.7
-            AND DAY(CURDATE()) > 20
+            AND %s > 20
             ORDER BY progress_percent
             LIMIT 5
-            """
+            """,
+            (month_year, day_of_month)
         )
         
         if at_risk:
@@ -214,26 +222,30 @@ def get_insights():
             })
         
         # 3. Top improvers
+        date_7d_ago = ct_date - timedelta(days=7)
+        date_14d_ago = ct_date - timedelta(days=14)
+
         improvers = db.execute_query(
             """
-            SELECT 
+            SELECT
                 e.id,
                 e.name,
                 rc.role_name,
-                AVG(CASE WHEN ds.score_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) 
+                AVG(CASE WHEN ds.score_date >= %s
                     THEN ds.points_earned END) as recent_avg,
-                AVG(CASE WHEN ds.score_date < DATE_SUB(CURDATE(), INTERVAL 7 DAY) 
-                    AND ds.score_date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+                AVG(CASE WHEN ds.score_date < %s
+                    AND ds.score_date >= %s
                     THEN ds.points_earned END) as previous_avg
             FROM daily_scores ds
             JOIN employees e ON ds.employee_id = e.id
             JOIN role_configs rc ON e.role_id = rc.id
-            WHERE ds.score_date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+            WHERE ds.score_date >= %s
             GROUP BY e.id, e.name, rc.role_name
             HAVING recent_avg > previous_avg * 1.1
             ORDER BY (recent_avg - previous_avg) DESC
             LIMIT 5
-            """
+            """,
+            (date_7d_ago, date_7d_ago, date_14d_ago, date_14d_ago)
         )
         
         if improvers:
@@ -252,9 +264,11 @@ def get_insights():
             })
         
         # 4. Consistency champions
+        date_30d_ago = ct_date - timedelta(days=30)
+
         consistent = db.execute_query(
             """
-            SELECT 
+            SELECT
                 e.id,
                 e.name,
                 rc.role_name,
@@ -264,13 +278,14 @@ def get_insights():
             FROM daily_scores ds
             JOIN employees e ON ds.employee_id = e.id
             JOIN role_configs rc ON e.role_id = rc.id
-            WHERE ds.score_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            WHERE ds.score_date >= %s
             GROUP BY e.id, e.name, rc.role_name
             HAVING days_worked >= 20
             AND std_dev / avg_points < 0.15
             ORDER BY avg_points DESC
             LIMIT 3
-            """
+            """,
+            (date_30d_ago,)
         )
         
         if consistent:

@@ -2,6 +2,47 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.3.10] - 2025-12-13
+
+### Fixed - Critical Timezone Bug in SQL Queries
+- **Root Cause**: MySQL `CURDATE()` returns UTC date, not Central Time
+  - Dec 12 8pm CT activity (2025-12-13 02:12 UTC) saved as Dec 13
+  - `daily_scores` had wrong `score_date` for late-day activity
+- **Solution**: Replaced all `CURDATE()` with Python `TimezoneHelper` pattern
+  - Calculate CT date boundaries in Python, pass as UTC range parameters
+  - Uses index-friendly `WHERE window_start >= ? AND window_start < ?`
+  - Avoids SQL `CONVERT_TZ()` which blocks index usage (50,000x slower)
+
+### Files Fixed (17 total)
+- `podfactory_sync.py` - `trigger_score_update()` (root cause)
+- `activity_processor.py` - 4 functions
+- `idle_detector.py` - 2 functions
+- `team_metrics_engine.py` - 6 functions
+- `employee_auth.py` - `get_employee_stats()`
+- `dashboard.py` - 14 functions, 25+ queries
+- `gamification_engine.py` - 4 functions
+- `gamification.py` - 2 functions
+- `trend_analyzer.py`, `predictive_scorer.py`, `performance_predictor.py`
+- `schedule.py`, `intelligent_schedule.py`, `trends.py`
+- `scheduling_insights.py`, `health_check.py`, `app.py`
+
+### Pattern Applied
+```python
+# Old (broken)
+WHERE DATE(window_start) = CURDATE()
+
+# New (correct, index-friendly)
+tz_helper = TimezoneHelper()
+ct_date = tz_helper.get_current_ct_date()
+utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+WHERE window_start >= %s AND window_start < %s
+```
+
+### Data Cleanup
+- Deleted 9 incorrectly dated Dec 13 `daily_scores` records
+
+---
+
 ## [2.3.9] - 2025-12-12
 
 ### Enhanced - Dashboard Date Range View

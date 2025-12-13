@@ -207,14 +207,16 @@ class SystemHealthCheck:
             cursor = conn.cursor(pymysql.cursors.DictCursor)
             
             # Check today's activities
+            ct_date = self.central_tz.localize(datetime.now()).date()
+
             cursor.execute("""
-                SELECT 
+                SELECT
                     COUNT(*) as activity_count,
                     MIN(window_start) as first_activity,
                     MAX(window_start) as last_activity
                 FROM activity_logs
-                WHERE DATE(CONVERT_TZ(window_start, '+00:00', 'America/Chicago')) = CURDATE()
-            """)
+                WHERE DATE(CONVERT_TZ(window_start, '+00:00', 'America/Chicago')) = %s
+            """, (ct_date,))
             
             activities = cursor.fetchone()
             if activities['activity_count'] > 0:
@@ -232,12 +234,12 @@ class SystemHealthCheck:
             
             # Check today's scores
             cursor.execute("""
-                SELECT 
+                SELECT
                     COUNT(*) as score_count,
                     MAX(updated_at) as last_update
                 FROM daily_scores
-                WHERE score_date = CURDATE()
-            """)
+                WHERE score_date = %s
+            """, (ct_date,))
             
             scores = cursor.fetchone()
             if scores['score_count'] > 0:
@@ -278,13 +280,13 @@ class SystemHealthCheck:
             
             # Check PodFactory sync
             cursor.execute("""
-                SELECT 
+                SELECT
                     MAX(sync_time) as last_sync,
                     SUM(records_synced) as total_synced
                 FROM podfactory_sync_log
-                WHERE DATE(sync_time) = CURDATE()
+                WHERE DATE(CONVERT_TZ(sync_time, '+00:00', 'America/Chicago')) = %s
                 AND status IN ('SUCCESS', 'PARTIAL')
-            """)
+            """, (ct_date,))
             
             pf_sync = cursor.fetchone()
             if pf_sync['last_sync']:
@@ -303,13 +305,13 @@ class SystemHealthCheck:
             
             # Check Connecteam sync
             cursor.execute("""
-                SELECT 
+                SELECT
                     COUNT(DISTINCT employee_id) as employees_synced,
                     MAX(updated_at) as last_update
                 FROM clock_times
-                WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = CURDATE()
+                WHERE DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = %s
                 AND source = 'connecteam'
-            """)
+            """, (ct_date,))
             
             ct_sync = cursor.fetchone()
             if ct_sync['employees_synced'] > 0:

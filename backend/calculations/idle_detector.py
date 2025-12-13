@@ -4,14 +4,16 @@ from typing import Dict, List, Optional
 import logging
 
 from database.db_manager import DatabaseManager
+from utils.timezone_helpers import TimezoneHelper
 
 logger = logging.getLogger(__name__)
 
 class IdleDetector:
     """Detect and manage idle periods for employees"""
-    
+
     def __init__(self):
         self.db = DatabaseManager()
+        self.tz_helper = TimezoneHelper()
     
     def calculate_dynamic_idle_threshold(self, role_id: int, items_count: int) -> int:
         """Calculate dynamic idle threshold for batch work
@@ -52,10 +54,13 @@ class IdleDetector:
     
     def check_real_time_idle(self, employee_id: int) -> Optional[Dict]:
         """Check if an employee is currently idle"""
-        # Get employee info
+        ct_date = self.tz_helper.get_current_ct_date()
+        utc_start, utc_end = self.tz_helper.ct_date_to_utc_range(ct_date)
+
+        # Get employee info (using UTC range for index optimization)
         employee = self.db.execute_one(
             """
-            SELECT 
+            SELECT
                 e.id,
                 e.name,
                 rc.role_name,
@@ -66,51 +71,51 @@ class IdleDetector:
                 SELECT employee_id, role_id
                 FROM activity_logs
                 WHERE employee_id = %s
-                AND DATE(window_start) = CURDATE()
+                AND window_start >= %s AND window_start < %s
                 ORDER BY window_start DESC
                 LIMIT 1
             ) latest_activity ON latest_activity.employee_id = e.id
             LEFT JOIN role_configs rc ON rc.id = COALESCE(latest_activity.role_id, 3)
             WHERE e.id = %s
             """,
-            (employee_id, employee_id)
+            (employee_id, utc_start, utc_end, employee_id)
         )
-        
+
         if not employee:
             return None
-        
-        # Get current clock status
+
+        # Get current clock status (using UTC range)
         current_clock = self.db.execute_one(
             """
             SELECT clock_in, clock_out
             FROM clock_times
             WHERE employee_id = %s
-            AND DATE(clock_in) = CURDATE()
+            AND clock_in >= %s AND clock_in < %s
             ORDER BY clock_in DESC
             LIMIT 1
             """,
-            (employee_id,)
+            (employee_id, utc_start, utc_end)
         )
-        
+
         if not current_clock or current_clock['clock_out']:
             # Not clocked in
             return None
-        
-        # Get last activity with items count
+
+        # Get last activity with items count (using UTC range)
         last_activity = self.db.execute_one(
             """
-            SELECT 
+            SELECT
                 window_end,
                 role_id,
                 items_count,
                 activity_type
             FROM activity_logs
             WHERE employee_id = %s
-            AND DATE(window_start) = CURDATE()
+            AND window_start >= %s AND window_start < %s
             ORDER BY window_end DESC
             LIMIT 1
             """,
-            (employee_id,)
+            (employee_id, utc_start, utc_end)
         )
         
         # Calculate idle threshold
@@ -206,16 +211,20 @@ class IdleDetector:
     
     def check_all_employees_idle(self) -> List[Dict]:
         """Check all currently clocked-in employees for idle status"""
-        # Get all clocked-in employees
+        ct_date = self.tz_helper.get_current_ct_date()
+        utc_start, utc_end = self.tz_helper.ct_date_to_utc_range(ct_date)
+
+        # Get all clocked-in employees (using UTC range for index optimization)
         clocked_in = self.db.execute_query(
             """
             SELECT DISTINCT e.id
             FROM employees e
             JOIN clock_times ct ON ct.employee_id = e.id
-            WHERE DATE(ct.clock_in) = CURDATE()
+            WHERE ct.clock_in >= %s AND ct.clock_in < %s
             AND ct.clock_out IS NULL
             AND e.is_active = 1
-            """
+            """,
+            (utc_start, utc_end)
         )
         
         idle_employees = []

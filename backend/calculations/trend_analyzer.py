@@ -7,14 +7,16 @@ import statistics
 
 from database.db_manager import get_db
 from models import Employee, DailyScore
+from utils.timezone_helpers import TimezoneHelper
 
 logger = logging.getLogger(__name__)
 
 class TrendAnalyzer:
     """Analyze productivity trends for employees and teams"""
-    
+
     def __init__(self):
         self.db = get_db()
+        self.tz_helper = TimezoneHelper()
     
     def get_employee_trend(self, employee_id: int, days: int = 30) -> Dict:
         """
@@ -325,7 +327,7 @@ class TrendAnalyzer:
         # Get last 60 days of data
         scores = self.db.execute_query(
             """
-            SELECT 
+            SELECT
                 score_date,
                 DAYNAME(score_date) as day_name,
                 DAYOFWEEK(score_date) as day_of_week,
@@ -335,10 +337,10 @@ class TrendAnalyzer:
                 items_processed
             FROM daily_scores
             WHERE employee_id = %s
-            AND score_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            AND score_date >= %s
             ORDER BY score_date
             """,
-            (employee_id,)
+            (employee_id, self.tz_helper.get_current_ct_date() - timedelta(days=60))
         )
         
         if not scores:

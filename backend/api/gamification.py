@@ -3,12 +3,14 @@ API endpoints for gamification features
 """
 
 from flask import Blueprint, jsonify, request
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from calculations.gamification_engine import GamificationEngine
+from utils.timezone_helpers import TimezoneHelper
 from api.auth import require_api_key
 import logging
 
 logger = logging.getLogger(__name__)
+tz_helper = TimezoneHelper()
 
 gamification_bp = Blueprint('gamification', __name__)
 
@@ -40,14 +42,14 @@ def check_daily_achievements(employee_id):
     try:
         data = request.get_json()
         check_date = data.get('date') if data else None
-        
+
         if check_date:
             check_date = datetime.strptime(check_date, '%Y-%m-%d').date()
         else:
-            check_date = date.today()
-        
+            check_date = tz_helper.get_current_ct_date()
+
         earned = get_engine().check_daily_achievements(employee_id, check_date)
-        
+
         return jsonify({
             'employee_id': employee_id,
             'date': check_date.isoformat(),
@@ -159,30 +161,33 @@ def get_active_challenges():
     """Get all active challenges"""
     try:
         from database.db_manager import DatabaseManager
-        
+
+        # Get current CT date
+        ct_date = tz_helper.get_current_ct_date()
+
         db_manager = DatabaseManager()
         with db_manager.get_connection() as conn:
             cursor = conn.cursor(dictionary=True)
-            
+
             cursor.execute("""
-                SELECT 
+                SELECT
                     tc.*,
                     rc.role_name,
                     COUNT(DISTINCT cp.employee_id) as participant_count,
-                    DATEDIFF(tc.end_date, CURDATE()) as days_remaining
+                    DATEDIFF(tc.end_date, %s) as days_remaining
                 FROM team_challenges tc
                 LEFT JOIN role_configs rc ON tc.role_id = rc.id
                 LEFT JOIN challenge_participants cp ON tc.id = cp.challenge_id
                 WHERE tc.is_active = TRUE
-                AND tc.end_date >= CURDATE()
+                AND tc.end_date >= %s
                 GROUP BY tc.id
                 ORDER BY tc.end_date
-            """)
-            
+            """, (ct_date, ct_date))
+
             challenges = []
             for row in cursor.fetchall():
                 progress_percent = (float(row['current_value']) / float(row['target_value']) * 100) if row['target_value'] > 0 else 0
-                
+
                 challenges.append({
                     'id': row['id'],
                     'role': row['role_name'] or 'All Roles',
@@ -198,12 +203,12 @@ def get_active_challenges():
                     'start_date': row['start_date'].isoformat(),
                     'end_date': row['end_date'].isoformat()
                 })
-            
+
             return jsonify({
                 'active_challenges': len(challenges),
                 'challenges': challenges
             })
-            
+
     except Exception as e:
         logger.error(f"Error getting active challenges: {e}")
         return jsonify({'error': str(e)}), 500

@@ -7,15 +7,17 @@ from collections import defaultdict
 
 from database.db_manager import get_db
 from calculations.trend_analyzer import TrendAnalyzer
+from utils.timezone_helpers import TimezoneHelper
 
 logger = logging.getLogger(__name__)
 
 class PredictiveScorer:
     """Generate predictive scores and recommendations"""
-    
+
     def __init__(self):
         self.db = get_db()
         self.trend_analyzer = TrendAnalyzer()
+        self.tz_helper = TimezoneHelper()
     
     def calculate_performance_score(self, employee_id: int) -> Dict:
         """
@@ -197,22 +199,23 @@ class PredictiveScorer:
     
     def predict_end_of_day_score(self, employee_id: int) -> Dict:
         """Predict end of day performance based on current progress"""
-        today = date.today()
+        ct_date = self.tz_helper.get_current_ct_date()
+        utc_start, utc_end = self.tz_helper.ct_date_to_utc_range(ct_date)
         now = datetime.now()
-        
+
         # Get today's activities so far
         today_data = self.db.execute_one(
             """
-            SELECT 
+            SELECT
                 COUNT(*) as activity_count,
                 SUM(items_count) as items_so_far,
                 MIN(window_start) as first_activity,
                 MAX(window_end) as last_activity
             FROM activity_logs
             WHERE employee_id = %s
-            AND DATE(window_start) = %s
+            AND window_start >= %s AND window_start < %s
             """,
-            (employee_id, today)
+            (employee_id, utc_start, utc_end)
         )
         
         if not today_data or not today_data['activity_count']:
@@ -228,9 +231,9 @@ class PredictiveScorer:
             SELECT clock_in, clock_out
             FROM clock_times
             WHERE employee_id = %s
-            AND DATE(clock_in) = %s
+            AND clock_in >= %s AND clock_in < %s
             """,
-            (employee_id, today)
+            (employee_id, utc_start, utc_end)
         )
         
         if not clock_data:
@@ -250,17 +253,20 @@ class PredictiveScorer:
         progress_percent = elapsed_minutes / total_work_minutes
         
         # Get employee's typical pattern
+        past_30_days = self.tz_helper.get_current_ct_date() - timedelta(days=30)
+        past_30_utc_start, _ = self.tz_helper.ct_date_to_utc_range(past_30_days)
+
         hourly_pattern = self.db.execute_query(
             """
-            SELECT 
+            SELECT
                 HOUR(window_start) as hour,
                 AVG(items_count) as avg_items
             FROM activity_logs
             WHERE employee_id = %s
-            AND window_start >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            AND window_start >= %s
             GROUP BY HOUR(window_start)
             """,
-            (employee_id,)
+            (employee_id, past_30_utc_start)
         )
         
         # Simple prediction

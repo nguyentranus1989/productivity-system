@@ -1,11 +1,13 @@
 from flask import Blueprint, jsonify
 from database.db_manager import DatabaseManager
-from datetime import datetime
+from datetime import datetime, timedelta
+from utils.timezone_helpers import TimezoneHelper
 
 schedule_bp = Blueprint('intelligent_schedule', __name__)
 
 # Lazy-loaded database manager
 _db = None
+tz_helper = TimezoneHelper()
 
 def get_db():
     """Get database manager instance (lazy initialization)"""
@@ -17,10 +19,12 @@ def get_db():
 @schedule_bp.route('/api/schedule/weekly', methods=['GET'])
 def get_weekly_schedule():
     """Get weekly schedule with predictions and assignments"""
-    
+
+    ct_date = tz_helper.get_current_ct_date()
+
     # Get predictions
     predictions_query = """
-    SELECT 
+    SELECT
         prediction_date as date,
         DAYNAME(prediction_date) as day_name,
         predicted_orders,
@@ -28,28 +32,31 @@ def get_weekly_schedule():
         qc_constrained,
         overflow_items
     FROM predictions_enhanced
-    WHERE prediction_date >= CURDATE()
-        AND prediction_date < DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+    WHERE prediction_date >= %s
+        AND prediction_date < DATE_ADD(%s, INTERVAL 7 DAY)
     ORDER BY prediction_date
     """
-    predictions = get_db().execute_query(predictions_query)
-    
+    predictions = get_db().execute_query(predictions_query, (ct_date, ct_date))
+
     # Get top performers by station
+    utc_start_14d, _ = tz_helper.ct_date_to_utc_range(ct_date)
+    utc_start_14d = utc_start_14d - timedelta(days=14)
+
     performance_query = """
-    SELECT 
+    SELECT
         e.name,
         al.activity_type as station,
         SUM(al.items_count) as total_items,
-        COUNT(DISTINCT DATE(al.window_start)) as days_worked,
-        ROW_NUMBER() OVER (PARTITION BY al.activity_type 
+        COUNT(DISTINCT DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago'))) as days_worked,
+        ROW_NUMBER() OVER (PARTITION BY al.activity_type
                           ORDER BY SUM(al.items_count) DESC) as rank_num
     FROM employees e
     JOIN activity_logs al ON e.id = al.employee_id
-    WHERE al.window_start >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+    WHERE al.window_start >= %s
     GROUP BY e.id, e.name, al.activity_type
     HAVING days_worked >= 3
     """
-    performance = get_db().execute_query(performance_query)
+    performance = get_db().execute_query(performance_query, (utc_start_14d,))
     
     return jsonify({
         'predictions': predictions,
@@ -60,9 +67,11 @@ def get_weekly_schedule():
 @schedule_bp.route('/api/schedule/staffing-needs', methods=['GET'])
 def get_staffing_needs():
     """Calculate staffing needs based on predictions"""
-    
+
+    ct_date = tz_helper.get_current_ct_date()
+
     query = """
-    SELECT 
+    SELECT
         prediction_date,
         DAYNAME(prediction_date) as day_name,
         predicted_orders,
@@ -78,10 +87,10 @@ def get_staffing_needs():
         CEILING(predicted_orders / 133 / 8) as film_people,
         CEILING(predicted_orders / 200 / 8) as picking_people
     FROM predictions_enhanced
-    WHERE prediction_date >= CURDATE()
-        AND prediction_date < DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+    WHERE prediction_date >= %s
+        AND prediction_date < DATE_ADD(%s, INTERVAL 7 DAY)
     ORDER BY prediction_date
     """
-    
-    needs = get_db().execute_query(query)
+
+    needs = get_db().execute_query(query, (ct_date, ct_date))
     return jsonify(needs)

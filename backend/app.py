@@ -11,10 +11,11 @@ from api.employee_auth import employee_auth_bp
 from api.admin_auth import admin_auth_bp
 from flask import Flask, jsonify
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 from apscheduler.schedulers.background import BackgroundScheduler
 from api.system_control import system_control_bp
+from utils.timezone_helpers import TimezoneHelper
 
 # Import configuration
 from config import config
@@ -273,25 +274,31 @@ def connecteam_status():
 def get_station_performance():
     """Get employee performance data by station"""
     from database.db_manager import DatabaseManager
-    
+
     db = DatabaseManager()
+    tz_helper = TimezoneHelper()
+
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start_30d, _ = tz_helper.ct_date_to_utc_range(ct_date)
+        utc_start_30d = utc_start_30d - timedelta(days=30)
+
         query = """
-            SELECT 
+            SELECT
                 e.id as employee_id,
                 e.name as employee_name,
                 al.activity_type as station,
                 AVG(al.items_count / GREATEST(al.duration_minutes/60, 0.1)) as avg_items_per_hour
             FROM employees e
             JOIN activity_logs al ON e.id = al.employee_id
-            WHERE al.window_start >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            WHERE al.window_start >= %s
                 AND al.items_count > 0
             GROUP BY e.id, e.name, al.activity_type
             HAVING avg_items_per_hour > 0
         """
-        
+
         # Use execute_query method from DatabaseManager
-        results = db.execute_query(query)
+        results = db.execute_query(query, (utc_start_30d,))
         
         stations = {}
         for row in results:

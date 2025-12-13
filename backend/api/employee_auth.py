@@ -2,6 +2,9 @@ from flask import Blueprint, request, jsonify
 import secrets
 from datetime import datetime, timedelta
 from database.db_manager import get_db
+from utils.timezone_helpers import TimezoneHelper
+
+tz_helper = TimezoneHelper()
 
 employee_auth_bp = Blueprint("employee_auth", __name__)
 
@@ -100,9 +103,12 @@ def employee_logout():
 def get_employee_stats(employee_id):
     """Get performance stats for a specific employee"""
     try:
-        # Get today's stats
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
+        # Get today's stats (using CT date and UTC range)
         stats = get_db().execute_one("""
-            SELECT 
+            SELECT
                 e.id,
                 e.name,
                 COALESCE(ds.items_processed, 0) as items_processed,
@@ -110,38 +116,38 @@ def get_employee_stats(employee_id):
                 COALESCE(ds.efficiency_rate, 0) as efficiency,
                 COALESCE(ds.active_minutes, 0) as active_minutes,
                 COALESCE(
-                    TIMESTAMPDIFF(MINUTE, 
-                        (SELECT MAX(window_end) FROM activity_logs 
-                         WHERE employee_id = e.id AND DATE(window_end) = CURDATE()),
-                        NOW()
+                    TIMESTAMPDIFF(MINUTE,
+                        (SELECT MAX(window_end) FROM activity_logs
+                         WHERE employee_id = e.id AND window_end >= %s AND window_end < %s),
+                        UTC_TIMESTAMP()
                     ), 0
                 ) as idle_minutes
             FROM employees e
-            LEFT JOIN daily_scores ds ON e.id = ds.employee_id AND ds.score_date = CURDATE()
+            LEFT JOIN daily_scores ds ON e.id = ds.employee_id AND ds.score_date = %s
             WHERE e.id = %s
-        """, (employee_id,))
-        
+        """, (utc_start, utc_end, ct_date, employee_id))
+
         if not stats:
             return jsonify({'success': False, 'message': 'Employee not found'}), 404
-        
-        # Get employee rank
+
+        # Get employee rank (using CT date)
         rank_result = get_db().execute_one("""
             SELECT COUNT(*) + 1 as `rank`
             FROM daily_scores
-            WHERE score_date = CURDATE()
+            WHERE score_date = %s
             AND points_earned > (
                 SELECT COALESCE(points_earned, 0)
                 FROM daily_scores
-                WHERE employee_id = %s AND score_date = CURDATE()
+                WHERE employee_id = %s AND score_date = %s
             )
-        """, (employee_id,))
-        
-        # Get total active employees today
+        """, (ct_date, employee_id, ct_date))
+
+        # Get total active employees today (using UTC range)
         total_result = get_db().execute_one("""
             SELECT COUNT(DISTINCT employee_id) as total
             FROM clock_times
-            WHERE DATE(clock_in) = CURDATE()
-        """)
+            WHERE clock_in >= %s AND clock_in < %s
+        """, (utc_start, utc_end))
         
         return jsonify({
             'success': True,

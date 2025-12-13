@@ -9,78 +9,86 @@ import logging
 from collections import defaultdict
 import statistics
 from database.db_manager import DatabaseManager
+from utils.timezone_helpers import TimezoneHelper
 
 logger = logging.getLogger(__name__)
 
 class TeamMetricsEngine:
     """Calculate and analyze team-level performance metrics"""
-    
+
     def __init__(self):
         self.db_manager = DatabaseManager()
+        self.tz_helper = TimezoneHelper()
     
     def get_team_overview(self, role_id: Optional[int] = None) -> Dict:
         """Get comprehensive team overview metrics"""
+        ct_date = self.tz_helper.get_current_ct_date()
+        utc_start, utc_end = self.tz_helper.ct_date_to_utc_range(ct_date)
+        week_ago = ct_date - timedelta(days=7)
+        month_year = ct_date.strftime('%Y-%m')
+
         with self.db_manager.get_connection() as conn:
             cursor = conn.cursor(dictionary=True)
-            
+
             # Build role filter
             role_filter = "AND e.role_id = %s" if role_id else ""
-            params = [role_id] if role_id else []
-            
-            # Get team composition
+            base_params = [role_id] if role_id else []
+
+            # Get team composition (using UTC range for clock_times)
+            comp_params = [utc_start, utc_end, ct_date] + base_params
             cursor.execute(f"""
-                SELECT 
+                SELECT
                     COUNT(DISTINCT e.id) as total_employees,
                     COUNT(DISTINCT CASE WHEN ct.clock_in IS NOT NULL THEN e.id END) as employees_present,
-                    AVG(DATEDIFF(CURDATE(), e.hire_date)) as avg_tenure_days,
+                    AVG(DATEDIFF(%s, e.hire_date)) as avg_tenure_days,
                     COUNT(DISTINCT CASE WHEN e.is_new_employee = TRUE THEN e.id END) as new_employees
                 FROM employees e
-                LEFT JOIN clock_times ct ON e.id = ct.employee_id 
-                    AND DATE(ct.clock_in) = CURDATE()
+                LEFT JOIN clock_times ct ON e.id = ct.employee_id
+                    AND ct.clock_in >= %s AND ct.clock_in < %s
                 WHERE e.is_active = TRUE {role_filter}
-            """, params)
-            
+            """, [utc_start, utc_end, ct_date] + base_params)
+
             composition = cursor.fetchone()
-            
-            # Get today's performance
+
+            # Get today's performance (use CT date for score_date)
             cursor.execute(f"""
-                SELECT 
+                SELECT
                     COALESCE(SUM(ds.points_earned), 0) as total_points_today,
                     COALESCE(AVG(ds.efficiency_rate), 0) as avg_efficiency_today,
                     COALESCE(SUM(ds.items_processed), 0) as total_items_today,
                     COALESCE(AVG(ds.active_minutes), 0) as avg_active_minutes
                 FROM daily_scores ds
                 JOIN employees e ON ds.employee_id = e.id
-                WHERE ds.score_date = CURDATE()
+                WHERE ds.score_date = %s
                 AND e.is_active = TRUE {role_filter}
-            """, params)
-            
+            """, [ct_date] + base_params)
+
             today_performance = cursor.fetchone()
-            
+
             # Get week performance
             cursor.execute(f"""
-                SELECT 
+                SELECT
                     COALESCE(SUM(ds.points_earned), 0) as total_points_week,
                     COALESCE(AVG(ds.efficiency_rate), 0) as avg_efficiency_week,
                     COUNT(DISTINCT ds.employee_id) as unique_employees_week
                 FROM daily_scores ds
                 JOIN employees e ON ds.employee_id = e.id
-                WHERE ds.score_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+                WHERE ds.score_date >= %s
                 AND e.is_active = TRUE {role_filter}
-            """, params)
-            
+            """, [week_ago] + base_params)
+
             week_performance = cursor.fetchone()
-            
+
             # Get month performance
             cursor.execute(f"""
-                SELECT 
+                SELECT
                     COALESCE(SUM(ms.total_points), 0) as total_points_month,
                     COALESCE(AVG(ms.total_points / ms.target_points * 100), 0) as avg_target_completion
                 FROM monthly_summaries ms
                 JOIN employees e ON ms.employee_id = e.id
-                WHERE ms.month_year = DATE_FORMAT(CURDATE(), '%Y-%m')
+                WHERE ms.month_year = %s
                 AND e.is_active = TRUE {role_filter}
-            """, params)
+            """, [month_year] + base_params)
             
             month_performance = cursor.fetchone()
             
@@ -111,12 +119,14 @@ class TeamMetricsEngine:
     
     def get_team_comparison(self) -> Dict:
         """Compare performance across different teams/roles"""
+        week_ago = self.tz_helper.get_current_ct_date() - timedelta(days=7)
+
         with self.db_manager.get_connection() as conn:
             cursor = conn.cursor(dictionary=True)
-            
+
             # Get performance by role
             cursor.execute("""
-                SELECT 
+                SELECT
                     rc.id as role_id,
                     rc.role_name,
                     COUNT(DISTINCT e.id) as employee_count,
@@ -125,11 +135,11 @@ class TeamMetricsEngine:
                     COALESCE(SUM(ds.points_earned), 0) as total_points_week
                 FROM role_configs rc
                 LEFT JOIN employees e ON rc.id = e.role_id AND e.is_active = TRUE
-                LEFT JOIN daily_scores ds ON e.id = ds.employee_id 
-                    AND ds.score_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+                LEFT JOIN daily_scores ds ON e.id = ds.employee_id
+                    AND ds.score_date >= %s
                 GROUP BY rc.id, rc.role_name
                 ORDER BY avg_points_daily DESC
-            """)
+            """, [week_ago])
             
             roles_performance = []
             for row in cursor.fetchall():
@@ -162,17 +172,19 @@ class TeamMetricsEngine:
     
     def get_team_trends(self, role_id: Optional[int] = None, days: int = 30) -> Dict:
         """Analyze team performance trends over time"""
+        past_date = self.tz_helper.get_current_ct_date() - timedelta(days=days)
+
         with self.db_manager.get_connection() as conn:
             cursor = conn.cursor(dictionary=True)
-            
+
             role_filter = "AND e.role_id = %s" if role_id else ""
-            params = [days]
+            params = [past_date]
             if role_id:
                 params.append(role_id)
-            
+
             # Get daily aggregates
             cursor.execute(f"""
-                SELECT 
+                SELECT
                     ds.score_date,
                     COUNT(DISTINCT ds.employee_id) as active_employees,
                     SUM(ds.points_earned) as total_points,
@@ -181,7 +193,7 @@ class TeamMetricsEngine:
                     AVG(ds.active_minutes) as avg_active_minutes
                 FROM daily_scores ds
                 JOIN employees e ON ds.employee_id = e.id
-                WHERE ds.score_date >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
+                WHERE ds.score_date >= %s
                 AND e.is_active = TRUE {role_filter}
                 GROUP BY ds.score_date
                 ORDER BY ds.score_date
@@ -254,23 +266,26 @@ class TeamMetricsEngine:
     
     def get_shift_analysis(self) -> Dict:
         """Analyze performance by shift times"""
+        week_ago = self.tz_helper.get_current_ct_date() - timedelta(days=7)
+        week_ago_utc_start, _ = self.tz_helper.ct_date_to_utc_range(week_ago)
+
         with self.db_manager.get_connection() as conn:
             cursor = conn.cursor(dictionary=True)
-            
+
             # Analyze by hour of day
             cursor.execute("""
-                SELECT 
+                SELECT
                     HOUR(al.window_start) as hour,
                     COUNT(DISTINCT al.employee_id) as active_employees,
                     AVG(al.items_count) as avg_items,
                     COUNT(*) as activity_count
                 FROM activity_logs al
                 JOIN employees e ON al.employee_id = e.id
-                WHERE al.window_start >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                WHERE al.window_start >= %s
                 AND e.is_active = TRUE
                 GROUP BY HOUR(al.window_start)
                 ORDER BY hour
-            """)
+            """, [week_ago_utc_start])
             
             hourly_data = cursor.fetchall()
             
@@ -329,13 +344,15 @@ class TeamMetricsEngine:
     def get_bottlenecks(self) -> List[Dict]:
         """Identify performance bottlenecks and issues"""
         bottlenecks = []
-        
+        week_ago = self.tz_helper.get_current_ct_date() - timedelta(days=7)
+        week_ago_utc_start, _ = self.tz_helper.ct_date_to_utc_range(week_ago)
+
         with self.db_manager.get_connection() as conn:
             cursor = conn.cursor(dictionary=True)
-            
+
             # 1. Check for high idle rates
             cursor.execute("""
-                SELECT 
+                SELECT
                     e.id,
                     e.name,
                     rc.role_name,
@@ -344,13 +361,13 @@ class TeamMetricsEngine:
                 FROM employees e
                 JOIN role_configs rc ON e.role_id = rc.id
                 LEFT JOIN idle_periods ip ON e.id = ip.employee_id
-                    AND ip.start_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                    AND ip.start_time >= %s
                 WHERE e.is_active = TRUE
                 GROUP BY e.id, e.name, rc.role_name
                 HAVING idle_periods_week > 10 OR total_idle_minutes > 300
                 ORDER BY total_idle_minutes DESC
                 LIMIT 5
-            """)
+            """, [week_ago_utc_start])
             
             high_idle_employees = cursor.fetchall()
             if high_idle_employees:
@@ -371,18 +388,18 @@ class TeamMetricsEngine:
             
             # 2. Check for low efficiency teams
             cursor.execute("""
-                SELECT 
+                SELECT
                     rc.role_name,
                     AVG(ds.efficiency_rate) as avg_efficiency,
                     COUNT(DISTINCT e.id) as employee_count
                 FROM role_configs rc
                 JOIN employees e ON rc.id = e.role_id
                 JOIN daily_scores ds ON e.id = ds.employee_id
-                WHERE ds.score_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+                WHERE ds.score_date >= %s
                 AND e.is_active = TRUE
                 GROUP BY rc.id, rc.role_name
                 HAVING avg_efficiency < 0.5
-            """)
+            """, [week_ago])
             
             low_efficiency_teams = cursor.fetchall()
             if low_efficiency_teams:
@@ -401,19 +418,23 @@ class TeamMetricsEngine:
                 })
             
             # 3. Check for attendance issues
+            ct_date = self.tz_helper.get_current_ct_date()
+            utc_start, utc_end = self.tz_helper.ct_date_to_utc_range(ct_date)
+
             cursor.execute("""
-                SELECT 
+                SELECT
                     rc.role_name,
                     COUNT(DISTINCT e.id) as total_employees,
                     COUNT(DISTINCT CASE WHEN ct.clock_in IS NOT NULL THEN e.id END) as present_today,
                     (COUNT(DISTINCT e.id) - COUNT(DISTINCT CASE WHEN ct.clock_in IS NOT NULL THEN e.id END)) as absent_today
                 FROM role_configs rc
                 JOIN employees e ON rc.id = e.role_id
-                LEFT JOIN clock_times ct ON e.id = ct.employee_id AND DATE(ct.clock_in) = CURDATE()
+                LEFT JOIN clock_times ct ON e.id = ct.employee_id
+                    AND ct.clock_in >= %s AND ct.clock_in < %s
                 WHERE e.is_active = TRUE
                 GROUP BY rc.id, rc.role_name
                 HAVING absent_today > total_employees * 0.2
-            """)
+            """, [utc_start, utc_end])
             
             attendance_issues = cursor.fetchall()
             if attendance_issues:
@@ -433,22 +454,24 @@ class TeamMetricsEngine:
                 })
             
             # 4. Check for declining performance
+            past_14_days = ct_date - timedelta(days=14)
+
             cursor.execute("""
-                SELECT 
+                SELECT
                     rc.role_name,
-                    AVG(CASE WHEN ds.score_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) 
+                    AVG(CASE WHEN ds.score_date >= %s
                         THEN ds.points_earned END) as recent_avg,
-                    AVG(CASE WHEN ds.score_date < DATE_SUB(CURDATE(), INTERVAL 7 DAY) 
-                        AND ds.score_date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+                    AVG(CASE WHEN ds.score_date < %s
+                        AND ds.score_date >= %s
                         THEN ds.points_earned END) as previous_avg
                 FROM role_configs rc
                 JOIN employees e ON rc.id = e.role_id
                 JOIN daily_scores ds ON e.id = ds.employee_id
-                WHERE ds.score_date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+                WHERE ds.score_date >= %s
                 AND e.is_active = TRUE
                 GROUP BY rc.id, rc.role_name
                 HAVING recent_avg < previous_avg * 0.85
-            """)
+            """, [week_ago, week_ago, past_14_days, past_14_days])
             
             declining_teams = cursor.fetchall()
             if declining_teams:
@@ -471,12 +494,14 @@ class TeamMetricsEngine:
     
     def get_capacity_analysis(self) -> Dict:
         """Analyze team capacity and utilization"""
+        ct_date = self.tz_helper.get_current_ct_date()
+
         with self.db_manager.get_connection() as conn:
             cursor = conn.cursor(dictionary=True)
-            
+
             # Get capacity by role
             cursor.execute("""
-                SELECT 
+                SELECT
                     rc.id,
                     rc.role_name,
                     rc.expected_per_hour,
@@ -486,9 +511,9 @@ class TeamMetricsEngine:
                     COALESCE(AVG(ds.efficiency_rate), 0) as avg_efficiency
                 FROM role_configs rc
                 LEFT JOIN employees e ON rc.id = e.role_id AND e.is_active = TRUE
-                LEFT JOIN daily_scores ds ON e.id = ds.employee_id AND ds.score_date = CURDATE()
+                LEFT JOIN daily_scores ds ON e.id = ds.employee_id AND ds.score_date = %s
                 GROUP BY rc.id, rc.role_name, rc.expected_per_hour
-            """)
+            """, [ct_date])
             
             capacity_data = []
             total_theoretical = 0

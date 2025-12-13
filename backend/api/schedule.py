@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 from database.db_manager import get_db
+from utils.timezone_helpers import TimezoneHelper
 
 schedule_bp = Blueprint('schedule', __name__)
+tz_helper = TimezoneHelper()
 
 @schedule_bp.route('/api/schedule/save', methods=['POST'])
 def save_schedule():
@@ -159,19 +161,21 @@ def load_schedule(week_date):
 def get_weekly_predictions():
     """Get real predictions from database"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+
         query = """
-            SELECT 
+            SELECT
                 prediction_date,
                 predicted_orders,
                 confidence_score,
                 DAYNAME(prediction_date) as day_name
             FROM order_predictions
-            WHERE prediction_date >= CURDATE()
+            WHERE prediction_date >= %s
             ORDER BY prediction_date
             LIMIT 7
         """
-        
-        results = get_db().execute_query(query)
+
+        results = get_db().execute_query(query, (ct_date,))
         
         predictions = {}
         total = 0
@@ -201,33 +205,39 @@ def get_weekly_predictions():
 def get_all_employees():
     """Get all active employees with their best performance stations"""
     try:
+        ct_date = tz_helper.get_current_ct_date()
+        utc_start_30d, _ = tz_helper.ct_date_to_utc_range(ct_date)
+        # 30 days ago
+        from datetime import timedelta
+        utc_start_30d = utc_start_30d - timedelta(days=30)
+
         query = """
             SELECT DISTINCT
                 e.id,
                 e.name,
                 COALESCE(
-                    (SELECT al.activity_type 
-                     FROM activity_logs al 
-                     WHERE al.employee_id = e.id 
-                       AND al.window_start >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                     GROUP BY al.activity_type 
-                     ORDER BY SUM(al.items_count) DESC 
-                     LIMIT 1), 
+                    (SELECT al.activity_type
+                     FROM activity_logs al
+                     WHERE al.employee_id = e.id
+                       AND al.window_start >= %s
+                     GROUP BY al.activity_type
+                     ORDER BY SUM(al.items_count) DESC
+                     LIMIT 1),
                     'No Activity'
                 ) as best_station,
                 COALESCE(
                     (SELECT ROUND(AVG(al.items_count / GREATEST(al.duration_minutes/60, 0.1)), 0)
-                     FROM activity_logs al 
-                     WHERE al.employee_id = e.id 
-                       AND al.window_start >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)),
+                     FROM activity_logs al
+                     WHERE al.employee_id = e.id
+                       AND al.window_start >= %s),
                     0
                 ) as items_per_hour
             FROM employees e
             WHERE e.is_active = 1
             ORDER BY e.name
         """
-        
-        results = get_db().execute_query(query)
+
+        results = get_db().execute_query(query, (utc_start_30d, utc_start_30d))
         
         employees = []
         for row in results:

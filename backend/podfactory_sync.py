@@ -23,6 +23,7 @@ import pytz
 import time
 import logging
 from employee_auto_creator import EmployeeAutoCreator
+from utils.timezone_helpers import TimezoneHelper
 
 # Map PodFactory actions to departments
 ACTION_TO_DEPARTMENT_MAP = {
@@ -700,27 +701,33 @@ class PodFactorySync:
     def trigger_score_update(self):
         """Trigger ProductivityCalculator to update daily_scores"""
         try:
-            # Option 1: Direct database update
+            # Use TimezoneHelper for correct CT date and UTC range (index-friendly)
+            tz_helper = TimezoneHelper()
+            ct_date = tz_helper.get_current_ct_date()
+            utc_start, utc_end = tz_helper.ct_date_to_utc_range(ct_date)
+
             conn = pymysql.connect(**self.local_config)
             cursor = conn.cursor()
-            
+
+            # Use UTC range for index optimization (not CONVERT_TZ which blocks index)
+            # Pass CT date as parameter for score_date
             cursor.execute("""
                 INSERT INTO daily_scores (employee_id, score_date, items_processed, points_earned, active_minutes, clocked_minutes, efficiency_rate)
-                SELECT 
+                SELECT
                     al.employee_id,
-                    CURDATE(),
+                    %s,
                     SUM(al.items_count),
                     SUM(al.items_count * rc.multiplier),
                     0, 0, 0
                 FROM activity_logs al
                 JOIN role_configs rc ON rc.id = al.role_id
-                WHERE DATE(al.window_start) = CURDATE()
+                WHERE al.window_start >= %s AND al.window_start < %s
                     AND al.source = 'podfactory'
                 GROUP BY al.employee_id
                 ON DUPLICATE KEY UPDATE
                     items_processed = VALUES(items_processed),
                     points_earned = VALUES(points_earned)
-            """)
+            """, (ct_date, utc_start, utc_end))
             
             conn.commit()
             cursor.close()
