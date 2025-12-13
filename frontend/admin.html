@@ -230,6 +230,9 @@
             <button class="nav-link" id="nav-analytics-tab" data-bs-toggle="tab" data-bs-target="#nav-analytics" type="button">
                 <i class="fas fa-chart-line"></i> Analytics
             </button>
+            <button class="nav-link" id="nav-usermgmt-tab" data-bs-toggle="tab" data-bs-target="#nav-usermgmt" type="button">
+                <i class="fas fa-user-cog"></i> User Management
+            </button>
             <button class="nav-link" onclick="window.location.href='index.html'" type="button">
                 <i class="fas fa-home"></i> Home
             </button>
@@ -501,6 +504,130 @@
                     <canvas id="performanceChart" height="100"></canvas>
                 </div>
             </div>
+
+            <!-- User Management Tab -->
+            <div class="tab-pane fade" id="nav-usermgmt" role="tabpanel">
+                <div class="row">
+                    <!-- Employee Credentials Section -->
+                    <div class="col-md-8">
+                        <div class="admin-card">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h3><i class="fas fa-key me-2"></i>Employee Credentials</h3>
+                                <button class="btn btn-primary btn-sm" onclick="refreshEmployeeAuth()">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Name</th>
+                                            <th>Department</th>
+                                            <th>PIN Status</th>
+                                            <th>Last Login</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="employeeAuthTableBody">
+                                        <tr>
+                                            <td colspan="7" class="text-center py-4">
+                                                <i class="fas fa-spinner fa-spin"></i> Loading...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shop Floor & Quick Actions -->
+                    <div class="col-md-4">
+                        <div class="admin-card mb-3">
+                            <h4><i class="fas fa-industry me-2"></i>Shop Floor PIN</h4>
+                            <p class="text-muted small">Change the PIN used to access Shop Floor Display</p>
+                            <div id="shopFloorStatus" class="mb-3">
+                                <span class="badge bg-secondary">Loading...</span>
+                            </div>
+                            <div class="input-group mb-2">
+                                <input type="password" class="form-control" id="newShopFloorPin"
+                                       placeholder="New PIN (4-6 digits)" maxlength="6" pattern="[0-9]*">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePinVisibility('newShopFloorPin', this)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <button class="btn btn-primary w-100" onclick="setShopFloorPin()">
+                                <i class="fas fa-save"></i> Update Shop Floor PIN
+                            </button>
+                        </div>
+
+                        <div class="admin-card">
+                            <h4><i class="fas fa-info-circle me-2"></i>Quick Guide</h4>
+                            <ul class="small text-muted mb-0">
+                                <li><strong>Set PIN:</strong> Creates login for employee</li>
+                                <li><strong>Reset PIN:</strong> Generates random PIN</li>
+                                <li><strong>Toggle:</strong> Activate/deactivate access</li>
+                                <li>PIN is shown once - print slip immediately</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIN Slip Modal -->
+    <div class="modal fade" id="pinSlipModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-print me-2"></i>PIN Slip</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center" id="pinSlipContent">
+                    <!-- PIN slip will be generated here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="printPinSlip()">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Set PIN Modal -->
+    <div class="modal fade" id="setPinModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-key me-2"></i>Set PIN</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Employee: <strong id="setPinEmployeeName"></strong></p>
+                    <input type="hidden" id="setPinEmployeeId">
+                    <div class="mb-3">
+                        <label class="form-label">PIN (4-6 digits)</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="customPinInput"
+                                   placeholder="Leave empty for auto-generate" maxlength="6" pattern="[0-9]*">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePinVisibility('customPinInput', this)">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">Leave empty to auto-generate a random PIN</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmSetPin()">
+                        <i class="fas fa-check"></i> Set PIN
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -573,6 +700,252 @@
             // Implement employee edit functionality
             console.log('Edit employee:', id);
         }
+
+        // ===== USER MANAGEMENT FUNCTIONS =====
+
+        // Load employees with auth status
+        async function refreshEmployeeAuth() {
+            try {
+                const response = await fetch('/api/admin/employees', {
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+                const data = await response.json();
+
+                if (!data.success) throw new Error(data.message);
+
+                const tbody = document.getElementById('employeeAuthTableBody');
+                tbody.innerHTML = data.employees.map(emp => `
+                    <tr>
+                        <td>${emp.id}</td>
+                        <td>${emp.name}</td>
+                        <td>${emp.department || '-'}</td>
+                        <td>
+                            ${emp.has_pin
+                                ? '<span class="badge bg-success"><i class="fas fa-check"></i> Set</span>'
+                                : '<span class="badge bg-warning"><i class="fas fa-times"></i> Not Set</span>'}
+                        </td>
+                        <td>${emp.last_login ? new Date(emp.last_login).toLocaleDateString() : 'Never'}</td>
+                        <td>
+                            <span class="badge ${emp.is_active ? 'bg-success' : 'bg-danger'}">
+                                ${emp.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="openSetPinModal(${emp.id}, '${emp.name}')" title="Set PIN">
+                                    <i class="fas fa-key"></i>
+                                </button>
+                                <button class="btn btn-outline-warning" onclick="resetEmployeePin(${emp.id})" title="Reset PIN">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                                <button class="btn btn-outline-${emp.is_active ? 'danger' : 'success'}"
+                                        onclick="toggleEmployeeActive(${emp.id})"
+                                        title="${emp.is_active ? 'Deactivate' : 'Activate'}">
+                                    <i class="fas fa-${emp.is_active ? 'ban' : 'check'}"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load employee auth:', error);
+                document.getElementById('employeeAuthTableBody').innerHTML =
+                    `<tr><td colspan="7" class="text-center text-danger">Failed to load: ${error.message}</td></tr>`;
+            }
+        }
+
+        // Open Set PIN modal
+        function openSetPinModal(employeeId, employeeName) {
+            document.getElementById('setPinEmployeeId').value = employeeId;
+            document.getElementById('setPinEmployeeName').textContent = employeeName;
+            document.getElementById('customPinInput').value = '';
+            new bootstrap.Modal(document.getElementById('setPinModal')).show();
+        }
+
+        // Confirm and set PIN
+        async function confirmSetPin() {
+            const employeeId = document.getElementById('setPinEmployeeId').value;
+            const customPin = document.getElementById('customPinInput').value;
+
+            try {
+                const body = customPin ? { pin: customPin } : {};
+                const response = await fetch(`/api/admin/employees/${employeeId}/set-pin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'dev-api-key-123'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message);
+
+                // Close Set PIN modal
+                bootstrap.Modal.getInstance(document.getElementById('setPinModal')).hide();
+
+                // Show PIN slip
+                showPinSlip(data.employee_name, data.pin);
+                refreshEmployeeAuth();
+            } catch (error) {
+                alert('Failed to set PIN: ' + error.message);
+            }
+        }
+
+        // Reset employee PIN
+        async function resetEmployeePin(employeeId) {
+            if (!confirm('Reset PIN for this employee? A new random PIN will be generated.')) return;
+
+            try {
+                const response = await fetch(`/api/admin/employees/${employeeId}/reset-pin`, {
+                    method: 'POST',
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message);
+
+                showPinSlip(data.employee_name, data.pin);
+                refreshEmployeeAuth();
+            } catch (error) {
+                alert('Failed to reset PIN: ' + error.message);
+            }
+        }
+
+        // Toggle employee active status
+        async function toggleEmployeeActive(employeeId) {
+            if (!confirm('Toggle active status for this employee?')) return;
+
+            try {
+                const response = await fetch(`/api/admin/employees/${employeeId}/toggle-active`, {
+                    method: 'POST',
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message);
+
+                alert(data.message);
+                refreshEmployeeAuth();
+            } catch (error) {
+                alert('Failed to toggle status: ' + error.message);
+            }
+        }
+
+        // Show PIN slip modal
+        function showPinSlip(employeeName, pin) {
+            const content = document.getElementById('pinSlipContent');
+            content.innerHTML = `
+                <div style="border: 2px dashed #667eea; padding: 20px; margin: 10px 0;">
+                    <h6 class="text-muted mb-3">EMPLOYEE PIN SLIP</h6>
+                    <p class="mb-2"><strong>${employeeName}</strong></p>
+                    <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #667eea;">
+                        ${pin}
+                    </div>
+                    <p class="text-muted small mt-3 mb-0">Keep secure. Destroy after memorizing.</p>
+                </div>
+            `;
+            new bootstrap.Modal(document.getElementById('pinSlipModal')).show();
+        }
+
+        // Print PIN slip
+        function printPinSlip() {
+            const content = document.getElementById('pinSlipContent').innerHTML;
+            const printWindow = window.open('', '_blank', 'width=400,height=300');
+            printWindow.document.write(`
+                <html>
+                <head><title>PIN Slip</title></head>
+                <body style="font-family: Arial, sans-serif; text-align: center;">
+                    ${content}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        // Toggle PIN visibility
+        function togglePinVisibility(inputId, button) {
+            const input = document.getElementById(inputId);
+            const icon = button.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+
+        // Load shop floor status
+        async function loadShopFloorStatus() {
+            try {
+                const response = await fetch('/api/admin/shop-floor/status', {
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+                const data = await response.json();
+
+                const statusEl = document.getElementById('shopFloorStatus');
+                if (data.has_custom_pin) {
+                    statusEl.innerHTML = `<span class="badge bg-success">Custom PIN Set</span>
+                        <small class="d-block text-muted">Last updated: ${new Date(data.last_updated).toLocaleDateString()}</small>`;
+                } else {
+                    statusEl.innerHTML = `<span class="badge bg-warning">Using Default PIN (1234)</span>
+                        <small class="d-block text-danger">Please set a custom PIN!</small>`;
+                }
+            } catch (error) {
+                document.getElementById('shopFloorStatus').innerHTML =
+                    `<span class="badge bg-danger">Error loading status</span>`;
+            }
+        }
+
+        // Set shop floor PIN
+        async function setShopFloorPin() {
+            const pin = document.getElementById('newShopFloorPin').value;
+
+            if (!pin) {
+                alert('Please enter a new PIN');
+                return;
+            }
+
+            if (!/^\d{4,6}$/.test(pin)) {
+                alert('PIN must be 4-6 digits');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/shop-floor/set-pin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'dev-api-key-123'
+                    },
+                    body: JSON.stringify({ pin })
+                });
+
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message);
+
+                alert('Shop floor PIN updated successfully!');
+                document.getElementById('newShopFloorPin').value = '';
+                loadShopFloorStatus();
+            } catch (error) {
+                alert('Failed to set shop floor PIN: ' + error.message);
+            }
+        }
+
+        // Load user management data when tab is shown
+        document.addEventListener('DOMContentLoaded', () => {
+            const userMgmtTab = document.getElementById('nav-usermgmt-tab');
+            if (userMgmtTab) {
+                userMgmtTab.addEventListener('shown.bs.tab', () => {
+                    refreshEmployeeAuth();
+                    loadShopFloorStatus();
+                });
+            }
+        });
+
+        // ===== END USER MANAGEMENT FUNCTIONS =====
 
         // Initialize chart
         const ctx = document.getElementById('performanceChart').getContext('2d');

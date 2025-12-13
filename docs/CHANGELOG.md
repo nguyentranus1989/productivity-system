@@ -2,6 +2,65 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.4.0] - 2025-12-13
+
+### Added - Professional Authentication System
+
+#### Security Improvements
+- **bcrypt Password Hashing**: Admin passwords now use bcrypt (12 rounds) instead of SHA256
+- **bcrypt PIN Hashing**: Employee PINs now use bcrypt (10 rounds) instead of plain text
+- **Legacy Support**: Migration-friendly - detects and supports old hashes until migrated
+- **Shop Floor Backend Auth**: PIN validated via API instead of hardcoded JavaScript
+
+#### New Admin Features (User Management Tab)
+- **Employee Credentials Table**: View all employees with PIN status, last login, active status
+- **Set PIN**: Admin can set custom or auto-generated PINs for employees
+- **Reset PIN**: Generate new random PIN with one click
+- **Toggle Active**: Activate/deactivate employee access
+- **Revoke Session**: Force logout any employee
+- **PIN Slip Modal**: Printable slip shows PIN once for secure distribution
+- **Shop Floor PIN Management**: Change shop floor access PIN from admin panel
+
+#### Employee Self-Service
+- **Change PIN Button**: Added to employee portal header
+- **Change PIN Modal**: Validates current PIN before allowing change
+- **PIN Validation**: 4-6 digits, confirmation required
+
+### New Files
+| File | Description |
+|------|-------------|
+| `backend/api/user_management.py` | Admin CRUD endpoints for employee credentials |
+| `backend/api/shop_floor_auth.py` | Shop floor PIN validation API |
+| `backend/scripts/migrate_auth_to_bcrypt.py` | Migration script for existing PINs |
+
+### New API Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/employees` | GET | List employees with auth status |
+| `/api/admin/employees/{id}/set-pin` | POST | Set employee PIN |
+| `/api/admin/employees/{id}/reset-pin` | POST | Reset to random PIN |
+| `/api/admin/employees/{id}/toggle-active` | POST | Toggle active status |
+| `/api/admin/employees/{id}/revoke-session` | POST | Force logout |
+| `/api/admin/shop-floor/set-pin` | POST | Change shop floor PIN |
+| `/api/admin/shop-floor/status` | GET | Check PIN status |
+| `/api/shopfloor/login` | POST | Validate shop floor PIN |
+| `/api/employee/change-pin` | POST | Employee self-service PIN change |
+
+### Migration Required
+Run after deployment:
+```bash
+cd backend
+python scripts/migrate_auth_to_bcrypt.py --dry-run  # Preview
+python scripts/migrate_auth_to_bcrypt.py            # Execute
+```
+
+### Security Notes
+- Default shop floor PIN remains '1234' until admin sets custom PIN
+- Old plain text PINs continue to work until migration completes
+- Migration script creates `shop_floor_settings` table automatically
+
+---
+
 ## [2.3.11] - 2025-12-13
 
 ### Added - Theme Switcher System

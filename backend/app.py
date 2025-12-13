@@ -9,6 +9,8 @@ from api.connecteam import connecteam_bp
 from api.dashboard import dashboard_bp
 from api.employee_auth import employee_auth_bp
 from api.admin_auth import admin_auth_bp
+from api.user_management import user_management_bp
+from api.shop_floor_auth import shop_floor_auth_bp
 from flask import Flask, jsonify
 from flask_cors import CORS
 from datetime import datetime, timedelta
@@ -170,6 +172,8 @@ def register_blueprints(app):
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
     app.register_blueprint(employee_auth_bp)
     app.register_blueprint(admin_auth_bp)
+    app.register_blueprint(user_management_bp)
+    app.register_blueprint(shop_floor_auth_bp)
     app.register_blueprint(schedule_bp)
     app.register_blueprint(system_control_bp)  # No url_prefix needed as routes include /api/system
     app.logger.info("All blueprints registered successfully")

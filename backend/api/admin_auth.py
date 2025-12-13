@@ -1,9 +1,10 @@
 """
 Admin Authentication API for Warehouse Productivity System
+Uses bcrypt for secure password hashing
 """
 
 from flask import Blueprint, request, jsonify
-import hashlib
+import bcrypt
 import secrets
 import pymysql
 from datetime import datetime, timedelta
@@ -14,12 +15,12 @@ load_dotenv()
 
 admin_auth_bp = Blueprint('admin_auth', __name__)
 
-# Database configuration
+# Database configuration from environment
 DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'db-mysql-sgp1-61022-do-user-16860331-0.h.db.ondigitalocean.com'),
+    'host': os.getenv('DB_HOST'),
     'port': int(os.getenv('DB_PORT', 25060)),
-    'user': os.getenv('DB_USER', 'doadmin'),
-    'password': os.getenv('DB_PASSWORD', 'AVNS_OWqdUdZ2Nw_YCkGI5Eu'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD'),
     'database': os.getenv('DB_NAME', 'productivity_tracker')
 }
 
@@ -28,8 +29,21 @@ def get_db_connection():
     return pymysql.connect(**DB_CONFIG, cursorclass=pymysql.cursors.DictCursor)
 
 def hash_password(password):
-    """Hash password using SHA256"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash password using bcrypt (12 rounds)"""
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(12)).decode()
+
+def verify_password(password, hashed):
+    """Verify password against bcrypt hash. Also supports legacy SHA256 for migration."""
+    try:
+        # Try bcrypt first
+        if hashed.startswith('$2'):
+            return bcrypt.checkpw(password.encode(), hashed.encode())
+        else:
+            # Legacy SHA256 support (will be migrated)
+            import hashlib
+            return hashlib.sha256(password.encode()).hexdigest() == hashed
+    except Exception:
+        return False
 
 def generate_token():
     """Generate secure random token"""
@@ -62,8 +76,7 @@ def admin_login():
         if admin['locked_until'] and admin['locked_until'] > datetime.now():
             return jsonify({'success': False, 'message': 'Account locked. Try again later.'}), 401
         
-        password_hash = hash_password(password)
-        if admin['password_hash'] != password_hash:
+        if not verify_password(password, admin['password_hash']):
             cursor.execute("""
                 UPDATE admin_users 
                 SET failed_attempts = failed_attempts + 1,

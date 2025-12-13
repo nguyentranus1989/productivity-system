@@ -314,7 +314,7 @@
     <script>
         // Configuration
         const API_BASE = '';  // Leave empty if same domain
-        const SHOP_FLOOR_PIN = '1234';  // Change this to your desired PIN
+        // Shop floor PIN is now validated via backend API
 
         // Check if already logged in
         window.onload = function() {
@@ -492,28 +492,44 @@
             const remember = document.getElementById('rememberShopfloor').checked;
             const btn = document.getElementById('shopfloorLoginBtn');
 
-            // Simple PIN validation (no API call needed for shop floor)
-            if (pin === SHOP_FLOOR_PIN) {
-                // Store token
-                const token = 'shopfloor_' + Date.now();
-                
-                if (remember) {
-                    // Store for 24 hours
-                    localStorage.setItem('shopfloorToken', token);
-                    localStorage.setItem('shopfloorExpiry', Date.now() + (180 * 24 * 60 * 60 * 1000));
-                } else {
-                    // Store for session only
-                    sessionStorage.setItem('shopfloorToken', token);
-                }
+            // Disable button and show loading
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
 
-                showSuccess('Access granted! Redirecting...');
-                
-                // Redirect to shop floor display
-                setTimeout(() => {
-                    window.location.href = '/shop-floor.html';
-                }, 1000);
-            } else {
-                showError('Invalid PIN. Please try again.');
+            try {
+                // Validate PIN via backend API
+                const response = await fetch(`${API_BASE}/api/shopfloor/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Store token
+                    if (remember) {
+                        localStorage.setItem('shopfloorToken', data.token);
+                        localStorage.setItem('shopfloorExpiry', Date.now() + (180 * 24 * 60 * 60 * 1000));
+                    } else {
+                        sessionStorage.setItem('shopfloorToken', data.token);
+                    }
+
+                    showSuccess('Access granted! Redirecting...');
+
+                    // Redirect to shop floor display
+                    setTimeout(() => {
+                        window.location.href = '/shop-floor.html';
+                    }, 1000);
+                } else {
+                    showError(data.message || 'Invalid PIN. Please try again.');
+                }
+            } catch (error) {
+                console.error('Shop floor login error:', error);
+                showError('Network error. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Access Shop Floor';
             }
         }
 

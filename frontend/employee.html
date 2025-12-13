@@ -664,6 +664,9 @@
             <div class="logo">PodFactory Employee Portal</div>
             <div class="user-menu">
                 <span class="user-name" style="margin-right: 15px; font-weight: 600; color: #333;"></span>
+                <button onclick="openChangePinModal()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                    <i class="fas fa-key"></i> Change PIN
+                </button>
                 <button onclick="logout()" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">Logout</button>
                 <select id="employeeSelector" class="form-select" style="width: 200px; margin-right: 20px;">
                     <option value="">Select Employee...</option>
@@ -1099,6 +1102,137 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 3000); // Wait 3 seconds for page to load
 });
 </script>
+
+<!-- Change PIN Modal -->
+<div id="changePinModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: white; border-radius: 12px; padding: 30px; width: 350px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; color: #333;"><i class="fas fa-key" style="color: #667eea; margin-right: 10px;"></i>Change PIN</h3>
+            <button onclick="closeChangePinModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">&times;</button>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Current PIN</label>
+            <input type="password" id="currentPinInput" maxlength="6" placeholder="Enter current PIN"
+                   style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">New PIN (4-6 digits)</label>
+            <input type="password" id="newPinInput" maxlength="6" placeholder="Enter new PIN"
+                   style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Confirm New PIN</label>
+            <input type="password" id="confirmPinInput" maxlength="6" placeholder="Confirm new PIN"
+                   style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box;">
+        </div>
+        <div id="changePinError" style="display: none; background: #fee; color: #c00; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 14px;"></div>
+        <div id="changePinSuccess" style="display: none; background: #efe; color: #060; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 14px;"></div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="closeChangePinModal()" style="flex: 1; padding: 12px; background: #f0f0f0; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">Cancel</button>
+            <button onclick="submitChangePin()" style="flex: 1; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                <i class="fas fa-check"></i> Change PIN
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Change PIN Functions
+function openChangePinModal() {
+    document.getElementById('changePinModal').style.display = 'flex';
+    document.getElementById('currentPinInput').value = '';
+    document.getElementById('newPinInput').value = '';
+    document.getElementById('confirmPinInput').value = '';
+    document.getElementById('changePinError').style.display = 'none';
+    document.getElementById('changePinSuccess').style.display = 'none';
+}
+
+function closeChangePinModal() {
+    document.getElementById('changePinModal').style.display = 'none';
+}
+
+async function submitChangePin() {
+    const currentPin = document.getElementById('currentPinInput').value;
+    const newPin = document.getElementById('newPinInput').value;
+    const confirmPin = document.getElementById('confirmPinInput').value;
+    const errorEl = document.getElementById('changePinError');
+    const successEl = document.getElementById('changePinSuccess');
+
+    // Hide previous messages
+    errorEl.style.display = 'none';
+    successEl.style.display = 'none';
+
+    // Validation
+    if (!currentPin || !newPin || !confirmPin) {
+        errorEl.textContent = 'Please fill in all fields';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (!/^\d{4,6}$/.test(newPin)) {
+        errorEl.textContent = 'New PIN must be 4-6 digits';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (newPin !== confirmPin) {
+        errorEl.textContent = 'New PINs do not match';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('employeeToken') || sessionStorage.getItem('employeeToken');
+
+        const response = await fetch('/api/employee/change-pin', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                current_pin: currentPin,
+                new_pin: newPin
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            errorEl.textContent = data.message || 'Failed to change PIN';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        successEl.textContent = 'PIN changed successfully!';
+        successEl.style.display = 'block';
+
+        // Close modal after 2 seconds
+        setTimeout(() => {
+            closeChangePinModal();
+        }, 2000);
+
+    } catch (error) {
+        errorEl.textContent = 'Network error. Please try again.';
+        errorEl.style.display = 'block';
+    }
+}
+
+// Close modal on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeChangePinModal();
+    }
+});
+
+// Close modal on background click
+document.getElementById('changePinModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeChangePinModal();
+    }
+});
+</script>
+
 <script src="/js/auth-check.js"></script>
 </body>
 </html>
