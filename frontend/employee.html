@@ -1105,7 +1105,18 @@
 
         // Get stored credentials
         function getEmployeeId() {
-            return localStorage.getItem('employeeId') || sessionStorage.getItem('employeeId');
+            // Check direct storage first, then employeeData JSON
+            let id = localStorage.getItem('employeeId') || sessionStorage.getItem('employeeId');
+            if (!id) {
+                const data = localStorage.getItem('employeeData') || sessionStorage.getItem('employeeData');
+                if (data) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        id = parsed.employee_id;
+                    } catch (e) {}
+                }
+            }
+            return id;
         }
 
         function getToken() {
@@ -1113,7 +1124,18 @@
         }
 
         function getEmployeeName() {
-            return localStorage.getItem('employeeName') || sessionStorage.getItem('employeeName');
+            // Check direct storage first, then employeeData JSON
+            let name = localStorage.getItem('employeeName') || sessionStorage.getItem('employeeName');
+            if (!name) {
+                const data = localStorage.getItem('employeeData') || sessionStorage.getItem('employeeData');
+                if (data) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        name = parsed.name;
+                    } catch (e) {}
+                }
+            }
+            return name;
         }
 
         // Logout function

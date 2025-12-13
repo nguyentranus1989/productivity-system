@@ -11,7 +11,7 @@ from api.employee_auth import employee_auth_bp
 from api.admin_auth import admin_auth_bp
 from api.user_management import user_management_bp
 from api.shop_floor_auth import shop_floor_auth_bp
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
@@ -116,7 +116,9 @@ def create_app(config_name=None):
     if config_name is None:
         config_name = os.getenv('FLASK_ENV', 'development')
     
-    app = Flask(__name__)
+    # Serve frontend from ../frontend directory
+    frontend_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend')
+    app = Flask(__name__, static_folder=frontend_folder, static_url_path='')
     app.config.from_object(config)
     
     # Enable CORS
@@ -215,24 +217,18 @@ def health_check():
 
 @app.route('/', methods=['GET'])
 def index():
-    """Root endpoint"""
-    return jsonify({
-        'message': 'Productivity Tracker API',
-        'version': '2.0.0',
-        'endpoints': {
-            'health': '/health',
-            'api': {
-                'activities': '/api/activities',
-                'cache': '/api/cache',
-                'flags': '/api/flags',
-                'trends': '/api/trends',
-                'idle': '/api/idle',
-                'gamification': '/api/gamification',
-                'team_metrics': '/api/team-metrics',
-                'connecteam': '/api/connecteam'
-            }
-        }
-    }), 200
+    """Serve frontend index page"""
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/<path:filename>')
+def serve_frontend(filename):
+    """Serve frontend static files"""
+    # If file exists in frontend folder, serve it
+    file_path = os.path.join(app.static_folder, filename)
+    if os.path.isfile(file_path):
+        return send_from_directory(app.static_folder, filename)
+    # For SPA routing, return index.html (fallback)
+    return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/api/scheduler/status', methods=['GET'])
 def scheduler_status():
