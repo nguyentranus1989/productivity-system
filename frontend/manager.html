@@ -96,10 +96,6 @@
                     <i class="fas fa-sync-alt"></i>
                     <span>Refresh</span>
                 </button>
-                <button class="btn-action btn-primary" onclick="exportReport()">
-                    <i class="fas fa-download"></i>
-                    <span>Export Report</span>
-                </button>
             </div>
         </div>
         
@@ -162,6 +158,13 @@
         
         <!-- Dashboard Section (existing content) -->
         <div id="dashboard-section" class="section-content active">
+            <!-- Dashboard Toolbar -->
+            <div class="section-toolbar" style="display: flex; justify-content: flex-end; padding: 10px 0; margin-bottom: 10px;">
+                <button id="exportDashboardBtn" class="btn-action btn-secondary" onclick="exportDashboardReport()" disabled title="Load data first">
+                    <i class="fas fa-download"></i>
+                    <span>Export Dashboard</span>
+                </button>
+            </div>
             <!-- Alerts Section -->
             <div class="alerts-container" id="alertsContainer">
                 <!-- Alerts will be populated dynamically -->
@@ -260,6 +263,13 @@
 
     <!-- Bottleneck Detection Section (new) -->
     <div id="bottleneck-section" class="section-content">
+        <!-- Bottleneck Toolbar -->
+        <div class="section-toolbar" style="display: flex; justify-content: flex-end; padding: 10px 0; margin-bottom: 10px;">
+            <button id="exportBottleneckBtn" class="btn-action btn-secondary" onclick="exportBottleneckReport()" disabled title="Load data first">
+                <i class="fas fa-download"></i>
+                <span>Export System Health</span>
+            </button>
+        </div>
         <!-- Bottleneck Alert -->
         <div id="bottleneckAlert" class="bottleneck-alert" >
             <i class="fas fa-exclamation-circle"></i>
@@ -330,6 +340,13 @@
 
     <!-- Cost Analysis Section -->
     <div id="cost-section" class="section-content">
+        <!-- Cost Toolbar -->
+        <div class="section-toolbar" style="display: flex; justify-content: flex-end; padding: 10px 0; margin-bottom: 10px;">
+            <button id="exportCostBtn" class="btn-action btn-secondary" onclick="exportCostReport()" disabled title="Load data first">
+                <i class="fas fa-download"></i>
+                <span>Export Cost Report</span>
+            </button>
+        </div>
         <!-- Cost Overview Cards -->
         <div class="metrics-grid" style="margin-bottom: 30px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
             <div class="metric-card" style="padding: 20px;">
@@ -2452,7 +2469,14 @@
                 previousData = dashboardData;
                 
                 console.log('Dashboard load complete!');
-                
+
+                // Enable export button
+                const exportBtn = document.getElementById('exportDashboardBtn');
+                if (exportBtn) {
+                    exportBtn.disabled = false;
+                    exportBtn.title = 'Export dashboard data to CSV';
+                }
+
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 showErrorState();
@@ -2795,11 +2819,170 @@
             loadDashboardData();
         }
         
-        // Export report
+        // Export report - context-aware based on active tab
         function exportReport() {
-            console.log('Exporting report...');
-            // Implement report export functionality
-            alert('Report export feature coming soon!');
+            // Detect which section is active
+            const activeSection = document.querySelector('.section-content.active');
+            if (!activeSection) {
+                alert('No section active');
+                return;
+            }
+
+            const sectionId = activeSection.id;
+            console.log('Exporting report for section:', sectionId);
+
+            if (sectionId === 'cost-section') {
+                // Cost Analysis tab - trigger the dedicated cost export
+                if (typeof exportCostReport === 'function') {
+                    exportCostReport();
+                } else {
+                    alert('Cost export not available. Please load Cost Analysis data first.');
+                }
+            } else if (sectionId === 'dashboard-section') {
+                // Dashboard tab - export leaderboard + metrics
+                exportDashboardReport();
+            } else if (sectionId === 'bottleneck-section') {
+                // Bottleneck tab - export system health
+                exportBottleneckReport();
+            } else {
+                alert(`Export not implemented for: ${sectionId}`);
+            }
+        }
+
+        // Export Dashboard data (summary metrics + department performance)
+        function exportDashboardReport() {
+            // Check if we have data
+            if (!dashboardData || !dashboardData.leaderboard) {
+                alert('No dashboard data to export. Please wait for data to load.');
+                return;
+            }
+
+            const rows = [];
+            const date = dashboardData.currentDate || api.getCentralDate();
+
+            // ===== SECTION 1: DAILY SUMMARY =====
+            rows.push(['DAILY SUMMARY REPORT']);
+            rows.push(['Generated', new Date().toLocaleString()]);
+            rows.push([]);
+
+            // Get values from DOM (they're already calculated and displayed)
+            const activeEmployees = document.getElementById('activeEmployees')?.textContent || '0';
+            const itemsProcessed = document.getElementById('itemsProcessed')?.textContent || '0';
+            const overallEfficiency = document.getElementById('overallEfficiency')?.textContent || '0%';
+            const totalHours = document.getElementById('totalHours')?.textContent || '0';
+            const itemsChange = document.getElementById('itemsProcessedChange')?.textContent?.trim() || '-';
+
+            rows.push(['Metric', 'Value']);
+            rows.push(['Date', date]);
+            rows.push(['Active / Worked Today', activeEmployees]);
+            rows.push(['Items Processed Today', itemsProcessed]);
+            rows.push(['vs Yesterday', itemsChange]);
+            rows.push(['Overall Efficiency', overallEfficiency]);
+            rows.push(['Total Hours Worked', totalHours]);
+
+            // ===== SECTION 2: DEPARTMENT PERFORMANCE =====
+            rows.push([]);
+            rows.push(['DEPARTMENT PERFORMANCE']);
+            rows.push(['Department', 'Efficiency %', 'Employees', 'Avg Items/Min', 'Target', 'vs Target']);
+
+            // Get department data from the rendered cards
+            const deptCards = document.querySelectorAll('.department-card');
+            if (deptCards.length > 0) {
+                deptCards.forEach(card => {
+                    const name = card.querySelector('.department-name')?.textContent?.trim() || '';
+                    const efficiency = card.querySelector('.department-score')?.textContent?.trim() || '';
+
+                    // Get stat values (Employees, Avg Items/Min, vs Target)
+                    const statItems = card.querySelectorAll('.stat-item');
+                    let employees = '', avgRate = '', target = '', vsTarget = '';
+
+                    statItems.forEach(stat => {
+                        const label = stat.querySelector('.stat-label')?.textContent?.toLowerCase() || '';
+                        const value = stat.querySelector('.stat-value')?.textContent?.trim() || '';
+
+                        if (label.includes('employee')) {
+                            employees = value;
+                        } else if (label.includes('items/min')) {
+                            avgRate = value;
+                            // Extract target from label text
+                            const targetMatch = label.match(/target:\s*([\d.]+)/i);
+                            if (targetMatch) target = targetMatch[1];
+                        } else if (label.includes('target')) {
+                            vsTarget = value;
+                        }
+                    });
+
+                    if (name) {
+                        rows.push([name, efficiency, employees, avgRate, target, vsTarget]);
+                    }
+                });
+            } else {
+                // Fallback: Use stored departmentStats data
+                const deptStats = dashboardData.departmentStats || [];
+                if (Array.isArray(deptStats)) {
+                    deptStats.forEach(dept => {
+                        rows.push([
+                            dept.department_name || dept.name || '',
+                            dept.efficiency ? `${Math.round(dept.efficiency)}%` : '',
+                            dept.employee_count || '',
+                            (dept.avg_items_per_minute || dept.avg_rate || 0).toFixed(1),
+                            dept.target_rate || '',
+                            dept.vs_target ? `${dept.vs_target.toFixed(0)}%` : ''
+                        ]);
+                    });
+                }
+            }
+
+            // Build CSV
+            const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+            downloadCSV(csv, `dashboard_summary_${date}.csv`);
+        }
+
+        // Export Bottleneck/System Health data
+        function exportBottleneckReport() {
+            // Get station data from the table
+            const tableBody = document.getElementById('stationTableBody');
+            if (!tableBody || !tableBody.children.length) {
+                alert('No bottleneck data to export. Please load data first.');
+                return;
+            }
+
+            const headers = ['Station', 'Workers', 'Rate/Hr', 'Queue', 'Status'];
+            const rows = [];
+
+            // Extract data from station table
+            const tableRows = tableBody.querySelectorAll('tr');
+            tableRows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 5) {
+                    rows.push([
+                        cells[0]?.textContent?.trim() || '',
+                        cells[1]?.textContent?.trim() || '',
+                        cells[2]?.textContent?.trim() || '',
+                        cells[3]?.textContent?.trim() || '',
+                        cells[4]?.textContent?.trim() || ''
+                    ]);
+                }
+            });
+
+            if (rows.length === 0) {
+                alert('No station data to export');
+                return;
+            }
+
+            const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
+            downloadCSV(csv, `bottleneck_report_${api.getCentralDate()}.csv`);
+        }
+
+        // Helper function to download CSV
+        function downloadCSV(csvContent, filename) {
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
         }
         
         // Show error state
@@ -4462,9 +4645,9 @@
                 // Update the dashboard title to show date range
                 const titleElement = document.querySelector('.dashboard-title p');
                 if (startDate === endDate) {
-                    titleElement.textContent = `Data for ${new Date(startDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+                    titleElement.textContent = `Data for ${new Date(startDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
                 } else {
-                    titleElement.textContent = `Data from ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`;
+                    titleElement.textContent = `Data from ${new Date(startDate + 'T12:00:00').toLocaleDateString()} to ${new Date(endDate + 'T12:00:00').toLocaleDateString()}`;
                 }
                 
                 // Store the date range
@@ -4570,7 +4753,7 @@
                                     <i class="fas fa-calendar-alt alert-icon" style="color: #667eea;"></i>
                                     <div class="alert-content">
                                         <div class="alert-title" style="color: #667eea;">Historical Data</div>
-                                        <div class="alert-message">Viewing data for ${new Date(startDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                                        <div class="alert-message">Viewing data for ${new Date(startDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
                                     </div>
                                 </div>
                             `;
@@ -4807,6 +4990,13 @@
                 try {
                     const response = await api.request('/dashboard/bottleneck/current');
                     updateBottleneckDisplay(response);
+
+                    // Enable export button
+                    const exportBtn = document.getElementById('exportBottleneckBtn');
+                    if (exportBtn) {
+                        exportBtn.disabled = false;
+                        exportBtn.title = 'Export system health data to CSV';
+                    }
                 } catch (error) {
                     console.error('Error loading bottleneck data:', error);
                 }
@@ -5012,20 +5202,31 @@
                 }
             }, 60000); // Every 60 seconds
             // ========== COST ANALYSIS FUNCTIONS ==========
+                let costAnalysisRequestId = 0;  // Track request to ignore stale responses
 
                 // Load Cost Analysis Data
                 async function loadCostAnalysisData() {
                     try {
                         console.log('Loading cost analysis data...');
-                        
+
                         // Get the selected dates from the date filter
-                        const startDate = dashboardData.startDate || dashboardData.startDate || document.getElementById('startDate').value || api.getCentralDate();
-                        const endDate = dashboardData.endDate || dashboardData.endDate || document.getElementById('endDate').value || api.getCentralDate();
-                        
+                        const startDate = dashboardData.startDate || document.getElementById('startDate').value || api.getCentralDate();
+                        const endDate = dashboardData.endDate || document.getElementById('endDate').value || api.getCentralDate();
+
+                        // Track this request to ignore stale responses
+                        const thisRequestId = ++costAnalysisRequestId;
+
                         // Fetch cost data from your API with date range
                         const response = await api.getCostAnalysis(startDate, endDate);  // Pass both dates
+
+                        // Ignore if a newer request was made while we were waiting
+                        if (thisRequestId !== costAnalysisRequestId) {
+                            console.log('Ignoring stale cost analysis response for:', startDate, '(superseded by newer request)');
+                            return;
+                        }
+
                         console.log('Cost analysis response for dates:', startDate, 'to', endDate, response);
-                        
+
                         costData = response;
                         
                         // Show a notice based on whether it's a range or single day
@@ -5050,7 +5251,7 @@
                                         ${response.date_range.days}-Day Cost Analysis
                                     </div>
                                     <div class="alert-message">
-                                        Analyzing period from ${new Date(response.date_range.start).toLocaleDateString()} to ${new Date(response.date_range.end).toLocaleDateString()}<br>
+                                        Analyzing period from ${new Date(response.date_range.start + 'T12:00:00').toLocaleDateString()} to ${new Date(response.date_range.end + 'T12:00:00').toLocaleDateString()}<br>
                                         <strong>Daily Average:</strong> $${response.daily_avg_cost || '0.00'} | 
                                         <strong>Daily Items:</strong> ${response.daily_avg_items || 0} QC Passed
                                     </div>
@@ -5068,7 +5269,7 @@
                                 <div class="alert-content">
                                     <div class="alert-title" style="color: #667eea;">Historical Data</div>
                                     <div class="alert-message">
-                                        Viewing costs for ${new Date(startDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                        Viewing costs for ${new Date(startDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                                     </div>
                                 </div>
                             `;
@@ -5103,7 +5304,14 @@
                             if (response.top_performers) {
                                 updateCostChampions(response.top_performers);
                             }
-                            
+
+                            // Enable export button
+                            const exportBtn = document.getElementById('exportCostBtn');
+                            if (exportBtn) {
+                                exportBtn.disabled = false;
+                                exportBtn.title = 'Export cost data to CSV';
+                            }
+
                         } catch (error) {
                             console.error('Error loading cost data:', error);
                             showCostErrorState();
@@ -5479,37 +5687,75 @@
                         alert('No data to export');
                         return;
                     }
-                    
-                    // Create CSV content
-                    const headers = ['Employee', 'Pay Type', 'Hourly Rate', 'Hours Worked', 'Labor Cost', 'Items Processed', 'Cost per Item', 'Efficiency'];
-                    const rows = costData.employee_costs.map(emp => [
-                        emp.name,
-                        emp.pay_type || 'hourly',
-                        emp.hourly_rate.toFixed(2),
-                        emp.hours_worked.toFixed(2),
-                        emp.total_cost.toFixed(2),
-                        emp.items_processed,
-                        emp.items_processed > 0 ? (emp.total_cost / emp.items_processed).toFixed(3) : '0',
-                        emp.total_cost > 0 ? (emp.items_processed / emp.total_cost).toFixed(1) : '0'
-                    ]);
-                    
+
+                    // Create CSV content with all cost analysis fields
+                    const headers = [
+                        'Employee', 'Pay Type', 'Hourly Rate',
+                        'Clocked Hours', 'Active Hours', 'Non-Active Hours',
+                        'Total Cost', 'Active Cost', 'Non-Active Cost',
+                        'Utilization %', 'Items Processed', 'Cost per Item',
+                        'Picking', 'Labeling', 'Film Matching', 'In Production', 'QC Passed'
+                    ];
+                    const rows = costData.employee_costs.map(emp => {
+                        const breakdown = emp.activity_breakdown || {};
+                        return [
+                            emp.name,
+                            emp.pay_type || 'hourly',
+                            (emp.hourly_rate || 0).toFixed(2),
+                            (emp.clocked_hours || 0).toFixed(2),
+                            (emp.active_hours || 0).toFixed(2),
+                            (emp.non_active_hours || 0).toFixed(2),
+                            (emp.total_cost || 0).toFixed(2),
+                            (emp.active_cost || 0).toFixed(2),
+                            (emp.non_active_cost || 0).toFixed(2),
+                            (emp.utilization_rate || 0).toFixed(1),
+                            emp.items_processed || 0,
+                            emp.items_processed > 0 ? (emp.total_cost / emp.items_processed).toFixed(3) : '0',
+                            breakdown.picking || 0,
+                            breakdown.labeling || 0,
+                            breakdown.film_matching || 0,
+                            breakdown.in_production || 0,
+                            breakdown.qc_passed || 0
+                        ];
+                    });
+
                     // Add totals row
                     const totals = costData.employee_costs.reduce((acc, emp) => {
-                        acc.hours += emp.hours_worked;
-                        acc.cost += emp.total_cost;
-                        acc.items += emp.items_processed;
+                        acc.clocked += emp.clocked_hours || 0;
+                        acc.active += emp.active_hours || 0;
+                        acc.nonActive += emp.non_active_hours || 0;
+                        acc.cost += emp.total_cost || 0;
+                        acc.activeCost += emp.active_cost || 0;
+                        acc.nonActiveCost += emp.non_active_cost || 0;
+                        acc.items += emp.items_processed || 0;
+                        const b = emp.activity_breakdown || {};
+                        acc.picking += b.picking || 0;
+                        acc.labeling += b.labeling || 0;
+                        acc.filmMatching += b.film_matching || 0;
+                        acc.inProduction += b.in_production || 0;
+                        acc.qcPassed += b.qc_passed || 0;
                         return acc;
-                    }, { hours: 0, cost: 0, items: 0 });
+                    }, { clocked: 0, active: 0, nonActive: 0, cost: 0, activeCost: 0, nonActiveCost: 0, items: 0, picking: 0, labeling: 0, filmMatching: 0, inProduction: 0, qcPassed: 0 });
                     
+                    const utilization = totals.clocked > 0 ? (totals.active / totals.clocked * 100) : 0;
                     rows.push([
                         'TOTAL',
                         '',
-                        (totals.cost / totals.hours).toFixed(2),
-                        totals.hours.toFixed(2),
+                        totals.clocked > 0 ? (totals.cost / totals.clocked).toFixed(2) : '0',
+                        totals.clocked.toFixed(2),
+                        totals.active.toFixed(2),
+                        totals.nonActive.toFixed(2),
                         totals.cost.toFixed(2),
+                        totals.activeCost.toFixed(2),
+                        totals.nonActiveCost.toFixed(2),
+                        utilization.toFixed(1),
                         totals.items,
                         totals.items > 0 ? (totals.cost / totals.items).toFixed(3) : '0',
-                        totals.cost > 0 ? (totals.items / totals.cost).toFixed(1) : '0'
+                        totals.picking,
+                        totals.labeling,
+                        totals.filmMatching,
+                        totals.inProduction,
+                        totals.qcPassed
                     ]);
                     
                     // Create CSV
@@ -5518,12 +5764,16 @@
                         ...rows.map(row => row.join(','))
                     ].join('\n');
                     
-                    // Download
+                    // Download with date range in filename
                     const blob = new Blob([csv], { type: 'text/csv' });
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `cost_report_${api.getCentralDate()}.csv`;
+                    const dateRange = costData.date_range;
+                    const filename = dateRange && dateRange.start !== dateRange.end
+                        ? `cost_report_${dateRange.start}_to_${dateRange.end}.csv`
+                        : `cost_report_${dateRange ? dateRange.start : api.getCentralDate()}.csv`;
+                    a.download = filename;
                     a.click();
                     window.URL.revokeObjectURL(url);
                 }

@@ -11,6 +11,19 @@ import logging
 _endpoint_cache = {}  # In-memory fallback
 _redis_cache = None  # Lazy-loaded Redis client
 
+def clear_dashboard_cache():
+    """Clear all dashboard caches (called after data recalculation)."""
+    global _endpoint_cache
+    _endpoint_cache.clear()
+
+    # Also clear Redis cache if available
+    redis = _get_redis_cache()
+    if redis:
+        try:
+            redis.delete_pattern("dashboard:*")
+        except Exception:
+            pass  # Redis pattern delete may not be available
+
 def _get_redis_cache():
     """Lazy-load Redis cache manager"""
     global _redis_cache
@@ -3546,15 +3559,138 @@ def test_bottleneck():
             "traceback": traceback.format_exc()
         }), 500
     
+def get_cost_analysis_from_summary(start_date, end_date, db_manager):
+    """
+    Get cost analysis data from pre-calculated daily_cost_summary table.
+    Used for historical queries (not including today) for faster response.
+
+    Returns tuple: (employee_costs, department_costs, qc_passed_items)
+    """
+    from datetime import datetime
+    is_date_range = (start_date != end_date)
+
+    # Query aggregated data from daily_cost_summary
+    employee_query = """
+    SELECT
+        employee_id as id,
+        employee_name as name,
+        MAX(hourly_rate) as hourly_rate,
+        MAX(pay_type) as pay_type,
+        SUM(clocked_hours) as clocked_hours,
+        SUM(active_hours) as active_hours,
+        SUM(non_active_hours) as non_active_hours,
+        SUM(total_cost) as total_cost,
+        SUM(active_cost) as active_cost,
+        SUM(non_active_cost) as non_active_cost,
+        SUM(picking_items) as picking_items,
+        SUM(labeling_items) as labeling_items,
+        SUM(film_matching_items) as film_matching_items,
+        SUM(in_production_items) as in_production_items,
+        SUM(qc_passed_items) as qc_passed_items,
+        SUM(total_items) as items_processed,
+        COUNT(DISTINCT summary_date) as days_worked,
+        -- Weighted average utilization
+        ROUND(SUM(active_hours) / NULLIF(SUM(clocked_hours), 0) * 100, 1) as utilization_rate,
+        -- Average efficiency rate
+        ROUND(SUM(total_items) / NULLIF(SUM(active_hours) * 60, 0), 3) as efficiency_rate
+    FROM daily_cost_summary
+    WHERE summary_date BETWEEN %s AND %s
+    GROUP BY employee_id, employee_name
+    ORDER BY employee_name
+    """
+
+    employee_results = db_manager.execute_query(employee_query, (start_date, end_date))
+
+    # Transform to expected format
+    employee_costs = []
+    for emp in employee_results:
+        clocked_hours = float(emp.get('clocked_hours') or 0)
+        active_hours = float(emp.get('active_hours') or 0)
+        total_cost = float(emp.get('total_cost') or 0)
+        active_cost = float(emp.get('active_cost') or 0)
+        items_processed = int(emp.get('items_processed') or 0)
+        days_worked = int(emp.get('days_worked') or 1)
+        utilization = float(emp.get('utilization_rate') or 0)
+
+        emp_data = {
+            'id': emp['id'],
+            'name': emp['name'],
+            'hourly_rate': float(emp.get('hourly_rate') or 13.0),
+            'pay_type': emp.get('pay_type', 'hourly'),
+            'clocked_hours': round(clocked_hours, 2),
+            'active_hours': round(active_hours, 2),
+            'non_active_hours': round(float(emp.get('non_active_hours') or 0), 2),
+            'total_cost': round(total_cost, 2),
+            'active_cost': round(active_cost, 2),
+            'non_active_cost': round(float(emp.get('non_active_cost') or 0), 2),
+            'items_processed': items_processed,
+            'days_worked': days_worked,
+            'utilization_rate': utilization,
+            'efficiency_rate': float(emp.get('efficiency_rate') or 0),
+            'activity_breakdown': {
+                'picking': int(emp.get('picking_items') or 0),
+                'labeling': int(emp.get('labeling_items') or 0),
+                'film_matching': int(emp.get('film_matching_items') or 0),
+                'in_production': int(emp.get('in_production_items') or 0),
+                'qc_passed': int(emp.get('qc_passed_items') or 0)
+            },
+            'cost_per_item': round(total_cost / items_processed, 3) if items_processed > 0 else 0,
+            'cost_per_item_true': round(total_cost / items_processed, 3) if items_processed > 0 else 0,
+            'cost_per_item_active': round(active_cost / items_processed, 3) if items_processed > 0 else 0,
+            'efficiency': round(items_processed / total_cost, 1) if total_cost > 0 else 0,
+            'active_days': days_worked,
+        }
+
+        # Daily averages for date ranges
+        if is_date_range:
+            emp_data['avg_daily_cost'] = round(total_cost / days_worked, 2) if days_worked > 0 else 0
+            emp_data['avg_daily_items'] = round(items_processed / days_worked, 0) if days_worked > 0 else 0
+            emp_data['avg_daily_hours'] = round(clocked_hours / days_worked, 1) if days_worked > 0 else 0
+
+        # Status based on utilization
+        if utilization >= 70:
+            emp_data['status'] = 'EFFICIENT'
+            emp_data['status_color'] = '#10b981'
+        elif utilization >= 50:
+            emp_data['status'] = 'NORMAL'
+            emp_data['status_color'] = '#3b82f6'
+        elif utilization >= 30:
+            emp_data['status'] = 'WATCH'
+            emp_data['status_color'] = '#f59e0b'
+        else:
+            emp_data['status'] = 'IDLE'
+            emp_data['status_color'] = '#ef4444'
+
+        employee_costs.append(emp_data)
+
+    # Department costs from summary (simplified - can enhance later if needed)
+    department_query = """
+    SELECT
+        'Production' as department,
+        COUNT(DISTINCT employee_id) as employee_count,
+        COUNT(DISTINCT summary_date) as days_active,
+        SUM(total_items) as items_processed,
+        SUM(total_cost) as total_cost
+    FROM daily_cost_summary
+    WHERE summary_date BETWEEN %s AND %s
+    """
+    department_costs = db_manager.execute_query(department_query, (start_date, end_date))
+
+    # QC passed items
+    qc_passed_items = sum(emp['activity_breakdown']['qc_passed'] for emp in employee_costs)
+
+    return employee_costs, department_costs, qc_passed_items
+
+
 @dashboard_bp.route('/cost-analysis', methods=['GET'])
 @cached_endpoint(ttl_seconds=120)
 def get_cost_analysis():
     """Get comprehensive cost analysis data with support for date ranges"""
     try:
         from datetime import datetime, timedelta
-        from database.db_manager import DatabaseManager
-        db_manager = DatabaseManager()
-        
+        from database.db_manager import get_db
+        db_manager = get_db()  # Use singleton, not new instance (avoids 1.7s connection overhead)
+
         # Support both old 'date' param and new 'start_date'/'end_date' params
         if 'date' in request.args:
             # Old single date format (for backward compatibility)
@@ -3564,40 +3700,102 @@ def get_cost_analysis():
             # New date range format
             start_date = request.args.get('start_date', datetime.now().strftime('%Y-%m-%d'))
             end_date = request.args.get('end_date', start_date)
-        
+
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        is_date_range = (start_date != end_date)
+        is_past_only = (end_date < today_str)
+
+        # OPTIMIZATION: Use pre-calculated data for historical queries (not including today)
+        if is_past_only:
+            logger.info(f"Cost analysis using PRE-CALCULATED data for: {start_date} to {end_date}")
+            employee_costs, department_costs, qc_passed_items = get_cost_analysis_from_summary(
+                start_date, end_date, db_manager
+            )
+
+            # Calculate totals from pre-calculated data
+            totals = {
+                'active_employees': len(employee_costs),
+                'total_clocked_hours': sum(float(emp.get('clocked_hours') or 0) for emp in employee_costs),
+                'total_active_hours': sum(float(emp.get('active_hours') or 0) for emp in employee_costs),
+                'total_non_active_hours': sum(float(emp.get('non_active_hours') or 0) for emp in employee_costs),
+                'total_labor_cost': sum(float(emp.get('total_cost') or 0) for emp in employee_costs),
+                'total_active_cost': sum(float(emp.get('active_cost') or 0) for emp in employee_costs),
+                'total_non_active_cost': sum(float(emp.get('non_active_cost') or 0) for emp in employee_costs),
+                'total_items': sum(emp.get('items_processed', 0) or 0 for emp in employee_costs),
+                'avg_hourly_rate': sum(float(emp.get('hourly_rate', 0) or 0) for emp in employee_costs) / len(employee_costs) if employee_costs else 0,
+            }
+
+            if totals['total_clocked_hours'] > 0:
+                totals['overall_utilization'] = round(totals['total_active_hours'] / totals['total_clocked_hours'] * 100, 1)
+            else:
+                totals['overall_utilization'] = 0
+
+            top_performers = [emp for emp in employee_costs if emp['items_processed'] > 0]
+            top_performers.sort(key=lambda x: x['cost_per_item'])
+
+            start = datetime.strptime(start_date, '%Y-%m-%d')
+            end = datetime.strptime(end_date, '%Y-%m-%d')
+            days_in_range = (end - start).days + 1
+
+            return jsonify({
+                'success': True,
+                'source': 'pre-calculated',  # Debug marker
+                'date_range': {
+                    'start': start_date,
+                    'end': end_date,
+                    'days': days_in_range,
+                    'is_range': is_date_range
+                },
+                'employee_costs': employee_costs,
+                'department_costs': department_costs,
+                'total_labor_cost': totals['total_labor_cost'],
+                'total_active_cost': totals['total_active_cost'],
+                'total_non_active_cost': totals['total_non_active_cost'],
+                'total_items': totals['total_items'],
+                'qc_passed_items': qc_passed_items,
+                'total_clocked_hours': totals['total_clocked_hours'],
+                'total_active_hours': totals['total_active_hours'],
+                'total_non_active_hours': totals['total_non_active_hours'],
+                'overall_utilization': totals['overall_utilization'],
+                'active_employees': totals['active_employees'],
+                'avg_hourly_rate': totals['avg_hourly_rate'],
+                'avg_cost_per_item': round(float(totals['total_labor_cost']) / float(qc_passed_items), 3) if qc_passed_items > 0 else 0,
+                'avg_cost_per_item_active': round(float(totals['total_active_cost']) / float(qc_passed_items), 3) if qc_passed_items > 0 else 0,
+                'daily_avg_cost': round(totals['total_labor_cost'] / days_in_range, 2) if is_date_range else totals['total_labor_cost'],
+                'daily_avg_items': round(qc_passed_items / days_in_range, 0) if is_date_range else qc_passed_items,
+                'top_performers': top_performers[:5],
+                'is_range': is_date_range
+            })
+
+        # REAL-TIME CALCULATION: Used when query includes today
         # Get UTC boundaries from request
         utc_start = request.args.get('utc_start')
         utc_end = request.args.get('utc_end')
-        
+
         # If UTC boundaries not provided, calculate them (fallback)
         if not utc_start or not utc_end:
             # Parse dates
             start_year, start_month, start_day = map(int, start_date.split('-'))
             end_year, end_month, end_day = map(int, end_date.split('-'))
-            
+
             # Check DST
             is_dst_start = 3 <= start_month <= 11
             is_dst_end = 3 <= end_month <= 11
-            
+
             offset_start = 5 if is_dst_start else 6
             offset_end = 5 if is_dst_end else 6
-            
+
             # Calculate UTC boundaries
             utc_start = f"{start_date} {offset_start:02d}:00:00"
 
             # End date needs next day for boundary (exclusive end for range queries)
             end_next = datetime(end_year, end_month, end_day) + timedelta(days=1)
             utc_end = f"{end_next.strftime('%Y-%m-%d')} {offset_end:02d}:00:00"  # Exclusive end
-        
-        # Define is_date_range variable
-        is_date_range = (start_date != end_date)
 
-        # Check if querying today only - use real-time clock_times instead of cached daily_scores
-        today_str = datetime.now().strftime('%Y-%m-%d')
         is_today_only = (start_date == end_date == today_str)
-        
+
         # Log for debugging
-        logger.info(f"Cost analysis for: {start_date} to {end_date} (UTC: {utc_start} to {utc_end}, is_today_only: {is_today_only})")
+        logger.info(f"Cost analysis REAL-TIME for: {start_date} to {end_date} (UTC: {utc_start} to {utc_end}, is_today_only: {is_today_only})")
 
         # Get employee costs for the date range
         # OPTIMIZED: Uses UTC range filter (not CONVERT_TZ) for index usage on clock_times

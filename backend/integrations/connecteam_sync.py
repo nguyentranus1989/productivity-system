@@ -293,7 +293,122 @@ class ConnecteamSync:
         WHERE e.connecteam_user_id = %s
         """
         return self.db.fetch_one(query, (connecteam_user_id,))
-    
+
+    # ========== NEW BATCH SYNC METHODS (v2) ==========
+
+    def _fetch_existing_clock_times_for_date(self, sync_date: datetime.date) -> Dict[tuple, Dict]:
+        """Fetch all clock_times for a date as lookup dict.
+
+        Returns:
+            Dict[(employee_id, clock_in_utc)] -> record dict
+        """
+        query = """
+            SELECT id, employee_id, clock_in, clock_out, total_minutes, is_active
+            FROM clock_times
+            WHERE DATE(DATE_ADD(clock_in, INTERVAL -6 HOUR)) = %s
+        """
+        records = self.db.fetch_all(query, (sync_date,))
+
+        lookup = {}
+        for r in records:
+            key = (r['employee_id'], r['clock_in'])
+            lookup[key] = r
+        return lookup
+
+    def _sync_clock_time_v2(self, employee_id: int, shift: ConnecteamShift,
+                           existing_lookup: Dict[tuple, Dict]) -> str:
+        """Sync single clock time using exact clock_in match.
+
+        Returns: 'created', 'updated', or 'unchanged'
+        """
+        key = (employee_id, shift.clock_in)
+        existing = existing_lookup.get(key)
+
+        if existing:
+            # Record exists - update only if clock_out changed
+            needs_update = (
+                (shift.clock_out and not existing['clock_out']) or
+                (shift.total_minutes and existing['total_minutes'] != shift.total_minutes)
+            )
+
+            if needs_update:
+                self.db.execute_query("""
+                    UPDATE clock_times
+                    SET clock_out = %s,
+                        total_minutes = %s,
+                        is_active = %s,
+                        updated_at = NOW()
+                    WHERE id = %s
+                """, (shift.clock_out, shift.total_minutes, shift.is_active, existing['id']))
+                logger.debug(f"Updated clock_out for employee {employee_id}")
+                return 'updated'
+            return 'unchanged'
+
+        # New record - insert
+        try:
+            self.db.execute_query("""
+                INSERT INTO clock_times
+                    (employee_id, clock_in, clock_out, total_minutes, is_active, source, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, 'connecteam', NOW(), NOW())
+            """, (employee_id, shift.clock_in, shift.clock_out, shift.total_minutes, shift.is_active))
+            logger.debug(f"Created clock record for employee {employee_id}")
+            return 'created'
+        except Exception as e:
+            if 'Duplicate' in str(e):
+                logger.debug(f"Duplicate prevented for employee {employee_id}")
+                return 'unchanged'
+            raise
+
+    def sync_shifts_for_date_v2(self, sync_date: datetime.date) -> Dict[str, int]:
+        """Sync shifts for a specific date - BATCH OPTIMIZED version.
+
+        Uses single query to fetch existing records, then O(1) lookups.
+        """
+        logger.info(f"[v2] Syncing shifts for {sync_date}")
+
+        stats = {
+            'total_shifts': 0,
+            'created': 0,
+            'updated': 0,
+            'unchanged': 0,
+            'errors': 0
+        }
+
+        try:
+            # 1. Fetch ALL existing records in ONE query
+            existing_lookup = self._fetch_existing_clock_times_for_date(sync_date)
+            logger.info(f"Loaded {len(existing_lookup)} existing clock records for {sync_date}")
+
+            # 2. Get shifts from Connecteam
+            shifts = self.client.get_shifts_for_date(sync_date)
+            stats['total_shifts'] = len(shifts)
+            logger.info(f"Got {len(shifts)} shifts from Connecteam")
+
+            # 3. Process each shift (NO DB queries in loop!)
+            for shift in shifts:
+                try:
+                    employee = self._get_employee_by_connecteam_id(shift.user_id)
+                    if not employee:
+                        logger.warning(f"Employee not found for Connecteam user {shift.user_id}")
+                        continue
+
+                    result = self._sync_clock_time_v2(employee['id'], shift, existing_lookup)
+                    stats[result] += 1
+
+                except Exception as e:
+                    logger.error(f"Error syncing shift: {e}")
+                    stats['errors'] += 1
+
+            logger.info(f"[v2] Sync complete: {stats}")
+            return stats
+
+        except Exception as e:
+            logger.error(f"Error syncing shifts for {sync_date}: {e}")
+            stats['errors'] = stats['total_shifts']
+            return stats
+
+    # ========== END NEW BATCH SYNC METHODS ==========
+
     def _sync_clock_time(self, employee_id: int, shift: ConnecteamShift) -> bool:
         """Sync clock time record from Connecteam shift. Returns True if updated, False if created."""
         

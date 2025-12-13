@@ -602,6 +602,7 @@ def run_recalculation(job_id, start_date, end_date):
             ('daily_scores.active_minutes', 'Recalculating active minutes from activity_logs'),
             ('daily_scores.items_processed', 'Recalculating items processed'),
             ('daily_scores.efficiency_rate', 'Recalculating efficiency rates'),
+            ('daily_cost_summary', 'Recalculating daily cost summary'),
             ('employee_current_status', 'Refreshing employee status view'),
         ]
 
@@ -693,6 +694,21 @@ def run_recalculation(job_id, start_date, end_date):
                 job['records_processed'] = cursor.rowcount
                 conn.commit()
 
+            elif stage_id == 'daily_cost_summary':
+                # Recalculate daily_cost_summary for each date in range
+                from datetime import datetime as dt, timedelta
+                start = dt.strptime(start_date, '%Y-%m-%d')
+                end = dt.strptime(end_date, '%Y-%m-%d')
+                records_total = 0
+                current = start
+                while current <= end:
+                    date_str = current.strftime('%Y-%m-%d')
+                    result = calculate_daily_cost_summary(date_str)
+                    if result.get('success'):
+                        records_total += result.get('records_inserted', 0)
+                    current += timedelta(days=1)
+                job['records_processed'] = records_total
+
             elif stage_id == 'employee_current_status':
                 # This is a view/cache table - just mark as done
                 job['records_processed'] = 0
@@ -709,6 +725,14 @@ def run_recalculation(job_id, start_date, end_date):
         job['status'] = 'completed'
         job['completed_at'] = datetime.now().isoformat()
         job['total_elapsed_seconds'] = round(time.time() - job_start_time, 2)
+
+        # Clear dashboard cache so new data is visible immediately
+        try:
+            from api.dashboard import clear_dashboard_cache
+            clear_dashboard_cache()
+            logger.info("Dashboard cache cleared after recalculation")
+        except Exception as cache_err:
+            logger.warning(f"Failed to clear cache: {cache_err}")
 
     except Exception as e:
         job['status'] = 'error'
@@ -867,3 +891,321 @@ def format_duration(seconds):
         hours = int(seconds / 3600)
         mins = int((seconds % 3600) / 60)
         return f"{hours}h {mins}m"
+
+
+# ============= DAILY COST SUMMARY =============
+
+def calculate_daily_cost_summary(target_date):
+    """
+    Calculate and store pre-aggregated cost data for a specific date.
+    This data is used by Cost Analysis to avoid expensive real-time calculations.
+
+    Args:
+        target_date: Date string in YYYY-MM-DD format
+
+    Returns:
+        dict with success status and record count
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Parse target date
+        year, month, day = map(int, target_date.split('-'))
+
+        # Check DST for UTC offset
+        is_dst = 3 <= month <= 11
+        offset = 5 if is_dst else 6
+
+        # UTC boundaries for the target CT date
+        utc_start = f"{target_date} {offset:02d}:00:00"
+        next_day = datetime(year, month, day) + timedelta(days=1)
+        utc_end = f"{next_day.strftime('%Y-%m-%d')} {offset:02d}:00:00"
+
+        # Delete existing summary for this date (upsert behavior)
+        cursor.execute(
+            "DELETE FROM daily_cost_summary WHERE summary_date = %s",
+            (target_date,)
+        )
+
+        # Calculate and insert daily cost summary for each employee
+        insert_query = """
+        INSERT INTO daily_cost_summary (
+            summary_date, employee_id, employee_name,
+            clocked_hours, active_hours, non_active_hours,
+            total_cost, active_cost, non_active_cost,
+            picking_items, labeling_items, film_matching_items,
+            in_production_items, qc_passed_items, total_items,
+            utilization_rate, efficiency_rate, cost_per_item,
+            hourly_rate, pay_type, days_worked
+        )
+        SELECT
+            %s as summary_date,
+            e.id as employee_id,
+            e.name as employee_name,
+
+            -- Clocked hours from clock_times (UTC range filter)
+            ROUND(COALESCE(
+                (SELECT SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, UTC_TIMESTAMP())))) / 60.0
+                 FROM clock_times
+                 WHERE employee_id = e.id
+                 AND clock_in >= %s AND clock_in < %s), 0
+            ), 2) as clocked_hours,
+
+            -- Active hours from daily_scores
+            ROUND(COALESCE(ds.active_minutes, 0) / 60.0, 2) as active_hours,
+
+            -- Non-active hours (clocked - active)
+            ROUND(GREATEST(0,
+                COALESCE(
+                    (SELECT SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, UTC_TIMESTAMP())))) / 60.0
+                     FROM clock_times
+                     WHERE employee_id = e.id
+                     AND clock_in >= %s AND clock_in < %s), 0
+                ) - COALESCE(ds.active_minutes, 0) / 60.0
+            ), 2) as non_active_hours,
+
+            -- Total cost (clocked_hours * hourly_rate)
+            ROUND(
+                COALESCE(
+                    (SELECT SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, UTC_TIMESTAMP())))) / 60.0
+                     FROM clock_times
+                     WHERE employee_id = e.id
+                     AND clock_in >= %s AND clock_in < %s), 0
+                ) *
+                CASE
+                    WHEN ep.pay_type = 'salary' THEN COALESCE(ep.pay_rate, 13.00 * 8 * 26) / 26 / 8
+                    ELSE COALESCE(ep.pay_rate, 13.00)
+                END
+            , 2) as total_cost,
+
+            -- Active cost (active_hours * hourly_rate)
+            ROUND(
+                COALESCE(ds.active_minutes, 0) / 60.0 *
+                CASE
+                    WHEN ep.pay_type = 'salary' THEN COALESCE(ep.pay_rate, 13.00 * 8 * 26) / 26 / 8
+                    ELSE COALESCE(ep.pay_rate, 13.00)
+                END
+            , 2) as active_cost,
+
+            -- Non-active cost
+            ROUND(
+                GREATEST(0,
+                    COALESCE(
+                        (SELECT SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, UTC_TIMESTAMP())))) / 60.0
+                         FROM clock_times
+                         WHERE employee_id = e.id
+                         AND clock_in >= %s AND clock_in < %s), 0
+                    ) - COALESCE(ds.active_minutes, 0) / 60.0
+                ) *
+                CASE
+                    WHEN ep.pay_type = 'salary' THEN COALESCE(ep.pay_rate, 13.00 * 8 * 26) / 26 / 8
+                    ELSE COALESCE(ep.pay_rate, 13.00)
+                END
+            , 2) as non_active_cost,
+
+            -- Activity breakdown from activity_logs
+            COALESCE((SELECT SUM(items_count) FROM activity_logs WHERE employee_id = e.id AND activity_type = 'Picking' AND window_start >= %s AND window_start < %s AND source = 'podfactory'), 0) as picking_items,
+            COALESCE((SELECT SUM(items_count) FROM activity_logs WHERE employee_id = e.id AND activity_type = 'Labeling' AND window_start >= %s AND window_start < %s AND source = 'podfactory'), 0) as labeling_items,
+            COALESCE((SELECT SUM(items_count) FROM activity_logs WHERE employee_id = e.id AND activity_type = 'Film Matching' AND window_start >= %s AND window_start < %s AND source = 'podfactory'), 0) as film_matching_items,
+            COALESCE((SELECT SUM(items_count) FROM activity_logs WHERE employee_id = e.id AND activity_type = 'In Production' AND window_start >= %s AND window_start < %s AND source = 'podfactory'), 0) as in_production_items,
+            COALESCE((SELECT SUM(items_count) FROM activity_logs WHERE employee_id = e.id AND activity_type = 'QC Passed' AND window_start >= %s AND window_start < %s AND source = 'podfactory'), 0) as qc_passed_items,
+
+            -- Total items from daily_scores
+            COALESCE(ds.items_processed, 0) as total_items,
+
+            -- Utilization rate (active / clocked * 100)
+            ROUND(LEAST(100,
+                COALESCE(ds.active_minutes, 0) /
+                NULLIF(
+                    (SELECT SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, UTC_TIMESTAMP()))))
+                     FROM clock_times
+                     WHERE employee_id = e.id
+                     AND clock_in >= %s AND clock_in < %s), 0
+                ) * 100
+            ), 1) as utilization_rate,
+
+            -- Efficiency rate (items per minute active)
+            ROUND(COALESCE(ds.items_processed, 0) / NULLIF(COALESCE(ds.active_minutes, 0), 0), 3) as efficiency_rate,
+
+            -- Cost per item
+            ROUND(
+                CASE WHEN COALESCE(ds.items_processed, 0) > 0 THEN
+                    (
+                        COALESCE(
+                            (SELECT SUM(GREATEST(0, TIMESTAMPDIFF(MINUTE, clock_in, COALESCE(clock_out, UTC_TIMESTAMP())))) / 60.0
+                             FROM clock_times
+                             WHERE employee_id = e.id
+                             AND clock_in >= %s AND clock_in < %s), 0
+                        ) *
+                        CASE
+                            WHEN ep.pay_type = 'salary' THEN COALESCE(ep.pay_rate, 13.00 * 8 * 26) / 26 / 8
+                            ELSE COALESCE(ep.pay_rate, 13.00)
+                        END
+                    ) / ds.items_processed
+                ELSE 0 END
+            , 3) as cost_per_item,
+
+            -- Hourly rate
+            CASE
+                WHEN ep.pay_type = 'salary' THEN ROUND(COALESCE(ep.pay_rate, 13.00 * 8 * 26) / 26 / 8, 2)
+                ELSE COALESCE(ep.pay_rate, 13.00)
+            END as hourly_rate,
+
+            -- Pay type
+            COALESCE(ep.pay_type, 'hourly') as pay_type,
+
+            -- Days worked (always 1 for single day summary)
+            1 as days_worked
+
+        FROM employees e
+        LEFT JOIN employee_payrates ep ON e.id = ep.employee_id
+        LEFT JOIN daily_scores ds ON e.id = ds.employee_id AND ds.score_date = %s
+        WHERE e.is_active = 1
+        AND (
+            -- Only include employees who clocked in on this date
+            EXISTS (
+                SELECT 1 FROM clock_times
+                WHERE employee_id = e.id
+                AND clock_in >= %s AND clock_in < %s
+            )
+            OR ds.employee_id IS NOT NULL
+        )
+        """
+
+        # Parameters (UTC boundaries used multiple times)
+        params = (
+            target_date,                    # summary_date
+            utc_start, utc_end,            # clocked_hours
+            utc_start, utc_end,            # non_active_hours
+            utc_start, utc_end,            # total_cost
+            utc_start, utc_end,            # non_active_cost
+            utc_start, utc_end,            # picking_items
+            utc_start, utc_end,            # labeling_items
+            utc_start, utc_end,            # film_matching_items
+            utc_start, utc_end,            # in_production_items
+            utc_start, utc_end,            # qc_passed_items
+            utc_start, utc_end,            # utilization_rate
+            utc_start, utc_end,            # cost_per_item
+            target_date,                    # daily_scores join
+            utc_start, utc_end             # EXISTS clause
+        )
+
+        cursor.execute(insert_query, params)
+        inserted_count = cursor.rowcount
+        conn.commit()
+
+        logger.info(f"Daily cost summary: {target_date} - {inserted_count} records inserted")
+
+        return {'success': True, 'date': target_date, 'records_inserted': inserted_count}
+
+    except Exception as e:
+        logger.error(f"Error calculating daily cost summary for {target_date}: {e}")
+        if conn:
+            conn.rollback()
+        return {'success': False, 'date': target_date, 'error': str(e)}
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+@system_control_bp.route('/api/system/cost-summary/calculate', methods=['POST'])
+@require_admin_auth
+def api_calculate_cost_summary():
+    """
+    API endpoint to calculate daily cost summary for a date range.
+    Used for backfilling historical data.
+
+    Body:
+        start_date: YYYY-MM-DD (required)
+        end_date: YYYY-MM-DD (optional, defaults to start_date)
+    """
+    try:
+        data = request.get_json() or {}
+        start_date = data.get('start_date')
+        end_date = data.get('end_date', start_date)
+
+        if not start_date:
+            return jsonify({'success': False, 'error': 'start_date required'}), 400
+
+        # Parse dates
+        start = datetime.strptime(start_date, '%Y-%m-%d')
+        end = datetime.strptime(end_date, '%Y-%m-%d')
+
+        if start > end:
+            return jsonify({'success': False, 'error': 'start_date must be before end_date'}), 400
+
+        results = []
+        current = start
+        while current <= end:
+            date_str = current.strftime('%Y-%m-%d')
+            result = calculate_daily_cost_summary(date_str)
+            results.append(result)
+            current += timedelta(days=1)
+
+        total_records = sum(r.get('records_inserted', 0) for r in results if r.get('success'))
+        failed_dates = [r['date'] for r in results if not r.get('success')]
+
+        return jsonify({
+            'success': len(failed_dates) == 0,
+            'days_processed': len(results),
+            'total_records_inserted': total_records,
+            'failed_dates': failed_dates,
+            'details': results
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@system_control_bp.route('/api/system/cost-summary/status', methods=['GET'])
+@require_admin_auth
+def api_cost_summary_status():
+    """Get status of daily_cost_summary table"""
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get summary statistics
+        cursor.execute("""
+            SELECT
+                MIN(summary_date) as oldest_date,
+                MAX(summary_date) as newest_date,
+                COUNT(DISTINCT summary_date) as days_covered,
+                COUNT(*) as total_records,
+                SUM(total_cost) as total_cost_all_time
+            FROM daily_cost_summary
+        """)
+        stats = cursor.fetchone()
+
+        # Get today's status
+        today = datetime.now().strftime('%Y-%m-%d')
+        cursor.execute(
+            "SELECT COUNT(*) as count FROM daily_cost_summary WHERE summary_date = %s",
+            (today,)
+        )
+        today_status = cursor.fetchone()
+
+        return jsonify({
+            'success': True,
+            'oldest_date': stats['oldest_date'].strftime('%Y-%m-%d') if stats['oldest_date'] else None,
+            'newest_date': stats['newest_date'].strftime('%Y-%m-%d') if stats['newest_date'] else None,
+            'days_covered': stats['days_covered'] or 0,
+            'total_records': stats['total_records'] or 0,
+            'total_cost_all_time': float(stats['total_cost_all_time'] or 0),
+            'today_calculated': (today_status['count'] or 0) > 0
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()

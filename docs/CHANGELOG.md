@@ -2,6 +2,29 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.3.8] - 2025-12-12
+
+### Fixed - Recalculation & Cache Issues
+- **daily_cost_summary in Calculate All**: Added as 7th stage in recalculation job
+  - Previously "Calculate All" didn't recalculate cost summary table
+  - Now all 7 stages: clock_times → daily_scores (4 fields) → cost_summary → status view
+- **Cache Invalidation**: Dashboard cache now cleared after recalculation completes
+  - Added `clear_dashboard_cache()` function to `dashboard.py`
+  - Called automatically after successful recalculation
+- **Race Condition Fix**: Cost Analysis stale response prevention
+  - Added request tracking (`costAnalysisRequestId`) to ignore superseded responses
+  - Prevents older async responses from overwriting newer data
+- **Date Display Timezone Fix**: Fixed JavaScript UTC parsing issue
+  - `new Date('2025-12-01')` parsed as midnight UTC → showed Nov 30 in CT
+  - Fixed by using `new Date('2025-12-01T12:00:00')` to parse as noon local time
+
+### Technical Details
+- `backend/api/system_control.py`: Added `daily_cost_summary` stage + cache clear
+- `backend/api/dashboard.py`: Added `clear_dashboard_cache()` export
+- `frontend/manager.html`: Request tracking + `T12:00:00` date parsing fix
+
+---
+
 ## [2.3.7] - 2025-12-12
 
 ### Fixed - Connecteam Sync Bug
@@ -11,15 +34,16 @@ All notable changes to the Productivity Tracker system.
 - **Fix**: Now UPDATES existing shifted records with correct UTC times
 - **Status**: DEPLOYED to server (commit 941114c)
 
+### Fixed - Batch Sync Performance
+- **New v2 sync methods**: Batch fetch + exact clock_in matching
+- **Performance**: 500 shifts now sync in ~30 seconds (was O(n) queries)
+- **Data Integrity**: Unique constraint on `(employee_id, clock_in)` prevents duplicates
+- Re-synced Dec 1-11: 585 records created correctly
+
 ### Data Quality Issues Found
 - Dec 2: Connecteam API had 52 shifts, DB only had 31 (10 employees missing)
 - Manually backfilled 16 shifts for Dec 2
-- Database has duplicate records (old shifted + new correct)
-
-### Server State
-- Sync running on server with buggy code (`podfactory-sync` PM2 process)
-- Domain: reports.podgasus.com via Cloudflare tunnel
-- Plan: Fix code → Push to GitHub → Redeploy → Clean duplicates
+- Cleaned duplicate records after fix
 
 ---
 
