@@ -6,6 +6,7 @@
     <title>Employee Portal - My Performance</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -750,14 +751,43 @@
                     </span>
                 </div>
             </div>
-            
-            <!-- Daily Goals -->
-            <div class="progress-section">
-                <div class="section-header">
-                    <h2 class="section-title">Today's Goals</h2>
-                    <div class="view-toggle">
+
+            <!-- Performance Trend Chart -->
+            <div class="progress-section" style="background: white; border-radius: 16px; padding: 25px; margin-bottom: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="font-size: 1.3em; font-weight: 600; color: #333; margin: 0;">
+                        <i class="fas fa-chart-line" style="color: #667eea; margin-right: 10px;"></i>Performance Trend
+                    </h2>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="loadTrendChart(7)" class="trend-btn" data-days="7" style="padding: 6px 12px; border: 1px solid #ddd; background: white; border-radius: 20px; cursor: pointer; font-size: 12px;">7 Days</button>
+                        <button onclick="loadTrendChart(30)" class="trend-btn active" data-days="30" style="padding: 6px 12px; border: 1px solid #667eea; background: #667eea; color: white; border-radius: 20px; cursor: pointer; font-size: 12px;">30 Days</button>
+                        <button onclick="loadTrendChart(90)" class="trend-btn" data-days="90" style="padding: 6px 12px; border: 1px solid #ddd; background: white; border-radius: 20px; cursor: pointer; font-size: 12px;">90 Days</button>
                     </div>
-                    <div id="todayGoalsContent">Loading goals...</div>
+                </div>
+                <div style="position: relative; height: 250px;">
+                    <canvas id="trendChart"></canvas>
+                </div>
+                <div id="trendNoData" style="display: none; text-align: center; padding: 40px; color: #888;">
+                    <i class="fas fa-chart-area" style="font-size: 48px; opacity: 0.3; margin-bottom: 15px;"></i>
+                    <p>No trend data available yet. Keep working to build your history!</p>
+                </div>
+            </div>
+
+            <!-- Daily Goals -->
+            <div class="progress-section" style="background: white; border-radius: 16px; padding: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="font-size: 1.3em; font-weight: 600; color: #333; margin: 0;">
+                        <i class="fas fa-bullseye" style="color: #667eea; margin-right: 10px;"></i>Today's Goals
+                    </h2>
+                    <button onclick="openAddGoalModal()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 13px;">
+                        <i class="fas fa-plus"></i> Add Goal
+                    </button>
+                </div>
+                <div id="goalsContainer">
+                    <div style="text-align: center; padding: 30px; color: #888;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                        <p style="margin-top: 10px;">Loading goals...</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1269,11 +1299,305 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update the "time ago" display every 10 seconds
             setInterval(updateLastRefreshDisplay, 10000);
 
+            // Load trend chart
+            loadTrendChart(30);
+
             console.log('Real-time dashboard refresh enabled (60s interval)');
         }
     }, 2000);
 });
 </script>
+
+<!-- Trend Chart Script -->
+<script>
+let trendChart = null;
+
+async function loadTrendChart(days = 30) {
+    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
+    const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
+
+    if (!employeeId || !token) return;
+
+    // Update button styles
+    document.querySelectorAll('.trend-btn').forEach(btn => {
+        if (parseInt(btn.dataset.days) === days) {
+            btn.style.background = '#667eea';
+            btn.style.color = 'white';
+            btn.style.borderColor = '#667eea';
+        } else {
+            btn.style.background = 'white';
+            btn.style.color = '#333';
+            btn.style.borderColor = '#ddd';
+        }
+    });
+
+    try {
+        const response = await fetch(`/api/employee/${employeeId}/trends?days=${days}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        const chartCanvas = document.getElementById('trendChart');
+        const noDataDiv = document.getElementById('trendNoData');
+
+        if (!data.has_data || !data.trend || data.trend.length === 0) {
+            chartCanvas.style.display = 'none';
+            noDataDiv.style.display = 'block';
+            return;
+        }
+
+        chartCanvas.style.display = 'block';
+        noDataDiv.style.display = 'none';
+
+        // Prepare chart data
+        const labels = data.trend.map(d => {
+            const date = new Date(d.date);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        });
+
+        const itemsData = data.trend.map(d => d.items);
+        const pointsData = data.trend.map(d => d.points);
+
+        // Destroy existing chart
+        if (trendChart) {
+            trendChart.destroy();
+        }
+
+        // Create new chart
+        const ctx = chartCanvas.getContext('2d');
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Items Processed',
+                    data: itemsData,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointHoverRadius: 6
+                }, {
+                    label: 'Points Earned',
+                    data: pointsData,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    hidden: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { usePointStyle: true, padding: 20 }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        padding: 12,
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 13 }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        console.log(`Trend chart loaded for ${days} days`);
+
+    } catch (error) {
+        console.error('Error loading trend chart:', error);
+    }
+}
+</script>
+
+<!-- Goals Script -->
+<script>
+async function loadGoals() {
+    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
+    const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
+    const container = document.getElementById('goalsContainer');
+
+    if (!employeeId || !token || !container) return;
+
+    try {
+        const response = await fetch(`/api/employee/${employeeId}/goals`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+
+        if (!data.success || !data.goals || data.goals.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #888;">
+                    <i class="fas fa-flag-checkered" style="font-size: 48px; opacity: 0.3; margin-bottom: 15px;"></i>
+                    <p>No goals set yet.</p>
+                    <p style="font-size: 13px;">Click "Add Goal" to set your first daily target!</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Render goals
+        container.innerHTML = data.goals.map(goal => {
+            const metricLabels = {
+                'items_processed': 'Items',
+                'points_earned': 'Points',
+                'efficiency': 'Efficiency %',
+                'active_minutes': 'Active Minutes'
+            };
+
+            const progressColor = goal.progress >= 100 ? '#22c55e' :
+                                  goal.progress >= 50 ? '#667eea' : '#f59e0b';
+
+            return `
+                <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin-bottom: 12px; position: relative;">
+                    <button onclick="deleteGoal(${goal.id})" style="position: absolute; top: 10px; right: 10px; background: none; border: none; color: #999; cursor: pointer; font-size: 14px;" title="Remove goal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: 600; color: #333;">${metricLabels[goal.metric] || goal.metric}</span>
+                        <span style="font-size: 14px; color: ${progressColor}; font-weight: 600;">
+                            ${goal.current} / ${goal.target}
+                            ${goal.progress >= 100 ? ' ✓' : ''}
+                        </span>
+                    </div>
+                    <div style="background: #e0e0e0; border-radius: 10px; height: 8px; overflow: hidden;">
+                        <div style="background: ${progressColor}; height: 100%; width: ${Math.min(goal.progress, 100)}%; transition: width 0.5s ease;"></div>
+                    </div>
+                    <div style="text-align: right; font-size: 12px; color: #888; margin-top: 5px;">
+                        ${goal.progress.toFixed(0)}% complete
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading goals:', error);
+        container.innerHTML = '<p style="color: #ef4444; text-align: center;">Failed to load goals</p>';
+    }
+}
+
+async function deleteGoal(goalId) {
+    if (!confirm('Remove this goal?')) return;
+
+    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
+    const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
+
+    try {
+        await fetch(`/api/employee/${employeeId}/goals/${goalId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        loadGoals(); // Refresh
+    } catch (error) {
+        console.error('Error deleting goal:', error);
+    }
+}
+
+function openAddGoalModal() {
+    document.getElementById('addGoalModal').style.display = 'flex';
+}
+
+function closeAddGoalModal() {
+    document.getElementById('addGoalModal').style.display = 'none';
+}
+
+async function submitNewGoal() {
+    const metric = document.getElementById('goalMetric').value;
+    const target = parseFloat(document.getElementById('goalTarget').value);
+
+    if (!metric || !target || target <= 0) {
+        alert('Please select a metric and enter a valid target');
+        return;
+    }
+
+    const employeeId = localStorage.getItem("employeeId") || sessionStorage.getItem("employeeId");
+    const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
+
+    try {
+        const response = await fetch(`/api/employee/${employeeId}/goals`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ metric, target, type: 'daily' })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            closeAddGoalModal();
+            loadGoals(); // Refresh
+        } else {
+            alert(data.message || 'Failed to create goal');
+        }
+    } catch (error) {
+        console.error('Error creating goal:', error);
+        alert('Failed to create goal');
+    }
+}
+
+// Load goals on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        const token = localStorage.getItem("employeeToken") || sessionStorage.getItem("employeeToken");
+        if (token) {
+            loadGoals();
+        }
+    }, 2500);
+});
+</script>
+
+<!-- Add Goal Modal -->
+<div id="addGoalModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: white; border-radius: 12px; padding: 30px; width: 350px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; color: #333;"><i class="fas fa-bullseye" style="color: #667eea; margin-right: 10px;"></i>Set Daily Goal</h3>
+            <button onclick="closeAddGoalModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">&times;</button>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">What do you want to track?</label>
+            <select id="goalMetric" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
+                <option value="">Select metric...</option>
+                <option value="items_processed">Items Processed</option>
+                <option value="points_earned">Points Earned</option>
+                <option value="active_minutes">Active Minutes</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Daily Target</label>
+            <input type="number" id="goalTarget" min="1" placeholder="Enter target value"
+                   style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box;">
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="closeAddGoalModal()" style="flex: 1; padding: 12px; background: #f0f0f0; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">Cancel</button>
+            <button onclick="submitNewGoal()" style="flex: 1; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                <i class="fas fa-check"></i> Create Goal
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- Change PIN Modal -->
 <div id="changePinModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">

@@ -194,6 +194,59 @@ def get_employee_stats(employee_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@employee_auth_bp.route('/api/employee/<int:employee_id>/trends', methods=['GET'])
+def get_employee_trends(employee_id):
+    """Get productivity trends for employee (auth via token)"""
+    try:
+        # Verify employee has access (either their own data or valid token)
+        token = request.headers.get('Authorization', '').replace('Bearer ', '')
+
+        # Get days parameter (default 30, max 90)
+        days = request.args.get('days', 30, type=int)
+        days = min(days, 90)
+
+        # Get trend data from daily_scores
+        ct_date = tz_helper.get_current_ct_date()
+        trend_data = get_db().execute_query("""
+            SELECT
+                score_date,
+                items_processed,
+                points_earned,
+                efficiency_rate,
+                active_minutes
+            FROM daily_scores
+            WHERE employee_id = %s
+            AND score_date >= DATE_SUB(%s, INTERVAL %s DAY)
+            ORDER BY score_date ASC
+        """, (employee_id, ct_date, days))
+
+        if not trend_data:
+            return jsonify({
+                'success': True,
+                'has_data': False,
+                'days': days,
+                'trend': []
+            })
+
+        # Format for chart
+        trend = [{
+            'date': row['score_date'].strftime('%Y-%m-%d') if row['score_date'] else None,
+            'items': row['items_processed'] or 0,
+            'points': row['points_earned'] or 0,
+            'efficiency': float(row['efficiency_rate'] or 0),
+            'minutes': row['active_minutes'] or 0
+        } for row in trend_data]
+
+        return jsonify({
+            'success': True,
+            'has_data': True,
+            'days': days,
+            'trend': trend
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @employee_auth_bp.route('/api/employee/change-pin', methods=['POST'])
 def change_pin():
     """Allow employee to change their own PIN (requires current PIN)"""
@@ -242,6 +295,124 @@ def change_pin():
         return jsonify({
             'success': True,
             'message': 'PIN changed successfully'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# ========== GOALS API ==========
+
+@employee_auth_bp.route('/api/employee/<int:employee_id>/goals', methods=['GET'])
+def get_employee_goals(employee_id):
+    """Get employee's active goals with progress"""
+    try:
+        ct_date = tz_helper.get_current_ct_date()
+
+        # Get active goals
+        goals = get_db().execute_query("""
+            SELECT
+                g.id,
+                g.goal_type,
+                g.metric,
+                g.target_value,
+                g.start_date,
+                g.end_date,
+                g.created_at
+            FROM employee_goals g
+            WHERE g.employee_id = %s AND g.is_active = 1
+            ORDER BY g.goal_type, g.created_at DESC
+        """, (employee_id,))
+
+        # Get today's stats for progress calculation
+        today_stats = get_db().execute_one("""
+            SELECT
+                COALESCE(items_processed, 0) as items_processed,
+                COALESCE(points_earned, 0) as points_earned,
+                COALESCE(efficiency_rate, 0) as efficiency_rate,
+                COALESCE(active_minutes, 0) as active_minutes
+            FROM daily_scores
+            WHERE employee_id = %s AND score_date = %s
+        """, (employee_id, ct_date))
+
+        # Calculate progress for each goal
+        result_goals = []
+        for goal in (goals or []):
+            current_value = 0
+            if today_stats:
+                if goal['metric'] == 'items_processed':
+                    current_value = today_stats['items_processed']
+                elif goal['metric'] == 'points_earned':
+                    current_value = today_stats['points_earned']
+                elif goal['metric'] == 'efficiency':
+                    current_value = float(today_stats['efficiency_rate'])
+                elif goal['metric'] == 'active_minutes':
+                    current_value = today_stats['active_minutes']
+
+            target = float(goal['target_value'])
+            progress = min(100, round((current_value / target * 100) if target > 0 else 0, 1))
+
+            result_goals.append({
+                'id': goal['id'],
+                'type': goal['goal_type'],
+                'metric': goal['metric'],
+                'target': target,
+                'current': current_value,
+                'progress': progress,
+                'start_date': goal['start_date'].strftime('%Y-%m-%d') if goal['start_date'] else None
+            })
+
+        return jsonify({
+            'success': True,
+            'goals': result_goals
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@employee_auth_bp.route('/api/employee/<int:employee_id>/goals', methods=['POST'])
+def create_employee_goal(employee_id):
+    """Create a new goal for employee"""
+    try:
+        data = request.json
+        metric = data.get('metric')
+        target_value = data.get('target')
+        goal_type = data.get('type', 'daily')
+
+        if not metric or not target_value:
+            return jsonify({'success': False, 'message': 'Metric and target required'}), 400
+
+        valid_metrics = ['items_processed', 'points_earned', 'efficiency', 'active_minutes']
+        if metric not in valid_metrics:
+            return jsonify({'success': False, 'message': f'Invalid metric. Use: {valid_metrics}'}), 400
+
+        ct_date = tz_helper.get_current_ct_date()
+
+        get_db().execute_query("""
+            INSERT INTO employee_goals (employee_id, goal_type, metric, target_value, start_date)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (employee_id, goal_type, metric, target_value, ct_date))
+
+        return jsonify({
+            'success': True,
+            'message': 'Goal created successfully'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@employee_auth_bp.route('/api/employee/<int:employee_id>/goals/<int:goal_id>', methods=['DELETE'])
+def delete_employee_goal(employee_id, goal_id):
+    """Deactivate a goal"""
+    try:
+        get_db().execute_query("""
+            UPDATE employee_goals
+            SET is_active = 0
+            WHERE id = %s AND employee_id = %s
+        """, (goal_id, employee_id))
+
+        return jsonify({
+            'success': True,
+            'message': 'Goal removed'
         })
 
     except Exception as e:
