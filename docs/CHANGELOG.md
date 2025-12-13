@@ -2,6 +2,29 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.3.9] - 2025-12-12
+
+### Enhanced - Dashboard Date Range View
+- **New Summary Cards**: Redesigned date range view with meaningful aggregations
+  - Avg employees/day / Total employees (who clocked in)
+  - Avg QC items/day / Total QC Passed items (excludes other activity types)
+  - Avg efficiency across range (total active / total clocked minutes)
+  - Days in range count
+- **Removed Live Overlay**: Date range view no longer shows live data indicators
+- **QC Passed Items Only**: Summary now filters to `activity_type = 'QC Passed'` from activity_logs
+  - Previously included all types: In Production, QC Passed, Picking, Labeling, Film Matching
+
+### Fixed
+- **JavaScript Error**: Fixed `totalItems is not defined` at line 4854
+  - Changed to `summary.total_items` reference
+  - Employee details table now renders correctly
+
+### Technical Details
+- `backend/api/dashboard.py`: Added `qc_items_query` for QC Passed filtering
+- `frontend/manager.html`: Updated `updateDateRangeView()` with new card layouts
+
+---
+
 ## [2.3.8] - 2025-12-12
 
 ### Fixed - Recalculation & Cache Issues

@@ -652,21 +652,78 @@ def get_date_range_stats():
                 logger.error(f"Error processing department {dept.get('department', 'Unknown')}: {str(e)}")
                 continue
         
+        # Get range summary stats (avg employees/day, total items, efficiency)
+        summary_query = """
+            SELECT
+                COUNT(DISTINCT ds.employee_id) as total_employees,
+                SUM(ds.clocked_minutes) as total_clocked_minutes,
+                SUM(ds.active_minutes) as total_active_minutes,
+                SUM(ds.items_processed) as total_items,
+                COUNT(DISTINCT ds.score_date) as days_with_data
+            FROM daily_scores ds
+            WHERE ds.score_date BETWEEN %s AND %s
+        """
+        cursor.execute(summary_query, (start, end))
+        summary = cursor.fetchone()
+
+        # Get avg employees per day (employees who clocked in each day)
+        avg_emp_query = """
+            SELECT AVG(daily_count) as avg_employees_per_day
+            FROM (
+                SELECT ds.score_date, COUNT(DISTINCT ds.employee_id) as daily_count
+                FROM daily_scores ds
+                WHERE ds.score_date BETWEEN %s AND %s
+                  AND ds.clocked_minutes > 0
+                GROUP BY ds.score_date
+            ) daily_counts
+        """
+        cursor.execute(avg_emp_query, (start, end))
+        avg_emp_result = cursor.fetchone()
+
+        # Get QC Passed items only (not all activity types)
+        qc_items_query = """
+            SELECT SUM(al.items_count) as qc_items
+            FROM activity_logs al
+            WHERE DATE(CONVERT_TZ(al.window_start, '+00:00', 'America/Chicago')) BETWEEN %s AND %s
+              AND al.activity_type = 'QC Passed'
+        """
+        cursor.execute(qc_items_query, (start, end))
+        qc_result = cursor.fetchone()
+        qc_items = int(qc_result['qc_items'] or 0)
+
+        total_clocked = float(summary['total_clocked_minutes'] or 0)
+        total_active = float(summary['total_active_minutes'] or 0)
+        avg_efficiency = round((total_active / total_clocked * 100), 1) if total_clocked > 0 else 0
+
         cursor.close()
         conn.close()
-        
+
+        total_days = (end - start).days + 1
+        total_items = qc_items  # QC Passed items only
+        total_employees = int(summary['total_employees'] or 0)
+        avg_employees_per_day = round(float(avg_emp_result['avg_employees_per_day'] or 0), 1)
+
         return jsonify({
             'date_range': {
                 'start': start_date,
                 'end': end_date,
-                'days': (end - start).days + 1
+                'days': total_days
             },
             'leaderboard': leaderboard,
             'department_summary': departments,
+            'summary': {
+                'total_employees': total_employees,
+                'avg_employees_per_day': avg_employees_per_day,
+                'total_items': total_items,
+                'avg_items_per_day': round(total_items / total_days, 0) if total_days > 0 else 0,
+                'avg_efficiency': avg_efficiency,
+                'total_clocked_hours': round(total_clocked / 60, 1),
+                'total_active_hours': round(total_active / 60, 1)
+            },
             'total_employees': len(leaderboard),
             'generated_at': datetime.now().isoformat()
         })
-        
+
     except Exception as e:
         import traceback
         logger.error(f"Error getting date range stats: {str(e)}")

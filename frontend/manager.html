@@ -4787,53 +4787,55 @@
             };
 
             function updateDateRangeView(rangeData) {
-                // Update the alert to show we're in comparison mode
+                const summary = rangeData.summary || {};
+                const totalDays = rangeData.date_range.days;
+
+                // Update the alert to show date range mode (no live overlay)
                 document.getElementById('alertsContainer').innerHTML = `
                     <div class="alert-item" style="background: rgba(102, 126, 234, 0.1); border-color: rgba(102, 126, 234, 0.2);">
-                        <i class="fas fa-chart-bar alert-icon" style="color: #667eea;"></i>
+                        <i class="fas fa-calendar-alt alert-icon" style="color: #667eea;"></i>
                         <div class="alert-content">
-                            <div class="alert-title" style="color: #667eea;">Comparison Mode Active</div>
-                            <div class="alert-message">Viewing ${rangeData.date_range.days}-day summary (${rangeData.date_range.start} to ${rangeData.date_range.end}) with live data overlay</div>
+                            <div class="alert-title" style="color: #667eea;">Date Range Summary</div>
+                            <div class="alert-message">Viewing ${totalDays}-day summary (${new Date(rangeData.date_range.start + 'T12:00:00').toLocaleDateString()} to ${new Date(rangeData.date_range.end + 'T12:00:00').toLocaleDateString()})</div>
                         </div>
                     </div>
                 `;
-                
-                // Update metrics to show BOTH current and range data
-                const totalItems = rangeData.leaderboard.reduce((sum, emp) => sum + emp.total_items, 0);
-                const totalDays = rangeData.date_range.days;
-                const employeeCount = rangeData.leaderboard.length;
-                
-                // Fetch today's data for comparison
-                api.getTeamMetrics().then(todayMetrics => {
-                    // Active Employees - show today's active vs total in range
-                    document.getElementById('activeEmployees').innerHTML = `
-                        <span style="font-size: 1.8em;">${todayMetrics.active_employees}</span>
-                        <span style="font-size: 0.8em; opacity: 0.7;">/${employeeCount}</span>
-                    `;
-                    document.querySelector('#activeEmployees').nextElementSibling.textContent = 'Active Now / Range Total';
-                    
-                    // Items - show today vs range average
-                    const dailyAvg = Math.round(totalItems / totalDays);
-                    document.getElementById('itemsProcessed').innerHTML = `
-                        <span style="font-size: 1.8em;">${todayMetrics.items_today.toLocaleString()}</span>
-                        <span style="font-size: 0.8em; opacity: 0.7;"> | Avg: ${dailyAvg}</span>
-                    `;
-                    document.querySelector('#itemsProcessed').nextElementSibling.textContent = 'Today | Daily Avg';
-                    
-                    // Efficiency - today vs range
-                    document.getElementById('overallEfficiency').innerHTML = `
-                        <span style="font-size: 1.8em;">${Math.round(todayMetrics.overall_efficiency)}%</span>
-                    `;
-                    document.querySelector('#overallEfficiency').nextElementSibling.textContent = 'Current Efficiency';
-                    
-                    // Show change indicators based on range comparison
-                    const todayVsAvg = ((todayMetrics.items_today - dailyAvg) / dailyAvg) * 100;
-                    updateMetricChange('itemsProcessedChange', todayVsAvg);
-                });
-                
-                // Total hours stays as days
+
+                // Card 1: Avg employees/day / Total employees (clocked in)
+                document.getElementById('activeEmployees').innerHTML = `
+                    <span style="font-size: 1.8em;">${summary.avg_employees_per_day || 0}</span>
+                    <span style="font-size: 0.8em; opacity: 0.7;">/${summary.total_employees || 0}</span>
+                `;
+                document.querySelector('#activeEmployees').nextElementSibling.textContent = 'Avg/Day / Total Employees';
+                // Hide change indicator
+                const empChange = document.getElementById('activeEmployeesChange');
+                if (empChange) empChange.style.display = 'none';
+
+                // Card 2: Avg items/day / Total QC passed items
+                document.getElementById('itemsProcessed').innerHTML = `
+                    <span style="font-size: 1.8em;">${(summary.avg_items_per_day || 0).toLocaleString()}</span>
+                    <span style="font-size: 0.8em; opacity: 0.7;">/${(summary.total_items || 0).toLocaleString()}</span>
+                `;
+                document.querySelector('#itemsProcessed').nextElementSibling.textContent = 'Avg/Day / Total Items';
+                // Hide change indicator
+                const itemsChange = document.getElementById('itemsProcessedChange');
+                if (itemsChange) itemsChange.style.display = 'none';
+
+                // Card 3: Avg efficiency during range
+                document.getElementById('overallEfficiency').innerHTML = `
+                    <span style="font-size: 1.8em;">${summary.avg_efficiency || 0}%</span>
+                `;
+                document.querySelector('#overallEfficiency').nextElementSibling.textContent = 'Avg Efficiency';
+                // Hide change indicator
+                const effChange = document.getElementById('overallEfficiencyChange');
+                if (effChange) effChange.style.display = 'none';
+
+                // Card 4: Days in range
                 document.getElementById('totalHours').textContent = totalDays;
                 document.querySelector('#totalHours').nextElementSibling.textContent = 'Days in Range';
+                // Hide change indicator
+                const hoursChange = document.getElementById('totalHoursChange');
+                if (hoursChange) hoursChange.style.display = 'none';
                 
                 // Update department grid with enhanced view
                 const container = document.getElementById('departmentGrid');
@@ -4849,7 +4851,7 @@
                                     ${rangeData.leaderboard.length} Employees
                                 </span>
                                 <span class="badge" style="background: #fbbf24; padding: 8px 16px; border-radius: 20px;">
-                                    ${totalItems.toLocaleString()} Total Items
+                                    ${(summary.total_items || 0).toLocaleString()} Total Items
                                 </span>
                             </div>
                         </div>

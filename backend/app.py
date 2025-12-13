@@ -79,7 +79,32 @@ def init_schedulers(app):
         )
         
         app.logger.info("Connecteam auto-sync enabled")
-    
+
+    # Add daily cost summary calculation job (runs at 6:15 PM CT, after daily score finalization)
+    from api.system_control import calculate_daily_cost_summary
+    from datetime import datetime
+
+    def run_daily_cost_summary():
+        """Calculate today's cost summary at end of workday"""
+        today = datetime.now().strftime('%Y-%m-%d')
+        app.logger.info(f"Running daily cost summary for {today}")
+        result = calculate_daily_cost_summary(today)
+        if result['success']:
+            app.logger.info(f"Daily cost summary: {result['records_inserted']} records inserted")
+        else:
+            app.logger.error(f"Daily cost summary failed: {result.get('error', 'unknown')}")
+
+    background_scheduler.add_job(
+        func=run_daily_cost_summary,
+        trigger="cron",
+        hour=18,
+        minute=15,
+        id='daily_cost_summary',
+        name='Calculate daily cost summary',
+        replace_existing=True
+    )
+    app.logger.info("Daily cost summary job scheduled for 6:15 PM CT")
+
     background_scheduler.start()
     app.logger.info("Background scheduler started")
 
