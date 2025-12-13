@@ -29,3 +29,7 @@ backups/
 
 # Claude Code
 .claude/
+
+# Personal files
+Note.txt
+Screenshot/

@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Style 6: Executive Premium - Dashboard Mockup</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #09090b;
+            --surface: #18181b;
+            --surface-elevated: #27272a;
+            --border: #3f3f46;
+            --accent: #8b5cf6;
+            --accent-hover: #a78bfa;
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #ef4444;
+            --text: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        /* Layout */
+        .layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 12px;
+            margin-bottom: 32px;
+        }
+
+        .logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, var(--accent), #c084fc);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            margin-bottom: 4px;
+        }
+
+        .nav-item:hover {
+            background: var(--surface-elevated);
+            color: var(--text);
+        }
+
+        .nav-item.active {
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--accent);
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .nav-badge {
+            margin-left: auto;
+            padding: 2px 8px;
+            background: var(--danger);
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .user-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--surface-elevated);
+            border-radius: 10px;
+        }
+
+        .user-avatar {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent), #c084fc);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Main Content */
+        .main {
+            padding: 24px 32px;
+            overflow-y: auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .header-left h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .header-left p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .header-btn:hover {
+            background: var(--surface-elevated);
+            border-color: var(--text-muted);
+        }
+
+        .header-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .header-btn.primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--success);
+        }
+
+        .live-dot {
+            width: 8px; height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px var(--accent);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .stat-icon {
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .stat-icon.purple { background: rgba(139, 92, 246, 0.15); color: var(--accent); }
+        .stat-icon.green { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+        .stat-icon.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+        .stat-icon.orange { background: rgba(249, 115, 22, 0.15); color: #f97316; }
+
+        .stat-trend {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .stat-trend.up { color: var(--success); }
+        .stat-trend.down { color: var(--danger); }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* Content Grid */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .card-action {
+            font-size: 13px;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        /* Mini Chart */
+        .mini-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 120px;
+            margin-bottom: 16px;
+        }
+
+        .mini-bar {
+            flex: 1;
+            background: linear-gradient(180deg, var(--accent), rgba(139, 92, 246, 0.3));
+            border-radius: 4px 4px 0 0;
+            transition: all 0.3s;
+        }
+
+        .mini-bar:hover {
+            filter: brightness(1.2);
+        }
+
+        .chart-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Department List */
+        .dept-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .dept-item:last-child {
+            border-bottom: none;
+        }
+
+        .dept-indicator {
+            width: 4px;
+            height: 32px;
+            border-radius: 2px;
+        }
+
+        .dept-indicator.good { background: var(--success); }
+        .dept-indicator.warning { background: var(--warning); }
+        .dept-indicator.danger { background: var(--danger); }
+
+        .dept-info {
+            flex: 1;
+        }
+
+        .dept-name {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .dept-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .dept-value {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .dept-value.good { color: var(--success); }
+        .dept-value.warning { color: var(--warning); }
+        .dept-value.danger { color: var(--danger); }
+
+        /* Leaderboard */
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .leaderboard-item:last-child {
+            border-bottom: none;
+        }
+
+        .rank {
+            width: 28px; height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .rank.gold { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #000; }
+        .rank.silver { background: linear-gradient(135deg, #e2e8f0, #94a3b8); color: #000; }
+        .rank.bronze { background: linear-gradient(135deg, #f97316, #ea580c); color: #fff; }
+        .rank.normal { background: var(--surface-elevated); color: var(--text-muted); }
+
+        .emp-avatar {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--accent), #c084fc);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .emp-info {
+            flex: 1;
+        }
+
+        .emp-name {
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .emp-role {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .emp-score {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--success);
+        }
+
+        /* Activity List */
+        .activity-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .activity-icon.clock-in { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+        .activity-icon.clock-out { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .activity-icon.alert { background: rgba(234, 179, 8, 0.15); color: var(--warning); }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-text {
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+
+        .activity-time {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Bottom Grid */
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+        }
+
+        /* Insights */
+        .insight-item {
+            display: flex;
+            gap: 16px;
+            padding: 16px;
+            background: var(--surface-elevated);
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+
+        .insight-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .insight-icon.tip { background: rgba(139, 92, 246, 0.15); color: var(--accent); }
+        .insight-icon.alert { background: rgba(234, 179, 8, 0.15); color: var(--warning); }
+        .insight-icon.success { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+
+        .insight-content h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .insight-content p {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Quick Stats */
+        .quick-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: var(--surface-elevated);
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+
+        .quick-stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .quick-stat-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">PF</div>
+                <span class="logo-text">PodFactory</span>
+            </div>
+
+            <nav class="nav-section">
+                <div class="nav-label">Main</div>
+                <a href="#" class="nav-item active">
+                    <i class="fas fa-th-large"></i>
+                    Dashboard
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Bottlenecks
+                    <span class="nav-badge">2</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-dollar-sign"></i>
+                    Cost Analysis
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    Scheduling
+                </a>
+            </nav>
+
+            <nav class="nav-section">
+                <div class="nav-label">Management</div>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    Employees
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    Analytics
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    Settings
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-card">
+                    <div class="user-avatar">NT</div>
+                    <div class="user-info">
+                        <div class="user-name">Nguyen Tran</div>
+                        <div class="user-role">Operations Manager</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <h1>Operations Dashboard</h1>
+                    <p>Friday, December 13, 2025</p>
+                </div>
+                <div class="header-right">
+                    <div class="live-indicator">
+                        <div class="live-dot"></div>
+                        Live
+                    </div>
+                    <button class="header-btn">
+                        <i class="fas fa-calendar"></i>
+                        Today
+                    </button>
+                    <button class="header-btn primary">
+                        <i class="fas fa-download"></i>
+                        Export
+                    </button>
+                </div>
+            </header>
+
+            <!-- Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon purple"><i class="fas fa-users"></i></div>
+                        <div class="stat-trend up"><i class="fas fa-arrow-up"></i> 12%</div>
+                    </div>
+                    <div class="stat-value">24</div>
+                    <div class="stat-label">Active Employees</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon green"><i class="fas fa-box"></i></div>
+                        <div class="stat-trend up"><i class="fas fa-arrow-up"></i> 8%</div>
+                    </div>
+                    <div class="stat-value">1,847</div>
+                    <div class="stat-label">Items Processed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon blue"><i class="fas fa-gauge-high"></i></div>
+                        <div class="stat-trend up"><i class="fas fa-arrow-up"></i> 3%</div>
+                    </div>
+                    <div class="stat-value">94.2%</div>
+                    <div class="stat-label">Overall Efficiency</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+                        <div class="stat-trend down"><i class="fas fa-arrow-down"></i> 2%</div>
+                    </div>
+                    <div class="stat-value">186.5</div>
+                    <div class="stat-label">Hours Worked</div>
+                </div>
+            </div>
+
+            <!-- Content Grid -->
+            <div class="content-grid">
+                <!-- Chart -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Hourly Productivity</span>
+                        <a href="#" class="card-action">View Details</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="mini-chart">
+                            <div class="mini-bar" style="height: 45%;"></div>
+                            <div class="mini-bar" style="height: 65%;"></div>
+                            <div class="mini-bar" style="height: 80%;"></div>
+                            <div class="mini-bar" style="height: 95%;"></div>
+                            <div class="mini-bar" style="height: 85%;"></div>
+                            <div class="mini-bar" style="height: 70%;"></div>
+                            <div class="mini-bar" style="height: 55%;"></div>
+                            <div class="mini-bar" style="height: 75%;"></div>
+                            <div class="mini-bar" style="height: 60%;"></div>
+                            <div class="mini-bar" style="height: 50%;"></div>
+                        </div>
+                        <div class="chart-stats">
+                            <span>6am</span>
+                            <span>Peak: 9am (95%)</span>
+                            <span>4pm</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Departments -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Departments</span>
+                        <a href="#" class="card-action">Manage</a>
+                    </div>
+                    <div class="card-body" style="padding-top: 8px;">
+                        <div class="dept-item">
+                            <div class="dept-indicator good"></div>
+                            <div class="dept-info">
+                                <div class="dept-name">QC Department</div>
+                                <div class="dept-meta">8 workers</div>
+                            </div>
+                            <div class="dept-value good">96%</div>
+                        </div>
+                        <div class="dept-item">
+                            <div class="dept-indicator good"></div>
+                            <div class="dept-info">
+                                <div class="dept-name">Production</div>
+                                <div class="dept-meta">6 workers</div>
+                            </div>
+                            <div class="dept-value good">92%</div>
+                        </div>
+                        <div class="dept-item">
+                            <div class="dept-indicator good"></div>
+                            <div class="dept-info">
+                                <div class="dept-name">Film Matching</div>
+                                <div class="dept-meta">5 workers</div>
+                            </div>
+                            <div class="dept-value good">94%</div>
+                        </div>
+                        <div class="dept-item">
+                            <div class="dept-indicator warning"></div>
+                            <div class="dept-info">
+                                <div class="dept-name">Picking</div>
+                                <div class="dept-meta">5 workers</div>
+                            </div>
+                            <div class="dept-value warning">78%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Performers -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Top Performers</span>
+                        <a href="#" class="card-action">View All</a>
+                    </div>
+                    <div class="card-body" style="padding-top: 8px;">
+                        <div class="leaderboard-item">
+                            <div class="rank gold">1</div>
+                            <div class="emp-avatar">MJ</div>
+                            <div class="emp-info">
+                                <div class="emp-name">Maria Johnson</div>
+                                <div class="emp-role">QC</div>
+                            </div>
+                            <div class="emp-score">147</div>
+                        </div>
+                        <div class="leaderboard-item">
+                            <div class="rank silver">2</div>
+                            <div class="emp-avatar">DK</div>
+                            <div class="emp-info">
+                                <div class="emp-name">David Kim</div>
+                                <div class="emp-role">Production</div>
+                            </div>
+                            <div class="emp-score">132</div>
+                        </div>
+                        <div class="leaderboard-item">
+                            <div class="rank bronze">3</div>
+                            <div class="emp-avatar">SR</div>
+                            <div class="emp-info">
+                                <div class="emp-name">Sarah Rodriguez</div>
+                                <div class="emp-role">Assembly</div>
+                            </div>
+                            <div class="emp-score">128</div>
+                        </div>
+                        <div class="leaderboard-item">
+                            <div class="rank normal">4</div>
+                            <div class="emp-avatar">JC</div>
+                            <div class="emp-info">
+                                <div class="emp-name">James Chen</div>
+                                <div class="emp-role">Picker</div>
+                            </div>
+                            <div class="emp-score">119</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Grid -->
+            <div class="bottom-grid">
+                <!-- AI Insights -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title"><i class="fas fa-brain" style="color: var(--accent); margin-right: 8px;"></i>AI Insights</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="insight-item">
+                            <div class="insight-icon alert"><i class="fas fa-exclamation"></i></div>
+                            <div class="insight-content">
+                                <h4>Picking Below Target</h4>
+                                <p>Department at 78% efficiency. Consider reassigning 2 workers from QC.</p>
+                            </div>
+                        </div>
+                        <div class="insight-item">
+                            <div class="insight-icon success"><i class="fas fa-trophy"></i></div>
+                            <div class="insight-content">
+                                <h4>QC Exceeding Goals</h4>
+                                <p>6% above target. Maria Johnson leading with 147 items processed.</p>
+                            </div>
+                        </div>
+                        <div class="insight-item">
+                            <div class="insight-icon tip"><i class="fas fa-lightbulb"></i></div>
+                            <div class="insight-content">
+                                <h4>Shift Optimization</h4>
+                                <p>Starting 30 min earlier tomorrow could improve output by 12%.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Today's Summary</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="quick-stat">
+                            <span class="quick-stat-label">Labor Cost</span>
+                            <span class="quick-stat-value">$2,847</span>
+                        </div>
+                        <div class="quick-stat">
+                            <span class="quick-stat-label">Cost per Item</span>
+                            <span class="quick-stat-value">$1.54</span>
+                        </div>
+                        <div class="quick-stat">
+                            <span class="quick-stat-label">Idle Time</span>
+                            <span class="quick-stat-value">12.3 hrs</span>
+                        </div>
+                        <div class="quick-stat">
+                            <span class="quick-stat-label">Utilization</span>
+                            <span class="quick-stat-value">93.4%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

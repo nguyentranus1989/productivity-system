@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Style 3: Data Dense Bloomberg - Dashboard Mockup</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-panel: #111111;
+            --border: #222222;
+            --border-accent: #333333;
+            --accent-orange: #ff6b00;
+            --accent-blue: #00a0ff;
+            --accent-green: #00ff88;
+            --accent-red: #ff4444;
+            --accent-yellow: #ffcc00;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --text-muted: #555555;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            font-size: 13px;
+        }
+
+        /* Header Bar */
+        .header-bar {
+            height: 32px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 24px;
+        }
+
+        .logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--accent-orange);
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 4px;
+        }
+
+        .header-nav a {
+            padding: 6px 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: 2px;
+        }
+
+        .header-nav a:hover {
+            background: var(--bg-panel);
+            color: var(--text-primary);
+        }
+
+        .header-nav a.active {
+            background: var(--accent-orange);
+            color: black;
+        }
+
+        .header-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+        }
+
+        .live-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--accent-green);
+        }
+
+        .live-dot {
+            width: 6px; height: 6px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Main Grid Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 320px;
+            grid-template-rows: auto 1fr 1fr;
+            gap: 1px;
+            height: calc(100vh - 32px);
+            background: var(--border);
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            padding: 12px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent-orange);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .panel-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .panel-btn {
+            padding: 4px 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 10px;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .panel-btn:hover {
+            border-color: var(--accent-orange);
+            color: var(--text-primary);
+        }
+
+        /* Stats Strip */
+        .stats-strip {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 1px;
+            background: var(--border);
+        }
+
+        .stat-box {
+            flex: 1;
+            background: var(--bg-panel);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .stat-icon {
+            width: 40px; height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            border: 1px solid;
+        }
+
+        .stat-icon.blue { border-color: var(--accent-blue); color: var(--accent-blue); }
+        .stat-icon.green { border-color: var(--accent-green); color: var(--accent-green); }
+        .stat-icon.orange { border-color: var(--accent-orange); color: var(--accent-orange); }
+        .stat-icon.yellow { border-color: var(--accent-yellow); color: var(--accent-yellow); }
+
+        .stat-content {
+            flex: 1;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .stat-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .stat-value.blue { color: var(--accent-blue); }
+        .stat-value.green { color: var(--accent-green); }
+        .stat-value.orange { color: var(--accent-orange); }
+        .stat-value.yellow { color: var(--accent-yellow); }
+
+        .stat-change {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 2px 6px;
+        }
+
+        .stat-change.up { background: rgba(0, 255, 136, 0.15); color: var(--accent-green); }
+        .stat-change.down { background: rgba(255, 68, 68, 0.15); color: var(--accent-red); }
+
+        .stat-sparkline {
+            width: 80px;
+            height: 30px;
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .spark-bar {
+            flex: 1;
+            background: var(--accent-blue);
+            opacity: 0.6;
+        }
+
+        /* Data Table */
+        .data-table {
+            width: 100%;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 8px 12px;
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        .rank-cell {
+            width: 40px;
+            text-align: center;
+        }
+
+        .rank-1 { color: var(--accent-yellow); }
+        .rank-2 { color: #c0c0c0; }
+        .rank-3 { color: #cd7f32; }
+
+        .name-cell {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .role-cell {
+            color: var(--text-secondary);
+        }
+
+        .items-cell {
+            color: var(--accent-green);
+            text-align: right;
+        }
+
+        .eff-cell {
+            text-align: right;
+        }
+
+        .eff-cell.good { color: var(--accent-green); }
+        .eff-cell.warning { color: var(--accent-yellow); }
+        .eff-cell.danger { color: var(--accent-red); }
+
+        .status-cell {
+            width: 80px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.active { background: rgba(0, 255, 136, 0.15); color: var(--accent-green); }
+        .status-badge.idle { background: rgba(255, 204, 0, 0.15); color: var(--accent-yellow); }
+        .status-badge.offline { background: rgba(255, 68, 68, 0.15); color: var(--accent-red); }
+
+        /* Department Bars */
+        .dept-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .dept-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .dept-name {
+            width: 120px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .dept-bar-container {
+            flex: 1;
+            height: 20px;
+            background: var(--bg-secondary);
+            position: relative;
+        }
+
+        .dept-bar {
+            height: 100%;
+            position: relative;
+        }
+
+        .dept-bar.good { background: linear-gradient(90deg, var(--accent-green), rgba(0, 255, 136, 0.5)); }
+        .dept-bar.warning { background: linear-gradient(90deg, var(--accent-yellow), rgba(255, 204, 0, 0.5)); }
+        .dept-bar.danger { background: linear-gradient(90deg, var(--accent-red), rgba(255, 68, 68, 0.5)); }
+
+        .dept-value {
+            width: 50px;
+            text-align: right;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .dept-value.good { color: var(--accent-green); }
+        .dept-value.warning { color: var(--accent-yellow); }
+        .dept-value.danger { color: var(--accent-red); }
+
+        /* Activity Feed */
+        .activity-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 100%;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 12px;
+            padding: 8px;
+            background: var(--bg-secondary);
+            font-size: 11px;
+        }
+
+        .activity-time {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-muted);
+            width: 60px;
+            flex-shrink: 0;
+        }
+
+        .activity-icon {
+            width: 20px;
+            text-align: center;
+        }
+
+        .activity-icon.in { color: var(--accent-green); }
+        .activity-icon.out { color: var(--accent-red); }
+        .activity-icon.alert { color: var(--accent-yellow); }
+
+        .activity-text {
+            flex: 1;
+            color: var(--text-secondary);
+        }
+
+        .activity-text strong {
+            color: var(--text-primary);
+        }
+
+        /* Chart Area */
+        .chart-grid {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chart-canvas {
+            flex: 1;
+            position: relative;
+            background:
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .chart-line {
+            position: absolute;
+            bottom: 10%;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--accent-blue);
+            box-shadow: 0 0 10px var(--accent-blue);
+            clip-path: polygon(0 70%, 8% 50%, 16% 60%, 24% 30%, 32% 45%, 40% 20%, 48% 35%, 56% 15%, 64% 40%, 72% 25%, 80% 45%, 88% 30%, 96% 50%, 100% 40%, 100% 100%, 0 100%);
+        }
+
+        .chart-labels {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        /* Alerts Panel */
+        .alert-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 3px solid;
+        }
+
+        .alert-item.critical {
+            background: rgba(255, 68, 68, 0.1);
+            border-color: var(--accent-red);
+        }
+
+        .alert-item.warning {
+            background: rgba(255, 204, 0, 0.1);
+            border-color: var(--accent-yellow);
+        }
+
+        .alert-item.info {
+            background: rgba(0, 160, 255, 0.1);
+            border-color: var(--accent-blue);
+        }
+
+        .alert-icon {
+            font-size: 16px;
+        }
+
+        .alert-item.critical .alert-icon { color: var(--accent-red); }
+        .alert-item.warning .alert-icon { color: var(--accent-yellow); }
+        .alert-item.info .alert-icon { color: var(--accent-blue); }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+
+        .alert-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .alert-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-accent); }
+    </style>
+</head>
+<body>
+    <!-- Header Bar -->
+    <header class="header-bar">
+        <div class="logo">PODFACTORY</div>
+        <nav class="header-nav">
+            <a href="#" class="active">DASHBOARD</a>
+            <a href="#">BOTTLENECK</a>
+            <a href="#">COST</a>
+            <a href="#">SCHEDULE</a>
+            <a href="#">EMPLOYEES</a>
+            <a href="#">ANALYTICS</a>
+        </nav>
+        <div class="header-right">
+            <div class="live-badge">
+                <div class="live-dot"></div>
+                LIVE
+            </div>
+            <span style="color: var(--text-muted);">|</span>
+            <span>DEC 13 2025</span>
+            <span style="color: var(--accent-blue);">08:45:32 CT</span>
+        </div>
+    </header>
+
+    <!-- Main Grid -->
+    <div class="main-grid">
+        <!-- Stats Strip -->
+        <div class="stats-strip">
+            <div class="stat-box">
+                <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+                <div class="stat-content">
+                    <div class="stat-label">Active Workers</div>
+                    <div class="stat-row">
+                        <span class="stat-value blue">24</span>
+                        <span class="stat-change up">+12%</span>
+                    </div>
+                </div>
+                <div class="stat-sparkline">
+                    <div class="spark-bar" style="height: 60%;"></div>
+                    <div class="spark-bar" style="height: 75%;"></div>
+                    <div class="spark-bar" style="height: 55%;"></div>
+                    <div class="spark-bar" style="height: 80%;"></div>
+                    <div class="spark-bar" style="height: 90%;"></div>
+                    <div class="spark-bar" style="height: 85%;"></div>
+                    <div class="spark-bar" style="height: 95%;"></div>
+                </div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-icon green"><i class="fas fa-box"></i></div>
+                <div class="stat-content">
+                    <div class="stat-label">Items Processed</div>
+                    <div class="stat-row">
+                        <span class="stat-value green">1,847</span>
+                        <span class="stat-change up">+8%</span>
+                    </div>
+                </div>
+                <div class="stat-sparkline">
+                    <div class="spark-bar" style="height: 50%; background: var(--accent-green);"></div>
+                    <div class="spark-bar" style="height: 65%; background: var(--accent-green);"></div>
+                    <div class="spark-bar" style="height: 70%; background: var(--accent-green);"></div>
+                    <div class="spark-bar" style="height: 60%; background: var(--accent-green);"></div>
+                    <div class="spark-bar" style="height: 85%; background: var(--accent-green);"></div>
+                    <div class="spark-bar" style="height: 95%; background: var(--accent-green);"></div>
+                    <div class="spark-bar" style="height: 100%; background: var(--accent-green);"></div>
+                </div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-icon orange"><i class="fas fa-gauge"></i></div>
+                <div class="stat-content">
+                    <div class="stat-label">Efficiency Rate</div>
+                    <div class="stat-row">
+                        <span class="stat-value orange">94.2%</span>
+                        <span class="stat-change up">+3%</span>
+                    </div>
+                </div>
+                <div class="stat-sparkline">
+                    <div class="spark-bar" style="height: 88%; background: var(--accent-orange);"></div>
+                    <div class="spark-bar" style="height: 90%; background: var(--accent-orange);"></div>
+                    <div class="spark-bar" style="height: 87%; background: var(--accent-orange);"></div>
+                    <div class="spark-bar" style="height: 92%; background: var(--accent-orange);"></div>
+                    <div class="spark-bar" style="height: 91%; background: var(--accent-orange);"></div>
+                    <div class="spark-bar" style="height: 93%; background: var(--accent-orange);"></div>
+                    <div class="spark-bar" style="height: 94%; background: var(--accent-orange);"></div>
+                </div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-icon yellow"><i class="fas fa-clock"></i></div>
+                <div class="stat-content">
+                    <div class="stat-label">Hours Worked</div>
+                    <div class="stat-row">
+                        <span class="stat-value yellow">186.5</span>
+                        <span class="stat-change down">-2%</span>
+                    </div>
+                </div>
+                <div class="stat-sparkline">
+                    <div class="spark-bar" style="height: 95%; background: var(--accent-yellow);"></div>
+                    <div class="spark-bar" style="height: 90%; background: var(--accent-yellow);"></div>
+                    <div class="spark-bar" style="height: 92%; background: var(--accent-yellow);"></div>
+                    <div class="spark-bar" style="height: 88%; background: var(--accent-yellow);"></div>
+                    <div class="spark-bar" style="height: 85%; background: var(--accent-yellow);"></div>
+                    <div class="spark-bar" style="height: 87%; background: var(--accent-yellow);"></div>
+                    <div class="spark-bar" style="height: 82%; background: var(--accent-yellow);"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaderboard Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Employee Leaderboard</span>
+                <div class="panel-actions">
+                    <button class="panel-btn">SORT</button>
+                    <button class="panel-btn">EXPORT</button>
+                </div>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th class="rank-cell">#</th>
+                        <th>Name</th>
+                        <th>Role</th>
+                        <th style="text-align: right;">Items</th>
+                        <th style="text-align: right;">Eff%</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="rank-cell rank-1">1</td>
+                        <td class="name-cell">Maria Johnson</td>
+                        <td class="role-cell">QC</td>
+                        <td class="items-cell">147</td>
+                        <td class="eff-cell good">98%</td>
+                        <td class="status-cell"><span class="status-badge active">ACTIVE</span></td>
+                    </tr>
+                    <tr>
+                        <td class="rank-cell rank-2">2</td>
+                        <td class="name-cell">David Kim</td>
+                        <td class="role-cell">PROD</td>
+                        <td class="items-cell">132</td>
+                        <td class="eff-cell good">95%</td>
+                        <td class="status-cell"><span class="status-badge active">ACTIVE</span></td>
+                    </tr>
+                    <tr>
+                        <td class="rank-cell rank-3">3</td>
+                        <td class="name-cell">Sarah Rodriguez</td>
+                        <td class="role-cell">ASSY</td>
+                        <td class="items-cell">128</td>
+                        <td class="eff-cell good">94%</td>
+                        <td class="status-cell"><span class="status-badge active">ACTIVE</span></td>
+                    </tr>
+                    <tr>
+                        <td class="rank-cell">4</td>
+                        <td class="name-cell">James Chen</td>
+                        <td class="role-cell">PICK</td>
+                        <td class="items-cell">119</td>
+                        <td class="eff-cell good">92%</td>
+                        <td class="status-cell"><span class="status-badge idle">IDLE</span></td>
+                    </tr>
+                    <tr>
+                        <td class="rank-cell">5</td>
+                        <td class="name-cell">Lisa Wang</td>
+                        <td class="role-cell">FILM</td>
+                        <td class="items-cell">115</td>
+                        <td class="eff-cell good">91%</td>
+                        <td class="status-cell"><span class="status-badge active">ACTIVE</span></td>
+                    </tr>
+                    <tr>
+                        <td class="rank-cell">6</td>
+                        <td class="name-cell">Mike Thompson</td>
+                        <td class="role-cell">PICK</td>
+                        <td class="items-cell">108</td>
+                        <td class="eff-cell warning">78%</td>
+                        <td class="status-cell"><span class="status-badge active">ACTIVE</span></td>
+                    </tr>
+                    <tr>
+                        <td class="rank-cell">7</td>
+                        <td class="name-cell">Emily Davis</td>
+                        <td class="role-cell">QC</td>
+                        <td class="items-cell">102</td>
+                        <td class="eff-cell good">89%</td>
+                        <td class="status-cell"><span class="status-badge active">ACTIVE</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Department Performance -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Department Performance</span>
+                <div class="panel-actions">
+                    <button class="panel-btn">TARGET: 90%</button>
+                </div>
+            </div>
+            <div class="dept-list">
+                <div class="dept-row">
+                    <span class="dept-name">QC Dept</span>
+                    <div class="dept-bar-container">
+                        <div class="dept-bar good" style="width: 96%;"></div>
+                    </div>
+                    <span class="dept-value good">96%</span>
+                </div>
+                <div class="dept-row">
+                    <span class="dept-name">Production</span>
+                    <div class="dept-bar-container">
+                        <div class="dept-bar good" style="width: 92%;"></div>
+                    </div>
+                    <span class="dept-value good">92%</span>
+                </div>
+                <div class="dept-row">
+                    <span class="dept-name">Film Matching</span>
+                    <div class="dept-bar-container">
+                        <div class="dept-bar good" style="width: 94%;"></div>
+                    </div>
+                    <span class="dept-value good">94%</span>
+                </div>
+                <div class="dept-row">
+                    <span class="dept-name">Labeling</span>
+                    <div class="dept-bar-container">
+                        <div class="dept-bar good" style="width: 91%;"></div>
+                    </div>
+                    <span class="dept-value good">91%</span>
+                </div>
+                <div class="dept-row">
+                    <span class="dept-name">Picking</span>
+                    <div class="dept-bar-container">
+                        <div class="dept-bar warning" style="width: 78%;"></div>
+                    </div>
+                    <span class="dept-value warning">78%</span>
+                </div>
+            </div>
+
+            <div style="margin-top: 24px;">
+                <div class="panel-header" style="margin-bottom: 8px;">
+                    <span class="panel-title" style="font-size: 10px;">Alerts</span>
+                </div>
+                <div class="alert-item warning">
+                    <i class="fas fa-exclamation-triangle alert-icon"></i>
+                    <div class="alert-content">
+                        <div class="alert-title">Picking Below Target</div>
+                        <div class="alert-desc">78% efficiency - 12% below target</div>
+                    </div>
+                    <div class="alert-time">2m ago</div>
+                </div>
+                <div class="alert-item info">
+                    <i class="fas fa-lightbulb alert-icon"></i>
+                    <div class="alert-content">
+                        <div class="alert-title">AI Recommendation</div>
+                        <div class="alert-desc">Move 2 workers from QC to Picking</div>
+                    </div>
+                    <div class="alert-time">5m ago</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="panel" style="grid-row: span 2;">
+            <div class="panel-header">
+                <span class="panel-title">Live Activity</span>
+                <div class="panel-actions">
+                    <button class="panel-btn">FILTER</button>
+                </div>
+            </div>
+            <div class="activity-feed">
+                <div class="activity-item">
+                    <span class="activity-time">08:44:21</span>
+                    <span class="activity-icon in"><i class="fas fa-box"></i></span>
+                    <span class="activity-text"><strong>Maria J.</strong> completed 5 QC items</span>
+                </div>
+                <div class="activity-item">
+                    <span class="activity-time">08:43:55</span>
+                    <span class="activity-icon in"><i class="fas fa-sign-in-alt"></i></span>
+                    <span class="activity-text"><strong>Tom Wilson</strong> clocked in</span>
+                </div>
+                <div class="activity-item">
+                    <span class="activity-time">08:42:18</span>
+                    <span class="activity-icon alert"><i class="fas fa-clock"></i></span>
+                    <span class="activity-text"><strong>James C.</strong> idle for 12 min</span>
+                </div>
+                <div class="activity-item">
+                    <span class="activity-time">08:41:02</span>
+                    <span class="activity-icon in"><i class="fas fa-box"></i></span>
+                    <span class="activity-text"><strong>David K.</strong> completed 8 prod items</span>
+                </div>
+                <div class="activity-item">
+                    <span class="activity-time">08:39:45</span>
+                    <span class="activity-icon in"><i class="fas fa-box"></i></span>
+                    <span class="activity-text"><strong>Sarah R.</strong> completed 3 assembly</span>
+                </div>
+                <div class="activity-item">
+                    <span class="activity-time">08:38:30</span>
+                    <span class="activity-icon out"><i class="fas fa-coffee"></i></span>
+                    <span class="activity-text"><strong>Mike T.</strong> started break</span>
+                </div>
+                <div class="activity-item">
+                    <span class="activity-time">08:36:12</span>
+                    <span class="activity-icon in"><i class="fas fa-box"></i></span>
+                    <span class="activity-text"><strong>Lisa W.</strong> completed 4 film match</span>
+                </div>
+                <div class="activity-item">
+                    <span class="activity-time">08:35:01</span>
+                    <span class="activity-icon in"><i class="fas fa-sign-in-alt"></i></span>
+                    <span class="activity-text"><strong>Emily D.</strong> clocked in</span>
+                </div>
+                <div class="activity-item">
+                    <span class="activity-time">08:33:44</span>
+                    <span class="activity-icon in"><i class="fas fa-box"></i></span>
+                    <span class="activity-text"><strong>Maria J.</strong> completed 6 QC items</span>
+                </div>
+                <div class="activity-item">
+                    <span class="activity-time">08:31:22</span>
+                    <span class="activity-icon alert"><i class="fas fa-exclamation"></i></span>
+                    <span class="activity-text"><strong>System</strong> Picking queue high</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Productivity Chart -->
+        <div class="panel" style="grid-column: span 2;">
+            <div class="panel-header">
+                <span class="panel-title">Hourly Productivity Trend</span>
+                <div class="panel-actions">
+                    <button class="panel-btn">1H</button>
+                    <button class="panel-btn" style="background: var(--accent-orange); color: black; border-color: var(--accent-orange);">1D</button>
+                    <button class="panel-btn">1W</button>
+                    <button class="panel-btn">1M</button>
+                </div>
+            </div>
+            <div class="chart-grid">
+                <div class="chart-canvas">
+                    <div class="chart-line"></div>
+                </div>
+                <div class="chart-labels">
+                    <span>06:00</span>
+                    <span>07:00</span>
+                    <span>08:00</span>
+                    <span>09:00</span>
+                    <span>10:00</span>
+                    <span>11:00</span>
+                    <span>12:00</span>
+                    <span>13:00</span>
+                    <span>14:00</span>
+                    <span>15:00</span>
+                    <span>16:00</span>
+                    <span>17:00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

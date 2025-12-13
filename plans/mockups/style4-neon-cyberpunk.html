@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Style 4: Neon Cyberpunk - Dashboard Mockup</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0f;
+            --panel: rgba(10, 10, 20, 0.8);
+            --neon-cyan: #00f5ff;
+            --neon-pink: #ff00ff;
+            --neon-green: #39ff14;
+            --neon-orange: #ff6600;
+            --neon-yellow: #ffff00;
+            --text: #e0e0e0;
+            --text-dim: #606080;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 80%, rgba(0, 245, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(255, 0, 255, 0.08) 0%, transparent 50%),
+                linear-gradient(rgba(0, 245, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 245, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 60px 60px, 60px 60px;
+            animation: gridMove 20s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes gridMove {
+            0% { background-position: 0 0, 0 0, 0 0, 0 0; }
+            100% { background-position: 0 0, 0 0, 60px 60px, 60px 60px; }
+        }
+
+        /* Scan line effect */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.1) 2px,
+                rgba(0, 0, 0, 0.1) 4px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(0, 245, 255, 0.2);
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: 4px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 245, 255, 0.5);
+            animation: textGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes textGlow {
+            from { filter: drop-shadow(0 0 10px var(--neon-cyan)); }
+            to { filter: drop-shadow(0 0 20px var(--neon-pink)); }
+        }
+
+        .nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-btn {
+            padding: 12px 24px;
+            background: transparent;
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .nav-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .nav-btn:hover::before {
+            left: 100%;
+        }
+
+        .nav-btn:hover, .nav-btn.active {
+            background: var(--neon-cyan);
+            color: var(--bg);
+            box-shadow: 0 0 30px rgba(0, 245, 255, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .time-display {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            color: var(--neon-green);
+            text-shadow: 0 0 10px var(--neon-green);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: 1px solid var(--neon-green);
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            background: var(--neon-green);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--neon-green);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--panel);
+            border: 1px solid rgba(0, 245, 255, 0.3);
+            padding: 24px;
+            position: relative;
+            clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(0, 245, 255, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: -1px; right: -1px;
+            width: 30px; height: 30px;
+            border-top: 2px solid var(--neon-cyan);
+            border-right: 2px solid var(--neon-cyan);
+        }
+
+        .stat-card:nth-child(2) { border-color: rgba(255, 0, 255, 0.3); }
+        .stat-card:nth-child(2)::after { border-color: var(--neon-pink); }
+        .stat-card:nth-child(3) { border-color: rgba(57, 255, 20, 0.3); }
+        .stat-card:nth-child(3)::after { border-color: var(--neon-green); }
+        .stat-card:nth-child(4) { border-color: rgba(255, 102, 0, 0.3); }
+        .stat-card:nth-child(4)::after { border-color: var(--neon-orange); }
+
+        .stat-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 48px;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .stat-card:nth-child(1) .stat-value { color: var(--neon-cyan); text-shadow: 0 0 20px var(--neon-cyan); }
+        .stat-card:nth-child(2) .stat-value { color: var(--neon-pink); text-shadow: 0 0 20px var(--neon-pink); }
+        .stat-card:nth-child(3) .stat-value { color: var(--neon-green); text-shadow: 0 0 20px var(--neon-green); }
+        .stat-card:nth-child(4) .stat-value { color: var(--neon-orange); text-shadow: 0 0 20px var(--neon-orange); }
+
+        .stat-change {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            padding: 4px 8px;
+            background: rgba(57, 255, 20, 0.1);
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            color: var(--neon-green);
+        }
+
+        .stat-change.down {
+            background: rgba(255, 0, 100, 0.1);
+            border-color: rgba(255, 0, 100, 0.3);
+            color: #ff0064;
+        }
+
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid rgba(0, 245, 255, 0.2);
+            position: relative;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(0, 245, 255, 0.2);
+            background: linear-gradient(90deg, rgba(0, 245, 255, 0.05), transparent);
+        }
+
+        .panel-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            letter-spacing: 3px;
+            color: var(--neon-cyan);
+        }
+
+        .panel-body {
+            padding: 20px;
+        }
+
+        /* Chart */
+        .chart-container {
+            height: 300px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-grid {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 30px;
+            background:
+                linear-gradient(rgba(0, 245, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 245, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .chart-line {
+            position: absolute;
+            bottom: 30px; left: 0; right: 0;
+            height: 200px;
+            background: linear-gradient(180deg, rgba(0, 245, 255, 0.3), transparent);
+            clip-path: polygon(0 80%, 10% 60%, 20% 70%, 30% 40%, 40% 50%, 50% 20%, 60% 35%, 70% 15%, 80% 30%, 90% 10%, 100% 25%, 100% 100%, 0 100%);
+        }
+
+        .chart-line::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 20px var(--neon-cyan), 0 0 40px var(--neon-cyan);
+            clip-path: polygon(0 0, 10% 0, 20% 0, 30% 0, 40% 0, 50% 0, 60% 0, 70% 0, 80% 0, 90% 0, 100% 0);
+            animation: lineGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes lineGlow {
+            from { filter: brightness(1); }
+            to { filter: brightness(1.5); }
+        }
+
+        .chart-labels {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            display: flex;
+            justify-content: space-between;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 9px;
+            color: var(--text-dim);
+        }
+
+        /* Leaderboard */
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            border-bottom: 1px solid rgba(0, 245, 255, 0.1);
+            transition: all 0.3s;
+        }
+
+        .leaderboard-item:hover {
+            background: rgba(0, 245, 255, 0.05);
+        }
+
+        .rank {
+            width: 36px; height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            border: 2px solid;
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+        }
+
+        .rank.gold { border-color: var(--neon-yellow); color: var(--neon-yellow); background: rgba(255, 255, 0, 0.1); }
+        .rank.silver { border-color: #c0c0c0; color: #c0c0c0; background: rgba(192, 192, 192, 0.1); }
+        .rank.bronze { border-color: var(--neon-orange); color: var(--neon-orange); background: rgba(255, 102, 0, 0.1); }
+        .rank.normal { border-color: var(--text-dim); color: var(--text-dim); }
+
+        .avatar {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-pink));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 2px;
+        }
+
+        .user-role {
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+        }
+
+        .user-score {
+            text-align: right;
+        }
+
+        .score-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--neon-green);
+            text-shadow: 0 0 10px var(--neon-green);
+        }
+
+        .score-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+        }
+
+        /* Department Section */
+        .dept-section {
+            margin-top: 20px;
+        }
+
+        .dept-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(0, 245, 255, 0.1);
+        }
+
+        .dept-name {
+            width: 100px;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .dept-bar {
+            flex: 1;
+            height: 24px;
+            background: rgba(0, 245, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dept-fill {
+            height: 100%;
+            position: relative;
+        }
+
+        .dept-fill.cyan { background: linear-gradient(90deg, var(--neon-cyan), rgba(0, 245, 255, 0.5)); box-shadow: 0 0 20px var(--neon-cyan); }
+        .dept-fill.pink { background: linear-gradient(90deg, var(--neon-pink), rgba(255, 0, 255, 0.5)); box-shadow: 0 0 20px var(--neon-pink); }
+        .dept-fill.green { background: linear-gradient(90deg, var(--neon-green), rgba(57, 255, 20, 0.5)); box-shadow: 0 0 20px var(--neon-green); }
+        .dept-fill.orange { background: linear-gradient(90deg, var(--neon-orange), rgba(255, 102, 0, 0.5)); box-shadow: 0 0 20px var(--neon-orange); }
+
+        .dept-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            width: 50px;
+            text-align: right;
+        }
+
+        /* Alert Box */
+        .alert-box {
+            margin-top: 20px;
+            padding: 16px;
+            background: rgba(255, 0, 100, 0.1);
+            border: 1px solid rgba(255, 0, 100, 0.3);
+            border-left: 4px solid #ff0064;
+        }
+
+        .alert-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: #ff0064;
+            margin-bottom: 8px;
+        }
+
+        .alert-text {
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        /* Animations */
+        .stat-card, .panel {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">PODFACTORY</div>
+            <nav class="nav">
+                <button class="nav-btn active">DASHBOARD</button>
+                <button class="nav-btn">BOTTLENECK</button>
+                <button class="nav-btn">COST</button>
+                <button class="nav-btn">SCHEDULE</button>
+                <button class="nav-btn">EMPLOYEES</button>
+            </nav>
+            <div class="header-right">
+                <div class="time-display">08:45:32 CT</div>
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    SYSTEM ONLINE
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">ACTIVE OPERATORS</div>
+                <div class="stat-value">24</div>
+                <div class="stat-change"><i class="fas fa-arrow-up"></i> +12%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">ITEMS PROCESSED</div>
+                <div class="stat-value">1,847</div>
+                <div class="stat-change"><i class="fas fa-arrow-up"></i> +8%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">EFFICIENCY RATE</div>
+                <div class="stat-value">94.2%</div>
+                <div class="stat-change"><i class="fas fa-arrow-up"></i> +3%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">HOURS LOGGED</div>
+                <div class="stat-value">186.5</div>
+                <div class="stat-change down"><i class="fas fa-arrow-down"></i> -2%</div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Chart Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">PRODUCTIVITY MATRIX</span>
+                    <div>
+                        <button class="nav-btn" style="padding: 8px 16px; font-size: 10px;">1H</button>
+                        <button class="nav-btn active" style="padding: 8px 16px; font-size: 10px;">1D</button>
+                        <button class="nav-btn" style="padding: 8px 16px; font-size: 10px;">1W</button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-container">
+                        <div class="chart-grid"></div>
+                        <div class="chart-line"></div>
+                        <div class="chart-labels">
+                            <span>06:00</span>
+                            <span>08:00</span>
+                            <span>10:00</span>
+                            <span>12:00</span>
+                            <span>14:00</span>
+                            <span>16:00</span>
+                            <span>18:00</span>
+                        </div>
+                    </div>
+
+                    <div class="dept-section">
+                        <div class="dept-row">
+                            <span class="dept-name">QC DEPT</span>
+                            <div class="dept-bar"><div class="dept-fill cyan" style="width: 96%;"></div></div>
+                            <span class="dept-value" style="color: var(--neon-cyan);">96%</span>
+                        </div>
+                        <div class="dept-row">
+                            <span class="dept-name">PRODUCTION</span>
+                            <div class="dept-bar"><div class="dept-fill pink" style="width: 92%;"></div></div>
+                            <span class="dept-value" style="color: var(--neon-pink);">92%</span>
+                        </div>
+                        <div class="dept-row">
+                            <span class="dept-name">FILM MATCH</span>
+                            <div class="dept-bar"><div class="dept-fill green" style="width: 94%;"></div></div>
+                            <span class="dept-value" style="color: var(--neon-green);">94%</span>
+                        </div>
+                        <div class="dept-row">
+                            <span class="dept-name">PICKING</span>
+                            <div class="dept-bar"><div class="dept-fill orange" style="width: 78%;"></div></div>
+                            <span class="dept-value" style="color: var(--neon-orange);">78%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leaderboard Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">TOP OPERATORS</span>
+                </div>
+                <div class="panel-body" style="padding: 0;">
+                    <div class="leaderboard-item">
+                        <div class="rank gold">1</div>
+                        <div class="avatar">MJ</div>
+                        <div class="user-info">
+                            <div class="user-name">Maria Johnson</div>
+                            <div class="user-role">QC SPECIALIST</div>
+                        </div>
+                        <div class="user-score">
+                            <div class="score-value">147</div>
+                            <div class="score-label">ITEMS</div>
+                        </div>
+                    </div>
+                    <div class="leaderboard-item">
+                        <div class="rank silver">2</div>
+                        <div class="avatar">DK</div>
+                        <div class="user-info">
+                            <div class="user-name">David Kim</div>
+                            <div class="user-role">PRODUCTION</div>
+                        </div>
+                        <div class="user-score">
+                            <div class="score-value">132</div>
+                            <div class="score-label">ITEMS</div>
+                        </div>
+                    </div>
+                    <div class="leaderboard-item">
+                        <div class="rank bronze">3</div>
+                        <div class="avatar">SR</div>
+                        <div class="user-info">
+                            <div class="user-name">Sarah Rodriguez</div>
+                            <div class="user-role">ASSEMBLY</div>
+                        </div>
+                        <div class="user-score">
+                            <div class="score-value">128</div>
+                            <div class="score-label">ITEMS</div>
+                        </div>
+                    </div>
+                    <div class="leaderboard-item">
+                        <div class="rank normal">4</div>
+                        <div class="avatar">JC</div>
+                        <div class="user-info">
+                            <div class="user-name">James Chen</div>
+                            <div class="user-role">PICKER</div>
+                        </div>
+                        <div class="user-score">
+                            <div class="score-value">119</div>
+                            <div class="score-label">ITEMS</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert-box">
+                    <div class="alert-title">⚠ SYSTEM ALERT</div>
+                    <div class="alert-text">Picking department at 78% - Below target threshold. Recommend reassigning 2 operators from QC.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
