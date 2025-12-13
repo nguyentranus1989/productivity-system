@@ -2,6 +2,54 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.3.7] - 2025-12-12 (PENDING)
+
+### Discovered - Connecteam Sync Bug
+- **Root Cause**: `connecteam_sync.py` detects 6hr timezone offset but SKIPS instead of CORRECTING
+- **Impact**: Dec 1-9 data has mismatches between clock_times and daily_scores
+- **Location**: `_sync_clock_time()` lines 325-332
+- **Status**: Bug identified, fix pending
+
+### Data Quality Issues Found
+- Dec 2: Connecteam API had 52 shifts, DB only had 31 (10 employees missing)
+- Manually backfilled 16 shifts for Dec 2
+- Database has duplicate records (old shifted + new correct)
+
+### Server State
+- Sync running on server with buggy code (`podfactory-sync` PM2 process)
+- Domain: reports.podgasus.com via Cloudflare tunnel
+- Plan: Fix code → Push to GitHub → Redeploy → Clean duplicates
+
+---
+
+## [2.3.6] - 2025-12-12
+
+### Performance
+- **Pre-calculated Daily Cost Summary**: Dramatically faster Cost Analysis for historical queries
+  - Created `daily_cost_summary` table for pre-aggregated daily cost data
+  - Historical queries (not including today) now use pre-calculated data
+  - **Before**: 15-17 seconds for 12-day range (real-time calculation)
+  - **After**: 6-7 seconds for 11-day historical range (2.3x faster)
+  - Today's data still calculated real-time for live accuracy
+  - API response includes `source: "pre-calculated"` for debugging
+
+### Added
+- **End-of-day Cost Summary Job**: Scheduler runs at 6:15 PM CT
+  - Automatically calculates daily cost summary after workday ends
+  - Runs after daily score finalization (6:00 PM)
+- **Cost Summary API Endpoints**:
+  - `POST /api/system/cost-summary/calculate` - Backfill historical data
+  - `GET /api/system/cost-summary/status` - Check summary coverage
+
+### Technical Details
+- `daily_cost_summary` table: employee_id, clocked_hours, active_hours, costs, activity breakdown
+- `backend/api/system_control.py`: Added `calculate_daily_cost_summary()` function
+- `backend/api/dashboard.py`: Added `get_cost_analysis_from_summary()` helper
+- `backend/app.py`: Added scheduler job for daily calculation
+- Backfilled 398 records for Dec 1-12
+
+---
+
 ## [2.3.5] - 2025-12-12
 
 ### Added

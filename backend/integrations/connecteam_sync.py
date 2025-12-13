@@ -328,16 +328,47 @@ class ConnecteamSync:
 
                 if is_same_shift or is_tz_shifted:
                     if is_tz_shifted and not is_same_shift:
-                        logger.warning(f"Detected timezone-shifted duplicate for employee {employee_id} "
-                                      f"(6hr offset detected, using existing record ID {existing['id']})")
-                    # Update only if needed
+                        # FIX: Correct the timezone-shifted record instead of skipping
+                        logger.warning(f"Correcting timezone-shifted record for employee {employee_id} "
+                                      f"(6hr offset detected, updating record ID {existing['id']})")
+                        # Update clock_in to correct UTC time, and clock_out if available
+                        if shift.clock_out:
+                            self.db.execute_query(
+                                """
+                                UPDATE clock_times
+                                SET clock_in = %s,
+                                    clock_out = %s,
+                                    total_minutes = %s,
+                                    is_active = FALSE,
+                                    updated_at = NOW()
+                                WHERE id = %s
+                                """,
+                                (shift.clock_in, shift.clock_out, shift.total_minutes, existing['id'])
+                            )
+                            logger.info(f"Corrected shifted record: clock_in and clock_out for employee {employee_id}")
+                        else:
+                            self.db.execute_query(
+                                """
+                                UPDATE clock_times
+                                SET clock_in = %s,
+                                    total_minutes = TIMESTAMPDIFF(MINUTE, %s, UTC_TIMESTAMP()),
+                                    is_active = TRUE,
+                                    updated_at = NOW()
+                                WHERE id = %s
+                                """,
+                                (shift.clock_in, shift.clock_in, existing['id'])
+                            )
+                            logger.info(f"Corrected shifted record: clock_in for employee {employee_id}")
+                        return True
+
+                    # Exact match - update only if needed
                     if shift.clock_out and not existing['clock_out']:
                         self.db.execute_query(
                             """
-                            UPDATE clock_times 
-                            SET clock_out = %s, 
+                            UPDATE clock_times
+                            SET clock_out = %s,
                                 total_minutes = TIMESTAMPDIFF(MINUTE, clock_in, %s),
-                                is_active = FALSE, 
+                                is_active = FALSE,
                                 updated_at = NOW()
                             WHERE id = %s
                             """,

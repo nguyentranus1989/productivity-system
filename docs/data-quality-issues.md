@@ -168,9 +168,100 @@ Reprocessed all employees via `calc.process_all_employees_for_date(date(2025, 12
 
 ---
 
+---
+
+## Issue #6: Connecteam Sync 6-Hour Offset Bug (PENDING FIX)
+
+**Date Discovered**: Dec 12, 2025
+**Status**: Bug Identified, Fix Pending
+**Severity**: HIGH - Affects all historical data
+
+### Problem
+Dec 1-9 data shows mismatches between `clock_times` and `daily_scores`. Manual sync attempts showed "timezone-shifted duplicate" warnings.
+
+### Data Audit Results (Dec 1-11)
+| Date | clock_times (min) | daily_scores (min) | Diff |
+|------|-------------------|-------------------|------|
+| Dec 1 | 5,330 | 4,989 | +341 |
+| Dec 2 | 13,206 | 8,698 | +4,508 |
+| Dec 3 | 11,949 | 10,099 | +1,850 |
+| Dec 4 | 14,110 | 11,815 | +2,295 |
+| Dec 5 | 12,833 | 10,652 | +2,181 |
+| Dec 6 | 13,102 | 11,032 | +2,070 |
+| Dec 7 | 4,063 | 3,570 | +493 |
+| Dec 8 | 4,038 | 3,570 | +468 |
+| Dec 9 | 14,080 | 12,150 | +1,930 |
+| Dec 10 | 15,544 | 15,544 | **0** |
+| Dec 11 | 18,022 | 18,022 | **0** |
+
+### Dec 2 Deep Dive
+- **Connecteam API**: 52 shifts, 15,979 minutes
+- **Database**: 31 records, 9,858 minutes
+- **Gap**: 10 employees MISSING = 6,121 minutes
+
+### Root Cause
+**File**: `backend/integrations/connecteam_sync.py`
+**Function**: `_sync_clock_time()` (lines 325-332)
+
+```python
+# BUG: Detects 6hr offset but SKIPS instead of CORRECTING
+if is_tz_shifted and not is_same_shift:
+    logger.warning("Detected timezone-shifted duplicate...")
+    return True  # <-- Returns without correcting the shifted record!
+```
+
+### Impact
+1. Old records stored with 6-hour offset (UTC vs CT)
+2. Sync detects offset but doesn't correct it
+3. Manual backfill created duplicates (old shifted + new correct)
+4. Server running buggy code
+
+### Current State
+- **Server**: Buggy sync running (`podfactory-sync` PM2)
+- **Database**: Has duplicate records
+- **Manual Backfill**: 16 Dec 2 records inserted
+
+### Resolution Plan
+1. Fix local code to UPDATE shifted records instead of skip
+2. Push to GitHub
+3. Redeploy to server
+4. Clean up duplicate records
+
+---
+
+## Issue #7: Server Sync Running Buggy Code
+
+**Date Discovered**: Dec 12, 2025
+**Status**: Pending Deployment
+
+### Server Details
+| Property | Value |
+|----------|-------|
+| IP | 134.199.194.237 |
+| Domain | reports.podgasus.com |
+| Tunnel | Cloudflare |
+| Git Remote | github.com/nguyentranus1989/productivity-system.git |
+
+### PM2 Processes
+| Process | Status |
+|---------|--------|
+| cloudflare-tunnel | online |
+| podfactory-sync | online (BUGGY CODE) |
+| flask-backend | stopped |
+
+### Required Actions
+1. Stop `podfactory-sync`
+2. `git pull origin main`
+3. Restart services
+4. Verify fix working
+
+---
+
 ## Prevention Measures
 
 1. **Scheduler Order**: Ensure `clock_times` sync runs BEFORE `daily_scores` calculation
 2. **Timezone Awareness**: All queries to `clock_times` use CT date directly
 3. **Validation Alerts**: Consider adding alerts for activities without clock records
 4. **Employee Training**: Reinforce clock-in procedures before scanning items
+5. **Sync Fix**: When detecting timezone-shifted records, UPDATE them instead of skip
+6. **Deployment Pipeline**: Test sync locally before deploying to server
