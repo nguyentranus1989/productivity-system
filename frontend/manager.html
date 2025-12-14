@@ -603,9 +603,8 @@
                             <tr style="border-bottom: 2px solid rgba(255,255,255,0.2);">
                                 <th style="padding: 12px;">ID</th>
                                 <th style="padding: 12px;">Name</th>
-                                <th style="padding: 12px;">Email</th>
-                                <th style="padding: 12px;">Connecteam ID</th>
-                                <th style="padding: 12px;">PodFactory Emails</th>
+                                <th style="padding: 12px;">Work Email</th>
+                                <th style="padding: 12px;">Personal Email</th>
                                 <th style="padding: 12px;">Status</th>
                                 <th style="padding: 12px;">PIN</th>
                                 <th style="padding: 12px;">Actions</th>
@@ -3569,12 +3568,6 @@
                 if (!tbody) return;
 
                 tbody.innerHTML = employees.map(emp => {
-                    const podfactoryEmailsDisplay = emp.podfactory_emails
-                        ? emp.podfactory_emails.split(',').map(email =>
-                            `<div style="padding: 2px 0;">${email.trim()}</div>`
-                        ).join('')
-                        : '<span style="color: #fbbf24;">Not mapped</span>';
-
                     // PIN status display: NOT SET | View (has plain) | Reset (no plain)
                     let pinDisplay;
                     if (!emp.has_pin) {
@@ -3582,25 +3575,34 @@
                     } else if (emp.pin_plain) {
                         pinDisplay = `<button onclick="viewEmployeePin(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${emp.pin_plain}')" style="padding: 4px 12px; background: #6366f1; color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 12px;">View</button>`;
                     } else {
-                        pinDisplay = `<button onclick="resetEmployeePin(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')" style="padding: 4px 12px; background: #f59e0b; color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 12px;" title="Legacy PIN - reset to view">Reset</button>`;
+                        pinDisplay = `<button onclick="resetEmployeePin(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.personal_email || '').replace(/'/g, "\\'")}')" style="padding: 4px 12px; background: #f59e0b; color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 12px;" title="Legacy PIN - reset to view">Reset</button>`;
                     }
+
+                    // Personal email display with edit capability
+                    const personalEmailDisplay = emp.personal_email
+                        ? `<span style="color: #22c55e;">${emp.personal_email}</span>`
+                        : `<button onclick="editPersonalEmail(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')" style="padding: 2px 8px; background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); border-radius: 4px; cursor: pointer; font-size: 11px;">+ Add</button>`;
+
+                    // Send Welcome button availability
+                    const canSendWelcome = emp.has_pin && emp.pin_plain && emp.personal_email;
 
                     return `
                         <tr>
                             <td style="padding: 12px;">${emp.id}</td>
                             <td style="padding: 12px;">${emp.name}</td>
                             <td style="padding: 12px;">${emp.email || '-'}</td>
-                            <td style="padding: 12px;">${emp.connecteam_user_id || '<span style="color: #fbbf24;">Not mapped</span>'}</td>
-                            <td style="padding: 12px;">${podfactoryEmailsDisplay}</td>
+                            <td style="padding: 12px;">${personalEmailDisplay}</td>
                             <td style="padding: 12px;"><span class="badge ${emp.is_active ? 'badge-success' : 'badge-danger'}" style="background: ${emp.is_active ? '#22c55e' : '#ef4444'}; padding: 4px 12px; border-radius: 12px;">${emp.is_active ? 'Active' : 'Inactive'}</span></td>
                             <td style="padding: 12px;">${pinDisplay}</td>
                             <td style="padding: 12px; position: relative;">
                                 <button onclick="toggleDropdown(${emp.id})" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
                                     Actions ▼
                                 </button>
-                                <div id="dropdown-${emp.id}" style="display: none; position: absolute; right: 0; top: 100%; background: #2a2a2a; min-width: 120px; box-shadow: 0px 8px 16px rgba(0,0,0,0.2); z-index: 1000; border-radius: 5px; margin-top: 5px;">
+                                <div id="dropdown-${emp.id}" style="display: none; position: absolute; right: 0; top: 100%; background: #2a2a2a; min-width: 150px; box-shadow: 0px 8px 16px rgba(0,0,0,0.2); z-index: 1000; border-radius: 5px; margin-top: 5px;">
+                                    <a href="#" onclick="editPersonalEmail(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.personal_email || '').replace(/'/g, "\\'")}'); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">📧 Edit Email</a>
+                                    <a href="#" onclick="openSetPinModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.personal_email || '').replace(/'/g, "\\'")}'); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">🔑 PIN</a>
+                                    ${canSendWelcome ? `<a href="#" onclick="sendWelcomeEmail(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: #22c55e; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">📤 Send Welcome</a>` : ''}
                                     <a href="#" onclick="mapEmployee(${emp.id}); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">🔗 Map</a>
-                                    <a href="#" onclick="openSetPinModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">🔑 PIN</a>
                                     <a href="#" onclick="archiveEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: #ef4444; padding: 10px 15px; text-decoration: none; display: block;">🗑️ Archive</a>
                                 </div>
                             </td>
@@ -4809,7 +4811,92 @@
                 });
             };
 
-            window.openSetPinModal = function(employeeId, employeeName) {
+            // Edit personal email modal
+            window.editPersonalEmail = function(employeeId, employeeName, currentEmail = '') {
+                const modal = document.createElement('div');
+                modal.id = 'editEmailModal';
+                modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+                modal.innerHTML = `
+                    <div style="background: #2a2a2a; padding: 30px; border-radius: 12px; width: 400px; max-width: 90%;">
+                        <h3 style="color: #e0e0e0; margin-bottom: 20px;">
+                            <i class="fas fa-envelope" style="color: #6366f1;"></i> Personal Email for ${employeeName}
+                        </h3>
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; color: #a0a0a0; font-size: 0.9em;">
+                                Personal Email (for notifications)
+                            </label>
+                            <input type="email" id="personalEmailInput" value="${currentEmail}"
+                                   placeholder="employee@gmail.com"
+                                   style="width: 100%; padding: 12px; background: #1a1a2e; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #e0e0e0; font-size: 16px;">
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button onclick="document.getElementById('editEmailModal').remove();"
+                                    style="padding: 10px 20px; background: #4b5563; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                Cancel
+                            </button>
+                            <button onclick="savePersonalEmail(${employeeId})"
+                                    style="padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                <i class="fas fa-save"></i> Save
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                document.getElementById('personalEmailInput').focus();
+                modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+            };
+
+            window.savePersonalEmail = async function(employeeId) {
+                const email = document.getElementById('personalEmailInput').value.trim();
+                showLoadingOverlay('Saving email...');
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/update-contact`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'dev-api-key-123' },
+                        body: JSON.stringify({ personal_email: email })
+                    });
+                    const data = await response.json();
+                    hideLoadingOverlay();
+                    document.getElementById('editEmailModal')?.remove();
+                    if (data.success) {
+                        showNotification('Email saved successfully', 'success');
+                        loadEmployeeManagementData();
+                    } else {
+                        await alertDialog('Error', data.message || 'Failed to save email');
+                    }
+                } catch (error) {
+                    hideLoadingOverlay();
+                    await alertDialog('Error', 'Failed to save email: ' + error.message);
+                }
+            };
+
+            // Send welcome email
+            window.sendWelcomeEmail = async function(employeeId, employeeName) {
+                const confirmed = await confirmDialog('Send Welcome Email', `Send welcome email with PIN to ${employeeName}?`);
+                if (!confirmed) return;
+
+                showLoadingOverlay('Sending welcome email...');
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/send-welcome`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'dev-api-key-123' }
+                    });
+                    const data = await response.json();
+                    hideLoadingOverlay();
+                    if (data.success) {
+                        await alertDialog('Success', data.message);
+                        loadEmployeeManagementData();
+                    } else {
+                        await alertDialog('Error', data.message || 'Failed to send email');
+                    }
+                } catch (error) {
+                    hideLoadingOverlay();
+                    await alertDialog('Error', 'Failed to send email: ' + error.message);
+                }
+            };
+
+            window.openSetPinModal = function(employeeId, employeeName, personalEmail = '') {
+                const hasEmail = personalEmail && personalEmail.trim();
                 const modal = `
                     <div id="pinModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">
                         <div style="background: #2a2a2a; padding: 30px; border-radius: 12px; width: 400px; max-width: 90%;">
@@ -4817,13 +4904,25 @@
                                 <i class="fas fa-key" style="color: #6366f1;"></i>
                                 Set PIN for ${employeeName}
                             </h3>
-                            <div style="margin-bottom: 20px;">
+                            <div style="margin-bottom: 15px;">
                                 <label style="display: block; margin-bottom: 8px; color: #a0a0a0; font-size: 0.9em;">
                                     PIN (4-6 digits) - Leave empty for auto-generated
                                 </label>
                                 <input type="password" id="pinInput" maxlength="6" pattern="[0-9]*" inputmode="numeric"
                                        placeholder="Enter PIN or leave empty"
                                        style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-size: 1.1em; text-align: center; letter-spacing: 8px;">
+                            </div>
+                            <div style="margin-bottom: 20px; padding: 12px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px;">
+                                <label style="display: flex; align-items: center; gap: 10px; cursor: ${hasEmail ? 'pointer' : 'not-allowed'}; opacity: ${hasEmail ? '1' : '0.5'};">
+                                    <input type="checkbox" id="sendNotificationCheckbox" ${hasEmail ? 'checked' : 'disabled'}
+                                           style="width: 18px; height: 18px; accent-color: #22c55e;">
+                                    <span style="color: #e0e0e0;">
+                                        <i class="fas fa-envelope" style="color: #22c55e;"></i> Send welcome email
+                                    </span>
+                                </label>
+                                <div style="margin-top: 6px; margin-left: 28px; font-size: 0.8em; color: ${hasEmail ? '#22c55e' : '#f59e0b'};">
+                                    ${hasEmail ? 'To: ' + personalEmail : '<i class="fas fa-exclamation-triangle"></i> Add personal email first'}
+                                </div>
                             </div>
                             <div style="display: flex; gap: 10px;">
                                 <button onclick="document.getElementById('pinModal').remove()"
@@ -4836,7 +4935,7 @@
                                 </button>
                             </div>
                             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
-                                <button onclick="resetEmployeePin(${employeeId}, '${employeeName.replace(/'/g, "\\'")}')"
+                                <button onclick="resetEmployeePin(${employeeId}, '${employeeName.replace(/'/g, "\\'")}', '${(personalEmail || '').replace(/'/g, "\\'")}')"
                                         style="width: 100%; padding: 10px; background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; cursor: pointer;">
                                     <i class="fas fa-sync-alt"></i> Reset to Random PIN
                                 </button>
@@ -4850,6 +4949,7 @@
 
             window.setEmployeePin = async function(employeeId, employeeName) {
                 const pin = document.getElementById('pinInput').value;
+                const sendNotification = document.getElementById('sendNotificationCheckbox')?.checked || false;
 
                 // Validate PIN if provided
                 if (pin && !/^\d{4,6}$/.test(pin)) {
@@ -4864,7 +4964,9 @@
                 btn.disabled = true;
 
                 try {
-                    const body = pin ? { pin } : {};
+                    const body = { send_notification: sendNotification };
+                    if (pin) body.pin = pin;
+
                     const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/set-pin`, {
                         method: 'POST',
                         headers: {
@@ -4877,7 +4979,14 @@
                     const data = await response.json();
                     if (data.success) {
                         document.getElementById('pinModal').remove();
+                        // Show notification status
+                        if (data.notification?.success) {
+                            showNotification('Welcome email sent!', 'success');
+                        } else if (sendNotification && data.notification?.message) {
+                            showNotification('PIN set, but email failed: ' + data.notification.message, 'warning');
+                        }
                         showPinSlip(employeeName, data.pin);
+                        loadEmployeeManagementData();
                     } else {
                         btn.innerHTML = originalText;
                         btn.disabled = false;
@@ -4891,12 +5000,16 @@
                 }
             };
 
-            window.resetEmployeePin = async function(employeeId, employeeName) {
+            window.resetEmployeePin = async function(employeeId, employeeName, personalEmail = '') {
                 // Close PIN modal FIRST before showing confirmation
                 const pinModal = document.getElementById('pinModal');
                 if (pinModal) pinModal.remove();
 
-                const confirmed = await confirmDialog('Reset PIN', `Reset PIN for ${employeeName}? A new random PIN will be generated.`);
+                // Get checkbox value before closing modal
+                const hasEmail = personalEmail && personalEmail.trim();
+                const sendNotification = hasEmail && document.getElementById('sendNotificationCheckbox')?.checked;
+
+                const confirmed = await confirmDialog('Reset PIN', `Reset PIN for ${employeeName}? A new random PIN will be generated.${hasEmail && sendNotification ? ' Welcome email will be sent.' : ''}`);
                 if (!confirmed) return;
 
                 // Show loading overlay
@@ -4905,13 +5018,24 @@
                 try {
                     const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/reset-pin`, {
                         method: 'POST',
-                        headers: {'X-API-Key': 'dev-api-key-123'}
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': 'dev-api-key-123'
+                        },
+                        body: JSON.stringify({ send_notification: sendNotification })
                     });
 
                     const data = await response.json();
                     hideLoadingOverlay();
                     if (data.success) {
+                        // Show notification status
+                        if (data.notification?.success) {
+                            showNotification('Welcome email sent!', 'success');
+                        } else if (sendNotification && data.notification?.message) {
+                            showNotification('PIN reset, but email failed: ' + data.notification.message, 'warning');
+                        }
                         showPinSlip(employeeName, data.pin);
+                        loadEmployeeManagementData();
                     } else {
                         await alertDialog('Error', data.error || 'Failed to reset PIN');
                     }

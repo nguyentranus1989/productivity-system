@@ -10,6 +10,7 @@ import string
 from datetime import datetime
 from database.db_manager import get_db
 from api.auth import require_api_key
+from services.email_service import EmailService
 
 user_management_bp = Blueprint('user_management', __name__)
 
@@ -31,12 +32,15 @@ def list_employees_with_auth():
                 e.id,
                 e.name,
                 e.email,
+                e.personal_email,
+                e.phone_number,
                 rc.role_name as role,
                 e.is_active,
                 CASE WHEN ea.pin IS NOT NULL THEN 1 ELSE 0 END as has_pin,
                 ea.pin_plain,
                 ea.last_login,
-                ea.pin_set_at
+                ea.pin_set_at,
+                e.welcome_sent_at
             FROM employees e
             LEFT JOIN role_configs rc ON e.role_id = rc.id
             LEFT JOIN employee_auth ea ON e.id = ea.employee_id
@@ -58,6 +62,7 @@ def set_employee_pin(employee_id):
     try:
         data = request.json or {}
         pin = data.get('pin')
+        send_notification = data.get('send_notification', False)
 
         # Auto-generate if not provided
         if not pin:
@@ -67,9 +72,9 @@ def set_employee_pin(employee_id):
         if not pin.isdigit() or len(pin) < 4 or len(pin) > 6:
             return jsonify({'success': False, 'message': 'PIN must be 4-6 digits'}), 400
 
-        # Verify employee exists
+        # Verify employee exists and get contact info
         employee = get_db().execute_one("""
-            SELECT id, name FROM employees WHERE id = %s
+            SELECT id, name, personal_email FROM employees WHERE id = %s
         """, (employee_id,))
 
         if not employee:
@@ -97,12 +102,26 @@ def set_employee_pin(employee_id):
                 VALUES (%s, %s, %s, NOW())
             """, (employee_id, pin_hash, pin))
 
+        # Send notification if requested
+        notification_result = None
+        if send_notification and employee.get('personal_email'):
+            notification_result = EmailService.send_welcome_email(
+                employee['name'],
+                pin,
+                employee['personal_email']
+            )
+            if notification_result['success']:
+                get_db().execute_query("""
+                    UPDATE employees SET welcome_sent_at = NOW() WHERE id = %s
+                """, (employee_id,))
+
         return jsonify({
             'success': True,
             'employee_id': employee_id,
             'employee_name': employee['name'],
             'pin': pin,  # Only returned once for print slip
-            'message': 'PIN set successfully'
+            'message': 'PIN set successfully',
+            'notification': notification_result
         })
 
     except Exception as e:
@@ -113,9 +132,12 @@ def set_employee_pin(employee_id):
 def reset_employee_pin(employee_id):
     """Reset employee PIN to a new random PIN"""
     try:
+        data = request.json or {}
+        send_notification = data.get('send_notification', False)
+
         # Verify employee exists
         employee = get_db().execute_one("""
-            SELECT id, name FROM employees WHERE id = %s
+            SELECT id, name, personal_email FROM employees WHERE id = %s
         """, (employee_id,))
 
         if not employee:
@@ -142,12 +164,26 @@ def reset_employee_pin(employee_id):
                 VALUES (%s, %s, %s, NOW())
             """, (employee_id, pin_hash, new_pin))
 
+        # Send notification if requested
+        notification_result = None
+        if send_notification and employee.get('personal_email'):
+            notification_result = EmailService.send_welcome_email(
+                employee['name'],
+                new_pin,
+                employee['personal_email']
+            )
+            if notification_result['success']:
+                get_db().execute_query("""
+                    UPDATE employees SET welcome_sent_at = NOW() WHERE id = %s
+                """, (employee_id,))
+
         return jsonify({
             'success': True,
             'employee_id': employee_id,
             'employee_name': employee['name'],
             'pin': new_pin,  # Only returned once for print slip
-            'message': 'PIN reset successfully'
+            'message': 'PIN reset successfully',
+            'notification': notification_result
         })
 
     except Exception as e:
@@ -309,6 +345,84 @@ def bulk_generate_pins():
             'message': f'Generated PINs for {len(generated)} employees',
             'count': len(generated),
             'employees': generated
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@user_management_bp.route('/api/admin/employees/<int:employee_id>/update-contact', methods=['POST'])
+@require_api_key
+def update_employee_contact(employee_id):
+    """Update employee's personal email and phone number"""
+    try:
+        data = request.json or {}
+        personal_email = data.get('personal_email', '').strip() or None
+        phone_number = data.get('phone_number', '').strip() or None
+
+        # Verify employee exists
+        employee = get_db().execute_one("""
+            SELECT id, name FROM employees WHERE id = %s
+        """, (employee_id,))
+
+        if not employee:
+            return jsonify({'success': False, 'message': 'Employee not found'}), 404
+
+        # Update contact info
+        get_db().execute_query("""
+            UPDATE employees
+            SET personal_email = %s, phone_number = %s
+            WHERE id = %s
+        """, (personal_email, phone_number, employee_id))
+
+        return jsonify({
+            'success': True,
+            'employee_id': employee_id,
+            'personal_email': personal_email,
+            'phone_number': phone_number,
+            'message': 'Contact info updated successfully'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@user_management_bp.route('/api/admin/employees/<int:employee_id>/send-welcome', methods=['POST'])
+@require_api_key
+def send_welcome_notification(employee_id):
+    """Send welcome email with current PIN to employee"""
+    try:
+        # Get employee with PIN
+        employee = get_db().execute_one("""
+            SELECT e.id, e.name, e.personal_email, ea.pin_plain
+            FROM employees e
+            LEFT JOIN employee_auth ea ON e.id = ea.employee_id
+            WHERE e.id = %s
+        """, (employee_id,))
+
+        if not employee:
+            return jsonify({'success': False, 'message': 'Employee not found'}), 404
+
+        if not employee.get('personal_email'):
+            return jsonify({'success': False, 'message': 'Employee has no personal email set'}), 400
+
+        if not employee.get('pin_plain'):
+            return jsonify({'success': False, 'message': 'Employee has no PIN set. Set PIN first.'}), 400
+
+        # Send email
+        result = EmailService.send_welcome_email(
+            employee['name'],
+            employee['pin_plain'],
+            employee['personal_email']
+        )
+
+        if result['success']:
+            get_db().execute_query("""
+                UPDATE employees SET welcome_sent_at = NOW() WHERE id = %s
+            """, (employee_id,))
+
+        return jsonify({
+            'success': result['success'],
+            'message': result['message'],
+            'employee_id': employee_id
         })
 
     except Exception as e:
