@@ -1479,17 +1479,23 @@
 
         // ============= LOADING OVERLAY UTILITY =============
         function showLoadingOverlay(message = 'Loading...') {
+            // Remove any existing overlay
             const existing = document.getElementById('loadingOverlay');
             if (existing) existing.remove();
 
+            // Close any open modals first
+            ['pinModal', 'mappingModal', 'manualMappingModal', 'podFactoryMappingModal'].forEach(id => {
+                const modal = document.getElementById(id);
+                if (modal) modal.remove();
+            });
+
             const overlay = document.createElement('div');
             overlay.id = 'loadingOverlay';
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 999999; display: flex; align-items: center; justify-content: center;';
             overlay.innerHTML = `
-                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; align-items: center; justify-content: center;">
-                    <div style="background: #2a2a2a; padding: 30px 50px; border-radius: 12px; text-align: center;">
-                        <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: #6366f1; margin-bottom: 15px;"></i>
-                        <div style="color: #e0e0e0; font-size: 1.1em;">${message}</div>
-                    </div>
+                <div style="background: #2a2a2a; padding: 30px 50px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: #6366f1; display: block; margin-bottom: 15px;"></i>
+                    <div style="color: #e0e0e0; font-size: 1.1em;">${message}</div>
                 </div>
             `;
             document.body.appendChild(overlay);
@@ -4812,10 +4818,7 @@
                 const confirmed = await confirmDialog('Reset PIN', `Reset PIN for ${employeeName}? A new random PIN will be generated.`);
                 if (!confirmed) return;
 
-                // Close PIN modal and show loading overlay
-                if (document.getElementById('pinModal')) {
-                    document.getElementById('pinModal').remove();
-                }
+                // Show loading overlay (automatically closes modals)
                 showLoadingOverlay('Generating new PIN...');
 
                 try {
