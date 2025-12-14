@@ -95,7 +95,28 @@ class DatabaseManager:
         with self.get_cursor() as cursor:
             cursor.executemany(query, data)
             return cursor.rowcount
-    
+
+    @contextmanager
+    def transaction(self):
+        """Context manager for explicit transaction control across multiple operations.
+        Usage:
+            with db.transaction() as tx:
+                tx.execute("INSERT ...", params)
+                tx.execute("UPDATE ...", params)
+                tx.executemany("INSERT ...", data_list)
+            # Auto-commits on success, rolls back on exception
+        """
+        with self.get_connection() as connection:
+            cursor = connection.cursor(dictionary=True)
+            try:
+                yield cursor
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+            finally:
+                cursor.close()
+
     def close_pool(self):
         """Close all connections in the pool"""
         if self._pool:

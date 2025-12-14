@@ -41,32 +41,7 @@ def publish_schedule():
 
         db = get_db()
 
-        # Check if schedule for this week already exists
-        existing = db.execute_one("""
-            SELECT id FROM published_schedules WHERE week_start_date = %s
-        """, (week_start,))
-
-        if existing:
-            # Update existing - delete old shifts first
-            db.execute_query("""
-                DELETE FROM published_shifts WHERE schedule_id = %s
-            """, (existing['id'],))
-            schedule_id = existing['id']
-
-            # Update status
-            db.execute_query("""
-                UPDATE published_schedules
-                SET status = 'published', updated_at = NOW()
-                WHERE id = %s
-            """, (schedule_id,))
-        else:
-            # Create new schedule record and get ID directly (no extra SELECT needed)
-            schedule_id = db.execute_update("""
-                INSERT INTO published_schedules (week_start_date, status, created_by)
-                VALUES (%s, 'published', 'Manager')
-            """, (week_start,))
-
-        # Collect all employee IDs and validate they exist
+        # Validate employee IDs exist before starting transaction
         all_employee_ids = set()
         for station_id, dates in schedule_data.items():
             for date_str, shifts in dates.items():
@@ -75,7 +50,6 @@ def publish_schedule():
                     if emp_id:
                         all_employee_ids.add(emp_id)
 
-        # Validate employee IDs exist in database
         if all_employee_ids:
             placeholders = ','.join(['%s'] * len(all_employee_ids))
             valid_employees = db.execute_query(f"""
@@ -90,13 +64,12 @@ def publish_schedule():
                     'error': f'Invalid employee IDs: {list(invalid_ids)}. These employees may have been deleted.'
                 }), 400
 
-        # Collect all shifts for batch insert (10-20x faster than individual INSERTs)
+        # Collect shift values before transaction
         shift_values = []
         for station_id, dates in schedule_data.items():
             for date_str, shifts in dates.items():
                 for shift in shifts:
                     shift_values.append((
-                        schedule_id,
                         shift.get('employee_id'),
                         date_str,
                         station_id,
@@ -104,13 +77,26 @@ def publish_schedule():
                         normalize_time(shift.get('end_time'), '14:30')
                     ))
 
-        # Batch insert all shifts in one query
-        if shift_values:
-            db.execute_many("""
-                INSERT INTO published_shifts
-                (schedule_id, employee_id, shift_date, station, start_time, end_time)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, shift_values)
+        # All DB writes in single transaction (atomic - all succeed or all rollback)
+        with db.transaction() as tx:
+            # Check if schedule exists
+            tx.execute("SELECT id FROM published_schedules WHERE week_start_date = %s", (week_start,))
+            existing = tx.fetchone()
+
+            if existing:
+                schedule_id = existing['id']
+                tx.execute("DELETE FROM published_shifts WHERE schedule_id = %s", (schedule_id,))
+                tx.execute("UPDATE published_schedules SET status = 'published', updated_at = NOW() WHERE id = %s", (schedule_id,))
+            else:
+                tx.execute("INSERT INTO published_schedules (week_start_date, status, created_by) VALUES (%s, 'published', 'Manager')", (week_start,))
+                schedule_id = tx.lastrowid
+
+            # Batch insert shifts
+            if shift_values:
+                tx.executemany("""
+                    INSERT INTO published_shifts (schedule_id, employee_id, shift_date, station, start_time, end_time)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, [(schedule_id,) + vals for vals in shift_values])
 
         return jsonify({
             'success': True,

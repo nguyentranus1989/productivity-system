@@ -1607,6 +1607,47 @@
             renderEmployeeList(query);
         }
 
+        // Get total shift count across all stations/dates (used by save/publish/clear)
+        function getShiftCount() {
+            return Object.values(schedule).reduce((total, dates) =>
+                total + Object.values(dates).reduce((t, shifts) => t + shifts.length, 0), 0
+            );
+        }
+
+        // Update only time-off badges without full re-render (P7 optimization)
+        function updateTimeOffBadges() {
+            const weekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(currentWeekStart);
+                d.setDate(d.getDate() + i);
+                weekDates.push(formatDate(d));
+            }
+
+            document.querySelectorAll('.employee-chip').forEach(chip => {
+                const empId = parseInt(chip.dataset.id);
+                const avatar = chip.querySelector('.employee-avatar');
+                if (!avatar) return;
+
+                // Remove existing badge
+                const existingBadge = avatar.querySelector('span[style*="position:absolute"]');
+                if (existingBadge) existingBadge.remove();
+
+                // Check time-off status
+                const hasApproved = weekDates.some(d => isEmployeeOnTimeOff(empId, d));
+                const hasPending = weekDates.some(d => isEmployeePendingTimeOff(empId, d));
+
+                if (hasApproved) {
+                    avatar.insertAdjacentHTML('beforeend', '<span style="position:absolute;top:-2px;right:-2px;width:10px;height:10px;background:#ef4444;border-radius:50%;border:2px solid var(--bg-card);" title="Approved time-off this week"></span>');
+                    chip.title = 'Approved OFF';
+                } else if (hasPending) {
+                    avatar.insertAdjacentHTML('beforeend', '<span style="position:absolute;top:-2px;right:-2px;width:10px;height:10px;background:#f59e0b;border-radius:50%;border:2px solid var(--bg-card);" title="Pending time-off request"></span>');
+                    chip.title = 'Pending request';
+                } else {
+                    chip.title = '';
+                }
+            });
+        }
+
         // ============================================
         // BUILD SCHEDULE GRID
         // ============================================
@@ -1706,6 +1747,38 @@
 
         function getShiftsForCell(stationId, dateStr) {
             return schedule[stationId]?.[dateStr] || [];
+        }
+
+        // Render HTML content for a single cell (P3 optimization)
+        function renderCellContent(stationId, dateStr) {
+            const shifts = getShiftsForCell(stationId, dateStr);
+            if (shifts.length === 0) {
+                return '<div class="drop-zone">Drop here</div>';
+            }
+            return shifts.map(s => {
+                const safeName = s.name.replace(/'/g, "\\'");
+                return `
+                <div class="shift-card" data-employee-id="${s.employee_id}"
+                     data-employee-name="${s.name.replace(/"/g, '&quot;')}"
+                     draggable="true"
+                     ondragstart="handleShiftDragStart(event, '${stationId}', '${dateStr}', ${s.employee_id}, '${safeName}')"
+                     ondragend="handleDragEnd(event)"
+                     onclick="openEditModal('${stationId}', '${dateStr}', ${s.employee_id})">
+                    <div class="employee-name">${s.name}</div>
+                    <div class="shift-time">${formatTime(s.start_time)} - ${formatTime(s.end_time)}</div>
+                    <button class="remove-btn" onclick="event.stopPropagation(); removeShift('${stationId}', '${dateStr}', ${s.employee_id})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>`;
+            }).join('');
+        }
+
+        // Update a single cell without rebuilding entire grid (P3 optimization)
+        function updateCell(stationId, dateStr) {
+            const cell = document.querySelector(`.day-cell[data-station="${stationId}"][data-date="${dateStr}"]`);
+            if (cell) {
+                cell.innerHTML = renderCellContent(stationId, dateStr);
+            }
         }
 
         // ============================================
@@ -1836,7 +1909,9 @@
                 // Mark as unsaved
                 scheduleStatus = 'unsaved';
                 updateStatusIndicator();
-                buildScheduleGrid();
+                // P3: Update both source and target cells
+                updateCell(source.station, source.date);
+                updateCell(targetStation, targetDate);
 
                 showToast(`${employee.name} moved to ${getStationName(targetStation)}`);
                 return;
@@ -1860,7 +1935,7 @@
             }
 
             addShift(targetStation, targetDate, employee);
-            buildScheduleGrid();
+            updateCell(targetStation, targetDate); // P3: targeted update
             showToast(`${employee.name} added${hasPending ? ' (pending request!)' : ''}`);
         }
 
@@ -1927,8 +2002,8 @@
                     });
                 }
 
-                // Re-render employee list to show unavailable badges
-                renderEmployeeList();
+                // Update only badges, not full re-render (P7 optimization)
+                updateTimeOffBadges();
             } catch (error) {
                 console.log('Could not load time-off data');
             }
@@ -1965,7 +2040,7 @@
                 schedule[stationId][dateStr] = schedule[stationId][dateStr].filter(
                     s => s.employee_id !== employeeId
                 );
-                buildScheduleGrid();
+                updateCell(stationId, dateStr); // P3: targeted update instead of full rebuild
                 showToast('Shift removed');
 
                 // Mark as unsaved when modified
@@ -2018,7 +2093,7 @@
                 shift.start_time = document.getElementById('modalStartTime').value;
                 shift.end_time = document.getElementById('modalEndTime').value;
 
-                buildScheduleGrid();
+                updateCell(stationId, dateStr); // P3: targeted update
                 showToast('Shift time updated');
             }
 
@@ -2673,12 +2748,7 @@
 
         // Clear current week's schedule
         async function clearSchedule() {
-            let totalShifts = 0;
-            Object.values(schedule).forEach(dates => {
-                Object.values(dates).forEach(shifts => {
-                    totalShifts += shifts.length;
-                });
-            });
+            const totalShifts = getShiftCount();
 
             if (totalShifts === 0) {
                 showToast('Schedule is already empty', 'warning');
@@ -2698,13 +2768,6 @@
 
         // Save as draft (visible to manager only, not employees)
         async function saveDraft() {
-            let totalShifts = 0;
-            Object.values(schedule).forEach(dates => {
-                Object.values(dates).forEach(shifts => {
-                    totalShifts += shifts.length;
-                });
-            });
-
             showLoading('Saving draft...');
             try {
                 const response = await fetch(`${API_BASE}/schedule/save-draft`, {
@@ -2735,13 +2798,7 @@
         }
 
         async function publishSchedule() {
-            // Count shifts for confirmation message
-            let totalShifts = 0;
-            Object.values(schedule).forEach(dates => {
-                Object.values(dates).forEach(shifts => {
-                    totalShifts += shifts.length;
-                });
-            });
+            const totalShifts = getShiftCount();
 
             const title = totalShifts === 0 ? 'Publish Empty Schedule' : 'Publish Schedule';
             const msg = totalShifts === 0
