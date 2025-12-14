@@ -286,20 +286,12 @@ class ConnecteamClient:
 
                 # Validate: clock_out must be after clock_in
                 if clock_out < clock_in:
-                    logger.warning(
-                        f"Invalid shift for {employee_name}: clock_out ({clock_out}) before clock_in ({clock_in}). "
-                        f"Raw timestamps: start={clock_in_timestamp}, end={clock_out_timestamp}"
+                    logger.error(
+                        f"INVALID SHIFT SKIPPED for {employee_name}: clock_out ({clock_out}) before clock_in ({clock_in}). "
+                        f"Raw timestamps: start={clock_in_timestamp}, end={clock_out_timestamp}. "
+                        f"Manual review required - not auto-correcting to prevent data corruption."
                     )
-                    # Auto-correct: if clock_out is same day but earlier, assume next day
-                    if clock_out.date() == clock_in.date():
-                        from datetime import timedelta
-                        clock_out = clock_out + timedelta(days=1)
-                        total_minutes = (clock_out - clock_in).total_seconds() / 60
-                        logger.info(f"Auto-corrected clock_out to next day: {clock_out}")
-                    else:
-                        # Can't auto-fix, skip this shift
-                        logger.error(f"Cannot auto-correct shift for {employee_name} - dates differ. Skipping.")
-                        return None
+                    return None  # Skip invalid records, dont auto-correct
             else:
                 # Still working - calculate current duration using UTC
                 current_time = datetime.now(timezone.utc).timestamp()
@@ -398,26 +390,19 @@ class ConnecteamClient:
 
 # Example usage and testing
 if __name__ == "__main__":
-    # Initialize client
-    client = ConnecteamClient(
-        api_key="9255ce96-70eb-4982-82ef-fc35a7651428",
-        clock_id=7425182
-    )
-    
-    # Test: Get all employees
+    import os
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    # Initialize client from environment variables
+    api_key = os.getenv('CONNECTEAM_API_KEY')
+    clock_id = int(os.getenv('CONNECTEAM_CLOCK_ID', '0'))
+
+    if not api_key or not clock_id:
+        print("Error: Set CONNECTEAM_API_KEY and CONNECTEAM_CLOCK_ID in .env")
+        exit(1)
+
+    client = ConnecteamClient(api_key=api_key, clock_id=clock_id)
     print("Fetching all employees...")
     employees = client.get_all_employees()
     print(f"Found {len(employees)} employees")
-    
-    # Test: Get today's shifts
-    print("\nGetting today's shifts...")
-    shifts = client.get_todays_shifts()
-    for shift in shifts:
-        status = "Working" if shift.is_active else "Completed"
-        print(f"{shift.employee_name} ({shift.title}) - {status} - {shift.total_minutes:.1f} minutes")
-    
-    # Test: Get currently working
-    print("\nCurrently working:")
-    working = client.get_currently_working()
-    for shift in working:
-        print(f"- {shift.employee_name}: {shift.total_minutes:.1f} minutes so far")

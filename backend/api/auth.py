@@ -110,9 +110,9 @@ class RateLimiter:
             return True
             
         except Exception as e:
-            logger.error(f"Rate limiter error: {e}")
-            # Allow request on error
-            return True
+            logger.critical(f"Rate limiter error - failing closed: {e}")
+            # Fail closed for security - deny request if Redis unavailable
+            return False
     
     def get_limit_info(self, identifier: str) -> Dict:
         """Get current rate limit information"""

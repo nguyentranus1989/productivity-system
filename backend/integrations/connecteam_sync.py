@@ -558,7 +558,7 @@ class ConnecteamSync:
             
             total_minutes = shift.total_minutes if shift.clock_out else 0
             
-            result = self.db.execute_query(
+            clock_time_id = self.db.execute_update(
                 insert_query,
                 (
                     employee_id,
@@ -569,15 +569,15 @@ class ConnecteamSync:
                 )
             )
             
-            if result == 0:  # No rows inserted (duplicate prevented)
+            if not clock_time_id:  # No rows inserted (duplicate prevented)
                 logger.warning(f"Duplicate clock record prevented for employee {employee_id}")
                 return True
             
-            logger.info(f"Created new clock record for employee {employee_id}")
+            logger.info(f"Created new clock record {clock_time_id} for employee {employee_id}")
             
             # Sync breaks if any
-            if shift.breaks and self.db.cursor.lastrowid:
-                self._sync_breaks(self.db.cursor.lastrowid, shift.breaks)
+            if shift.breaks and clock_time_id:
+                self._sync_breaks(clock_time_id, shift.breaks)
             
             return False
             
@@ -602,7 +602,7 @@ class ConnecteamSync:
         
         try:
             # Execute the query and get row count
-            result = self.db.execute_query(cleanup_query, (today,))
+            clock_time_id = self.db.execute_update(cleanup_query, (today,))
             
             # Handle different return types
             if isinstance(result, int):
@@ -630,8 +630,8 @@ class ConnecteamSync:
                 INSERT INTO sync_locks (id, process_name, locked_at, pid)
                 VALUES (1, 'connecteam_sync', NOW(), %s)
                 ON DUPLICATE KEY UPDATE
-                    locked_at = IF(TIMESTAMPDIFF(MINUTE, locked_at, NOW()) > 10, NOW(), locked_at),
-                    pid = IF(TIMESTAMPDIFF(MINUTE, locked_at, NOW()) > 10, %s, pid)
+                    locked_at = IF(TIMESTAMPDIFF(MINUTE, locked_at, NOW()) > 2, NOW(), locked_at),
+                    pid = IF(TIMESTAMPDIFF(MINUTE, locked_at, NOW()) > 2, %s, pid)
             """, (os.getpid(), os.getpid()))
             
             # Check if we got the lock
@@ -1002,10 +1002,3 @@ class ConnecteamSync:
         }
 
 
-# Add this to config.py
-CONNECTEAM_CONFIG = {
-    'API_KEY': '9255ce96-70eb-4982-82ef-fc35a7651428',
-    'CLOCK_ID': 7425182,
-    'SYNC_INTERVAL': 150,  # 5 minutes
-    'ENABLE_AUTO_SYNC': True
-}
