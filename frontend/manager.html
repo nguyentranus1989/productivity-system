@@ -603,8 +603,7 @@
                             <tr style="border-bottom: 2px solid rgba(255,255,255,0.2);">
                                 <th style="padding: 12px;">ID</th>
                                 <th style="padding: 12px;">Name</th>
-                                <th style="padding: 12px;">Work Email</th>
-                                <th style="padding: 12px;">Personal Email</th>
+                                <th style="padding: 12px;">Email</th>
                                 <th style="padding: 12px;">Status</th>
                                 <th style="padding: 12px;">PIN</th>
                                 <th style="padding: 12px;">Actions</th>
@@ -3503,21 +3502,26 @@
                     console.log('Response received:', response);
 
                     if (response && response.employees) {
-                        // Create PIN lookup map by employee ID
-                        const pinMap = {};
+                        // Create lookup map by employee ID for PIN and personal_email
+                        const adminMap = {};
                         if (pinResponse && pinResponse.employees) {
                             pinResponse.employees.forEach(emp => {
-                                pinMap[emp.id] = { has_pin: emp.has_pin, pin_plain: emp.pin_plain };
+                                adminMap[emp.id] = {
+                                    has_pin: emp.has_pin,
+                                    pin_plain: emp.pin_plain,
+                                    personal_email: emp.personal_email
+                                };
                             });
                         }
 
-                        // Filter out archived employees and merge PIN data
+                        // Filter out archived employees and merge admin data
                         const activeEmployees = response.employees
                             .filter(e => e.is_active === 1 || e.is_active === true)
                             .map(emp => ({
                                 ...emp,
-                                has_pin: pinMap[emp.id]?.has_pin || 0,
-                                pin_plain: pinMap[emp.id]?.pin_plain || null
+                                has_pin: adminMap[emp.id]?.has_pin || 0,
+                                pin_plain: adminMap[emp.id]?.pin_plain || null,
+                                personal_email: adminMap[emp.id]?.personal_email || null
                             }));
                         console.log('Active employees found:', activeEmployees.length);
 
@@ -3590,7 +3594,6 @@
                         <tr>
                             <td style="padding: 12px;">${emp.id}</td>
                             <td style="padding: 12px;">${emp.name}</td>
-                            <td style="padding: 12px;">${emp.email || '-'}</td>
                             <td style="padding: 12px;">${personalEmailDisplay}</td>
                             <td style="padding: 12px;"><span class="badge ${emp.is_active ? 'badge-success' : 'badge-danger'}" style="background: ${emp.is_active ? '#22c55e' : '#ef4444'}; padding: 4px 12px; border-radius: 12px;">${emp.is_active ? 'Active' : 'Inactive'}</span></td>
                             <td style="padding: 12px;">${pinDisplay}</td>
