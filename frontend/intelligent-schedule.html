@@ -1557,7 +1557,9 @@
         // ============================================
         // CONFIGURATION
         // ============================================
-        const API_BASE = 'http://127.0.0.1:5000/api';
+        // Dynamic API base - works for both local dev and production
+        const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://127.0.0.1:5000/api' : '/api';
         let currentWeekStart = getMonday(new Date());
         let employees = [];
         let schedule = {}; // { 'heat_press': { '2025-12-16': [{employee_id, name, time}] } }
