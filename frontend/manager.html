@@ -3575,10 +3575,15 @@
                         ).join('')
                         : '<span style="color: #fbbf24;">Not mapped</span>';
 
-                    // PIN status display
-                    const pinDisplay = emp.has_pin
-                        ? `<button onclick="viewEmployeePin(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${emp.pin_plain || ''}')" style="padding: 4px 12px; background: #6366f1; color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 12px;">View</button>`
-                        : `<span style="color: #fbbf24; background: rgba(251,191,36,0.15); padding: 4px 10px; border-radius: 12px; font-size: 12px;">NOT SET</span>`;
+                    // PIN status display: NOT SET | View (has plain) | Reset (no plain)
+                    let pinDisplay;
+                    if (!emp.has_pin) {
+                        pinDisplay = `<span style="color: #fbbf24; background: rgba(251,191,36,0.15); padding: 4px 10px; border-radius: 12px; font-size: 12px;">NOT SET</span>`;
+                    } else if (emp.pin_plain) {
+                        pinDisplay = `<button onclick="viewEmployeePin(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${emp.pin_plain}')" style="padding: 4px 12px; background: #6366f1; color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 12px;">View</button>`;
+                    } else {
+                        pinDisplay = `<button onclick="resetEmployeePin(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')" style="padding: 4px 12px; background: #f59e0b; color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 12px;" title="Legacy PIN - reset to view">Reset</button>`;
+                    }
 
                     return `
                         <tr>
