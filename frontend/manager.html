@@ -586,8 +586,11 @@
             <!-- Employee List Tab -->
             <div id="empTabList" class="emp-tab-content" style="display: block;">
                 <div style="margin-bottom: 20px;">
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="empSearchInput" placeholder="Search by name, email, or ID..." onkeyup="debouncedFilterEmployees()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <input type="text" id="empSearchInput" placeholder="Search by name, email, or ID..." onkeyup="debouncedFilterEmployees()" style="flex: 1; min-width: 200px; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                        <button class="btn-action btn-secondary" onclick="exportEmployeePins()">
+                            <i class="fas fa-download"></i> Export PINs
+                        </button>
                         <button class="btn-action btn-secondary" onclick="syncWithConnecteam()">
                             <i class="fas fa-sync"></i> Sync Connecteam
                         </button>
@@ -5173,6 +5176,37 @@
                 } catch (error) {
                     console.error('Error:', error);
                     await alertDialog('Error', 'Error saving mapping');
+                }
+            };
+
+            window.exportEmployeePins = async function() {
+                showLoadingOverlay('Exporting employee PINs...');
+
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin/employees/export-pins`, {
+                        headers: { 'X-API-Key': 'dev-api-key-123' }
+                    });
+
+                    hideLoadingOverlay();
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `employee_pins_${new Date().toISOString().split('T')[0]}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        a.remove();
+                        showNotification('PINs exported successfully', 'success');
+                    } else {
+                        await alertDialog('Error', 'Failed to export PINs');
+                    }
+                } catch (error) {
+                    hideLoadingOverlay();
+                    console.error('Export error:', error);
+                    await alertDialog('Error', 'Error exporting PINs: ' + error.message);
                 }
             };
 
