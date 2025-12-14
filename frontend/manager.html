@@ -3525,7 +3525,6 @@
                                     Actions ▼
                                 </button>
                                 <div id="dropdown-${emp.id}" style="display: none; position: absolute; right: 0; top: 100%; background: #2a2a2a; min-width: 120px; box-shadow: 0px 8px 16px rgba(0,0,0,0.2); z-index: 1000; border-radius: 5px; margin-top: 5px;">
-                                    <a href="#" onclick="editEmployee(${emp.id}); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">✏️ Edit</a>
                                     <a href="#" onclick="mapEmployee(${emp.id}); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">🔗 Map</a>
                                     <a href="#" onclick="openSetPinModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">🔑 PIN</a>
                                     <a href="#" onclick="archiveEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: #ef4444; padding: 10px 15px; text-decoration: none; display: block;">🗑️ Archive</a>
