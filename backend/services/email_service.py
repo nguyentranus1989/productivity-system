@@ -14,7 +14,7 @@ class EmailService:
     """Gmail SMTP email sender"""
 
     PORTAL_URL = "https://productivity.colorecommerce.us/employee.html"
-    COMPANY_NAME = "Color Ecommerce"
+    COMPANY_NAME = "Productivity Tracker"
 
     @staticmethod
     def is_configured():
