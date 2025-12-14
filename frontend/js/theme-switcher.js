@@ -37,7 +37,7 @@ const ThemeSwitcher = {
     STORAGE_KEY: 'selectedTheme',
 
     // Default theme
-    DEFAULT_THEME: 'cyberpunk',
+    DEFAULT_THEME: 'industrial',
 
     /**
      * Initialize theme on page load
