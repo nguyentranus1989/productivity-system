@@ -3433,9 +3433,19 @@
             
             // Initialize chart
             initializeChart();
-            
-            // Load initial data
-            loadDashboardData();
+
+            // Restore saved tab or load dashboard
+            const savedTab = localStorage.getItem('managerActiveTab');
+            if (savedTab && savedTab !== 'dashboard') {
+                if (savedTab === 'employee-management') {
+                    showEmployeeManagement();
+                } else {
+                    showSection(savedTab);
+                }
+            } else {
+                // Load dashboard as default
+                loadDashboardData();
+            }
             
             // Set up auto-refresh every 2 minutes (only when tab visible)
             refreshInterval = setInterval(() => {
@@ -3471,8 +3481,9 @@
             
             // Employee Management Functions
             window.showEmployeeManagement = function() {
+                localStorage.setItem('managerActiveTab', 'employee-management');
                 showSection('employee-management');
-                window.loadEmployeeManagementData();  // Add window. prefix
+                window.loadEmployeeManagementData();
             };
 
             window.loadEmployeeManagementData = async function() {
@@ -5286,6 +5297,9 @@
 
             // Make showSection globally accessible
             window.showSection = function(sectionName) {
+                // Save current tab to localStorage
+                localStorage.setItem('managerActiveTab', sectionName);
+
                 // Show loading spinner
                 const sectionLabels = {
                     'dashboard': 'Loading Dashboard...',
@@ -5310,8 +5324,17 @@
                     targetSection.classList.add('active');
                 }
 
-                // Mark nav item as active
-                if (event && event.target) {
+                // Mark nav item as active (find by section name or use event.target)
+                const navSectionMap = {
+                    'dashboard': 0,
+                    'bottleneck': 1,
+                    'cost': 2,
+                    'employee-management': 4
+                };
+                const sidebarNavItems = document.querySelectorAll('.sidebar .nav-item');
+                if (navSectionMap[sectionName] !== undefined && sidebarNavItems[navSectionMap[sectionName]]) {
+                    sidebarNavItems[navSectionMap[sectionName]].classList.add('active');
+                } else if (event && event.target) {
                     const navItem = event.target.closest('.nav-item');
                     if (navItem) {
                         navItem.classList.add('active');
