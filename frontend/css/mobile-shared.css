@@ -431,7 +431,8 @@
 }
 
 @media (max-width: 768px) {
-    .chart-container {
+    /* Only apply height restrictions to chart containers WITH canvases */
+    .chart-container:has(canvas) {
         min-height: 180px !important;
         max-height: 280px !important;
     }
