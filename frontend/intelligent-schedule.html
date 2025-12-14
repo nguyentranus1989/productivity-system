@@ -579,6 +579,13 @@
             display: flex;
         }
 
+        /* Long press visual feedback */
+        .shift-card.long-press-active {
+            background: var(--danger) !important;
+            border-color: var(--danger) !important;
+            transform: scale(1.02);
+        }
+
         /* Empty Drop Zone */
         .drop-zone {
             border: 2px dashed var(--border-subtle);
@@ -2105,7 +2112,10 @@
                                      draggable="true"
                                      ondragstart="handleShiftDragStart(event, '${station.id}', '${dateStr}', ${s.employee_id}, '${safeName}')"
                                      ondragend="handleDragEnd(event)"
-                                     onclick="openEditModal('${station.id}', '${dateStr}', ${s.employee_id})">
+                                     onclick="openEditModal('${station.id}', '${dateStr}', ${s.employee_id})"
+                                     ontouchstart="handleShiftTouchStart(event, '${station.id}', '${dateStr}', ${s.employee_id}, '${safeName}')"
+                                     ontouchend="handleShiftTouchEnd(event)"
+                                     ontouchmove="handleShiftTouchMove(event)">
                                     <div class="employee-name">${s.name}</div>
                                     <div class="shift-time">${formatTime(s.start_time)} - ${formatTime(s.end_time)}</div>
                                     <button class="remove-btn" onclick="event.stopPropagation(); removeShift('${station.id}', '${dateStr}', ${s.employee_id})">
@@ -2150,7 +2160,10 @@
                      draggable="true"
                      ondragstart="handleShiftDragStart(event, '${stationId}', '${dateStr}', ${s.employee_id}, '${safeName}')"
                      ondragend="handleDragEnd(event)"
-                     onclick="openEditModal('${stationId}', '${dateStr}', ${s.employee_id})">
+                     onclick="openEditModal('${stationId}', '${dateStr}', ${s.employee_id})"
+                     ontouchstart="handleShiftTouchStart(event, '${stationId}', '${dateStr}', ${s.employee_id}, '${safeName}')"
+                     ontouchend="handleShiftTouchEnd(event)"
+                     ontouchmove="handleShiftTouchMove(event)">
                     <div class="employee-name">${s.name}</div>
                     <div class="shift-time">${formatTime(s.start_time)} - ${formatTime(s.end_time)}</div>
                     <button class="remove-btn" onclick="event.stopPropagation(); removeShift('${stationId}', '${dateStr}', ${s.employee_id})">
@@ -2515,6 +2528,63 @@
                 // Mark as unsaved when modified
                 scheduleStatus = 'unsaved';
                 updateStatusIndicator();
+            }
+        }
+
+        // ============================================
+        // LONG PRESS TO DELETE (Mobile)
+        // ============================================
+        let longPressTimer = null;
+        let longPressTarget = null;
+
+        function handleShiftTouchStart(event, stationId, dateStr, employeeId, employeeName) {
+            event.stopPropagation();
+            const card = event.currentTarget;
+            longPressTarget = { stationId, dateStr, employeeId, employeeName, card };
+
+            // Start long press timer (500ms)
+            longPressTimer = setTimeout(async () => {
+                // Vibrate if supported
+                if (navigator.vibrate) navigator.vibrate(50);
+
+                // Add visual feedback
+                card.classList.add('long-press-active');
+
+                // Confirm and delete
+                const confirmed = await confirmDialog(
+                    'Remove Shift',
+                    `Remove ${employeeName} from this shift?`,
+                    { danger: true, confirmText: 'Remove' }
+                );
+
+                card.classList.remove('long-press-active');
+
+                if (confirmed) {
+                    removeShift(stationId, dateStr, employeeId);
+                }
+
+                longPressTarget = null;
+            }, 500);
+        }
+
+        function handleShiftTouchEnd(event) {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            if (longPressTarget?.card) {
+                longPressTarget.card.classList.remove('long-press-active');
+            }
+        }
+
+        function handleShiftTouchMove(event) {
+            // Cancel long press if finger moves
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            if (longPressTarget?.card) {
+                longPressTarget.card.classList.remove('long-press-active');
             }
         }
 
