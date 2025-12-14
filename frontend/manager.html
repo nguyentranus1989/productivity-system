@@ -3434,18 +3434,20 @@
             // Initialize chart
             initializeChart();
 
-            // Restore saved tab or load dashboard
-            const savedTab = localStorage.getItem('managerActiveTab');
-            if (savedTab && savedTab !== 'dashboard') {
-                if (savedTab === 'employee-management') {
-                    showEmployeeManagement();
+            // Restore saved tab or load dashboard (deferred to ensure functions are defined)
+            setTimeout(() => {
+                const savedTab = localStorage.getItem('managerActiveTab');
+                if (savedTab && savedTab !== 'dashboard') {
+                    if (savedTab === 'employee-management') {
+                        window.showEmployeeManagement();
+                    } else {
+                        window.showSection(savedTab);
+                    }
                 } else {
-                    showSection(savedTab);
+                    // Load dashboard as default
+                    loadDashboardData();
                 }
-            } else {
-                // Load dashboard as default
-                loadDashboardData();
-            }
+            }, 0);
             
             // Set up auto-refresh every 2 minutes (only when tab visible)
             refreshInterval = setInterval(() => {
