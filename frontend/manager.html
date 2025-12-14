@@ -1477,6 +1477,29 @@
         const debouncedFilterPayrates = debounce(() => filterPayrates(), 300);
         const debouncedFilterAvailableWorkers = debounce((val) => filterAvailableWorkers(val), 300);
 
+        // ============= LOADING OVERLAY UTILITY =============
+        function showLoadingOverlay(message = 'Loading...') {
+            const existing = document.getElementById('loadingOverlay');
+            if (existing) existing.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = 'loadingOverlay';
+            overlay.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: #2a2a2a; padding: 30px 50px; border-radius: 12px; text-align: center;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: #6366f1; margin-bottom: 15px;"></i>
+                        <div style="color: #e0e0e0; font-size: 1.1em;">${message}</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        function hideLoadingOverlay() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.remove();
+        }
+
         // ============= EMPLOYEE TABLE PAGINATION =============
         const employeePagination = {
             currentPage: 1,
@@ -3875,6 +3898,11 @@
                 return;
             }
 
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            btn.disabled = true;
+
             try {
                 const response = await api.request('/dashboard/employees/create-mapping', {
                     method: 'POST',
@@ -3892,10 +3920,14 @@
                     loadNeedsAttention();
                     loadEmployeeManagementData();
                 } else {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                     await alertDialog('Error', response.error || 'Failed to save mapping');
                 }
             } catch (error) {
                 console.error('Error saving PodFactory mapping:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
                 await alertDialog('Error', 'Error saving mapping: ' + error.message);
             }
         };
@@ -3903,6 +3935,11 @@
         window.markAsContractor = async function(employeeId, employeeName) {
             const confirmed = await confirmDialog('Mark as Contractor', `Mark "${employeeName}" as a contractor? This will exempt them from Connecteam time tracking.`);
             if (!confirmed) return;
+
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
 
             try {
                 const response = await api.request(`/dashboard/employees/${employeeId}/mark-contractor`, {
@@ -3915,10 +3952,14 @@
                     loadNeedsAttention();
                     loadEmployeeManagementData();
                 } else {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                     showNotification(response.error || 'Failed to mark as contractor', 'error');
                 }
             } catch (error) {
                 console.error('Error marking contractor:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
                 showNotification('Error marking contractor', 'error');
             }
         };
@@ -4035,6 +4076,11 @@
             const confirmed = await confirmDialog('Approve Mapping', 'Approve this email mapping?');
             if (!confirmed) return;
 
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+
             try {
                 const response = await api.request(`/dashboard/employees/mapping/${mappingId}/verify`, {
                     method: 'POST',
@@ -4045,10 +4091,14 @@
                     showNotification('Mapping approved', 'success');
                     loadPendingVerifications();
                 } else {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                     showNotification(response.error || 'Failed to approve', 'error');
                 }
             } catch (error) {
                 console.error('Error approving mapping:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
                 showNotification('Error approving mapping', 'error');
             }
         };
@@ -4056,6 +4106,11 @@
         window.rejectMapping = async function(mappingId) {
             const confirmed = await confirmDialog('Reject Mapping', 'Reject this mapping? The email will need to be re-mapped manually.');
             if (!confirmed) return;
+
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
 
             try {
                 const response = await api.request(`/dashboard/employees/mapping/${mappingId}/verify`, {
@@ -4067,10 +4122,14 @@
                     showNotification('Mapping rejected', 'success');
                     loadPendingVerifications();
                 } else {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                     showNotification(response.error || 'Failed to reject', 'error');
                 }
             } catch (error) {
                 console.error('Error rejecting mapping:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
                 showNotification('Error rejecting mapping', 'error');
             }
         };
@@ -4085,12 +4144,15 @@
                 return;
             }
 
+            showLoadingOverlay('Reassigning...');
+
             try {
                 const response = await api.request(`/dashboard/employees/mapping/${mappingId}/reassign`, {
                     method: 'POST',
                     body: JSON.stringify({ employee_id: parseInt(newEmployeeId), verified_by: 'manager' })
                 });
 
+                hideLoadingOverlay();
                 if (response.success) {
                     showNotification('Mapping reassigned successfully', 'success');
                     loadPendingVerifications();
@@ -4098,6 +4160,7 @@
                     showNotification(response.error || 'Failed to reassign', 'error');
                 }
             } catch (error) {
+                hideLoadingOverlay();
                 console.error('Error reassigning mapping:', error);
                 showNotification('Error reassigning mapping', 'error');
             }
@@ -4202,6 +4265,11 @@
             const confirmed = await confirmDialog('Apply Mapping', `Map "${pfName || pfEmail}" to employee "${employeeName}"?`);
             if (!confirmed) return;
 
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+
             try {
                 const response = await api.request('/dashboard/employees/create-mapping', {
                     method: 'POST',
@@ -4217,10 +4285,14 @@
                     showNotification('Mapping created successfully', 'success');
                     loadMappingRecommendations();
                 } else {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                     showNotification(response.error || 'Failed to create mapping', 'error');
                 }
             } catch (error) {
                 console.error('Error creating mapping:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
                 showNotification('Error creating mapping', 'error');
             }
         };
@@ -4277,6 +4349,11 @@
 
             const employeeName = document.getElementById('manualMappingEmployee').selectedOptions[0].text;
 
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            btn.disabled = true;
+
             try {
                 const response = await api.request('/dashboard/employees/create-mapping', {
                     method: 'POST',
@@ -4293,10 +4370,14 @@
                     showNotification('Mapping created successfully', 'success');
                     loadMappingRecommendations();
                 } else {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                     showNotification(response.error || 'Failed to create mapping', 'error');
                 }
             } catch (error) {
                 console.error('Error creating mapping:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
                 showNotification('Error creating mapping', 'error');
             }
         };
@@ -4588,6 +4669,11 @@
                 const confirmed = await confirmDialog('Restore Employee', `Restore ${name} to active employees?`);
                 if (!confirmed) return;
 
+                const btn = event.target.closest('button');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restoring...';
+                btn.disabled = true;
+
                 try {
                     const response = await fetch(`${API_BASE}/api/dashboard/employees/${id}/restore`, {
                         method: 'POST',
@@ -4598,8 +4684,13 @@
                         await alertDialog('Success', 'Employee restored successfully');
                         loadArchivedEmployees();
                         loadEmployeeManagementData();
+                    } else {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
                     }
                 } catch (error) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                     await alertDialog('Error', 'Failed to restore employee');
                 }
             };
@@ -4608,6 +4699,10 @@
                 const confirmed = await confirmDialog('Archive Employee', `Are you sure you want to archive ${name}? They will be hidden from all active views.`, { type: 'warning' });
                 if (!confirmed) return;
 
+                // Close dropdown and show loading overlay
+                document.querySelectorAll('[id^="dropdown-"]').forEach(d => d.style.display = 'none');
+                showLoadingOverlay('Archiving employee...');
+
                 try {
                     const response = await fetch(`${API_BASE}/api/dashboard/employees/${id}/archive`, {
                         method: 'POST',
@@ -4615,6 +4710,7 @@
                     });
 
                     const data = await response.json();
+                    hideLoadingOverlay();
                     if (data.success) {
                         await alertDialog('Success', 'Employee archived successfully');
                         loadEmployeeManagementData();
@@ -4622,6 +4718,7 @@
                         await alertDialog('Error', 'Error: ' + data.error);
                     }
                 } catch (error) {
+                    hideLoadingOverlay();
                     await alertDialog('Error', 'Failed to archive employee');
                 }
             };
@@ -5061,12 +5158,15 @@
                 const confirmed = await confirmDialog('Sync Connecteam', 'Sync all employees from Connecteam? This may take a moment.');
                 if (!confirmed) return;
 
+                showLoadingOverlay('Syncing with Connecteam...');
+
                 try {
                     const response = await fetch(`${API_BASE}/api/connecteam/sync/employees`, {
                         method: 'POST',
                         headers: {'X-API-Key': 'dev-api-key-123'}
                     });
 
+                    hideLoadingOverlay();
                     if (response.ok) {
                         const result = await response.json();
                         await alertDialog('Sync Complete', `Updated: ${result.stats.updated}, Created: ${result.stats.created}`);
@@ -5075,6 +5175,7 @@
                         await alertDialog('Error', 'Sync failed');
                     }
                 } catch (error) {
+                    hideLoadingOverlay();
                     await alertDialog('Error', 'Error syncing with Connecteam');
                 }
             };
