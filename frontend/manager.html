@@ -4815,10 +4815,14 @@
             };
 
             window.resetEmployeePin = async function(employeeId, employeeName) {
+                // Close PIN modal FIRST before showing confirmation
+                const pinModal = document.getElementById('pinModal');
+                if (pinModal) pinModal.remove();
+
                 const confirmed = await confirmDialog('Reset PIN', `Reset PIN for ${employeeName}? A new random PIN will be generated.`);
                 if (!confirmed) return;
 
-                // Show loading overlay (automatically closes modals)
+                // Show loading overlay
                 showLoadingOverlay('Generating new PIN...');
 
                 try {
