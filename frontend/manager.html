@@ -4812,11 +4812,11 @@
                 const confirmed = await confirmDialog('Reset PIN', `Reset PIN for ${employeeName}? A new random PIN will be generated.`);
                 if (!confirmed) return;
 
-                // Show loading state
-                const btn = event.target.closest('button');
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
-                btn.disabled = true;
+                // Close PIN modal and show loading overlay
+                if (document.getElementById('pinModal')) {
+                    document.getElementById('pinModal').remove();
+                }
+                showLoadingOverlay('Generating new PIN...');
 
                 try {
                     const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/reset-pin`, {
@@ -4825,20 +4825,15 @@
                     });
 
                     const data = await response.json();
+                    hideLoadingOverlay();
                     if (data.success) {
-                        if (document.getElementById('pinModal')) {
-                            document.getElementById('pinModal').remove();
-                        }
                         showPinSlip(employeeName, data.pin);
                     } else {
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
                         await alertDialog('Error', data.error || 'Failed to reset PIN');
                     }
                 } catch (error) {
                     console.error('Error resetting PIN:', error);
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
+                    hideLoadingOverlay();
                     await alertDialog('Error', 'Failed to reset PIN: ' + error.message);
                 }
             };
@@ -4846,20 +4841,20 @@
             function showPinSlip(employeeName, pin) {
                 const modal = `
                     <div id="pinSlipModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10001; display: flex; align-items: center; justify-content: center;">
-                        <div style="background: white; padding: 40px; border-radius: 12px; width: 320px; text-align: center;">
-                            <div style="color: #6b7280; font-size: 0.85em; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">
+                        <div style="background: #2a2a2a; padding: 40px; border-radius: 12px; width: 320px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+                            <div style="color: #a0a0a0; font-size: 0.85em; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">
                                 Employee PIN Slip
                             </div>
-                            <div style="color: #1f2937; font-size: 1.2em; font-weight: 600; margin-bottom: 20px;">
+                            <div style="color: #e0e0e0; font-size: 1.2em; font-weight: 600; margin-bottom: 20px;">
                                 ${employeeName}
                             </div>
-                            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                                <div style="color: #6b7280; font-size: 0.8em; margin-bottom: 5px;">PIN</div>
-                                <div style="font-family: monospace; font-size: 2.5em; font-weight: 700; color: #1f2937; letter-spacing: 8px;">
+                            <div style="background: rgba(99, 102, 241, 0.15); padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(99, 102, 241, 0.3);">
+                                <div style="color: #a0a0a0; font-size: 0.8em; margin-bottom: 5px;">PIN</div>
+                                <div style="font-family: monospace; font-size: 2.5em; font-weight: 700; color: #6366f1; letter-spacing: 8px;">
                                     ${pin}
                                 </div>
                             </div>
-                            <div style="color: #ef4444; font-size: 0.8em; margin-bottom: 20px;">
+                            <div style="color: #f59e0b; font-size: 0.8em; margin-bottom: 20px;">
                                 ⚠️ This PIN will only be shown once!
                             </div>
                             <div style="display: flex; gap: 10px;">
@@ -4879,7 +4874,11 @@
             }
 
             function printPinSlip(employeeName, pin) {
-                const printWindow = window.open('', '_blank');
+                const printWindow = window.open('', '_blank', 'width=400,height=400');
+                if (!printWindow) {
+                    alertDialog('Popup Blocked', 'Please allow popups for this site to print the PIN slip.');
+                    return;
+                }
                 printWindow.document.write(`
                     <html>
                     <head><title>PIN Slip - ${employeeName}</title></head>
@@ -4894,7 +4893,10 @@
                     </html>
                 `);
                 printWindow.document.close();
-                printWindow.print();
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 250);
             }
 
             window.editEmployee = async function(id) {
