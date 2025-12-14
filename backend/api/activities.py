@@ -183,16 +183,53 @@ def create_batch_activities():
                 'details': validation_errors
             }), 400
         
-        # Process activities
+        # Process activities with batch lookups (N+1 query fix)
         db = get_db()
         success_count = 0
         errors = []
         processed = []
-        
+
+        # Batch fetch: employees by email (1 query instead of N)
+        unique_emails = list(set(a['user_email'] for a in activities))
+        if unique_emails:
+            placeholders = ','.join(['%s'] * len(unique_emails))
+            employees_list = db.execute_query(
+                f"SELECT id, email, name, role_id FROM employees WHERE email IN ({placeholders})",
+                tuple(unique_emails)
+            )
+            employee_map = {e['email']: e for e in employees_list}
+        else:
+            employee_map = {}
+
+        # Batch fetch: roles by name (1 query instead of N)
+        unique_roles = list(set(a['user_role'] for a in activities))
+        if unique_roles:
+            placeholders = ','.join(['%s'] * len(unique_roles))
+            roles_list = db.execute_query(
+                f"SELECT id, role_name FROM role_configs WHERE role_name IN ({placeholders})",
+                tuple(unique_roles)
+            )
+            role_map = {r['role_name']: r for r in roles_list}
+        else:
+            role_map = {}
+
+        # Batch check duplicates (1 query instead of N)
+        report_ids = [a['report_id'] for a in activities]
+        if report_ids:
+            placeholders = ','.join(['%s'] * len(report_ids))
+            existing_list = db.execute_query(
+                f"SELECT report_id FROM activity_logs WHERE report_id IN ({placeholders})",
+                tuple(report_ids)
+            )
+            existing_ids = {e['report_id'] for e in existing_list}
+        else:
+            existing_ids = set()
+
+        # Process with O(1) lookups
         for idx, activity_data in enumerate(activities):
             try:
-                # Check employee
-                employee = db.execute_one(GET_EMPLOYEE_BY_EMAIL, (activity_data['user_email'],))
+                # Check employee (O(1) dict lookup)
+                employee = employee_map.get(activity_data['user_email'])
                 if not employee:
                     errors.append({
                         'index': idx,
@@ -200,9 +237,9 @@ def create_batch_activities():
                         'error': f"Employee not found: {activity_data['user_email']}"
                     })
                     continue
-                
-                # Check role
-                role = db.execute_one(GET_ROLE_BY_NAME, (activity_data['user_role'],))
+
+                # Check role (O(1) dict lookup)
+                role = role_map.get(activity_data['user_role'])
                 if not role or employee['role_id'] != role['id']:
                     errors.append({
                         'index': idx,
@@ -210,24 +247,20 @@ def create_batch_activities():
                         'error': 'Invalid or mismatched role'
                     })
                     continue
-                
-                # Check for duplicate
-                existing = db.execute_one(
-                    "SELECT id FROM activity_logs WHERE report_id = %s",
-                    (activity_data['report_id'],)
-                )
-                if existing:
+
+                # Check duplicate (O(1) set lookup)
+                if activity_data['report_id'] in existing_ids:
                     errors.append({
                         'index': idx,
                         'report_id': activity_data['report_id'],
                         'error': 'Duplicate activity'
                     })
                     continue
-                
+
                 # Parse timestamps
                 window_start = datetime.strptime(activity_data['window_start'], '%Y-%m-%d %H:%M:%S')
                 window_end = datetime.strptime(activity_data['window_end'], '%Y-%m-%d %H:%M:%S')
-                
+
                 # Insert activity
                 activity_id = db.execute_update(
                     INSERT_ACTIVITY,
@@ -240,13 +273,16 @@ def create_batch_activities():
                         window_end
                     )
                 )
-                
+
+                # Track for duplicate prevention within same batch
+                existing_ids.add(activity_data['report_id'])
+
                 success_count += 1
                 processed.append({
                     'report_id': activity_data['report_id'],
                     'activity_id': activity_id
                 })
-                
+
             except Exception as e:
                 errors.append({
                     'index': idx,

@@ -1817,6 +1817,59 @@
             document.getElementById('loadingOverlay').classList.remove('active');
         }
 
+        // ============= ERROR BOUNDARY / HANDLER =============
+        const errorState = {
+            consecutiveFailures: 0,
+            maxRetries: 3,
+            retryDelay: 5000
+        };
+
+        function showError(message, retryFn = null) {
+            // Create or get error toast container
+            let container = document.getElementById('errorToastContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'errorToastContainer';
+                container.style.cssText = 'position:fixed;top:20px;right:20px;z-index:10000;display:flex;flex-direction:column;gap:10px;';
+                document.body.appendChild(container);
+            }
+
+            // Create error toast
+            const toast = document.createElement('div');
+            toast.style.cssText = 'background:#dc2626;color:white;padding:12px 16px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);display:flex;align-items:center;gap:10px;max-width:350px;animation:slideIn 0.3s ease;';
+            toast.innerHTML = `
+                <span style="flex:1;font-size:0.9em;">${message}</span>
+                ${retryFn ? '<button onclick="this.parentElement.retryFn()" style="background:rgba(255,255,255,0.2);color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:0.85em;">Retry</button>' : ''}
+                <button onclick="this.parentElement.remove()" style="background:none;border:none;color:white;cursor:pointer;font-size:1.2em;opacity:0.7;">&times;</button>
+            `;
+            if (retryFn) toast.retryFn = () => { toast.remove(); retryFn(); };
+
+            container.appendChild(toast);
+
+            // Auto-dismiss after 8 seconds
+            setTimeout(() => toast.remove(), 8000);
+        }
+
+        // Wrapper for API calls with error handling
+        async function safeApiCall(fn, errorMessage, retryFn = null) {
+            try {
+                const result = await fn();
+                errorState.consecutiveFailures = 0;
+                return result;
+            } catch (error) {
+                console.error(errorMessage, error);
+                errorState.consecutiveFailures++;
+
+                // Only show error toast if under retry limit
+                if (errorState.consecutiveFailures <= errorState.maxRetries) {
+                    showError(errorMessage, retryFn);
+                } else if (errorState.consecutiveFailures === errorState.maxRetries + 1) {
+                    showError('Multiple errors occurred. Please refresh the page.');
+                }
+                return null;
+            }
+        }
+
         // Get stored credentials
         function getEmployeeId() {
             // Check direct storage first, then employeeData JSON
@@ -1915,51 +1968,50 @@
 
             if (!employeeId || !token) return;
 
-            try {
-                const response = await fetch(`/api/employee/${employeeId}/stats`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const data = await safeApiCall(
+                async () => {
+                    const response = await fetch(`/api/employee/${employeeId}/stats`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (!response.ok) throw new Error('Failed to fetch stats');
+                    return response.json();
+                },
+                'Failed to load your stats',
+                updateDashboardStats
+            );
 
-                if (!response.ok) throw new Error('Failed to fetch stats');
+            if (!data || !data.success) return;
 
-                const data = await response.json();
+            // Update stat values with animation
+            updateStatValue('itemsToday', data.items_processed || 0);
+            updateStatValue('hoursToday', (data.hours_today || 0) + 'h');
+            updateStatValue('efficiency', (data.efficiency || 0) + '%');
+            updateStatValue('currentRank', '#' + (data.employee_rank || '-'));
+            updateStatValue('pointsToday', Math.round(data.points_earned || 0));
 
-                if (!data.success) return;
-
-                // Update stat values with animation
-                updateStatValue('itemsToday', data.items_processed || 0);
-                updateStatValue('hoursToday', (data.hours_today || 0) + 'h');
-                updateStatValue('efficiency', (data.efficiency || 0) + '%');
-                updateStatValue('currentRank', '#' + (data.employee_rank || '-'));
-                updateStatValue('pointsToday', Math.round(data.points_earned || 0));
-
-                // Update hours context
-                const hoursCtx = document.getElementById('hoursContext');
-                if (hoursCtx) {
-                    const activeHrs = Math.round((data.active_minutes || 0) / 60 * 10) / 10;
-                    hoursCtx.innerHTML = `<i class="fas fa-play"></i> ${activeHrs}h active`;
-                }
-
-                // Update context indicators
-                updateContext('itemsContext', data.items_processed, data.team_avg_items);
-                updateContext('efficiencyContext', data.efficiency, data.team_avg_efficiency);
-
-                // Update rank context
-                const rankCtx = document.getElementById('rankContext');
-                if (rankCtx && data.total_employees) {
-                    rankCtx.innerHTML = `<span>of ${data.total_employees} employees</span>`;
-                }
-
-                // Update alerts
-                displayAlerts(data);
-
-                // Update timestamp
-                lastStatsUpdate = new Date();
-                updateLastRefreshDisplay();
-
-            } catch (error) {
-                console.error('Error updating stats:', error);
+            // Update hours context
+            const hoursCtx = document.getElementById('hoursContext');
+            if (hoursCtx) {
+                const activeHrs = Math.round((data.active_minutes || 0) / 60 * 10) / 10;
+                hoursCtx.innerHTML = `<i class="fas fa-play"></i> ${activeHrs}h active`;
             }
+
+            // Update context indicators
+            updateContext('itemsContext', data.items_processed, data.team_avg_items);
+            updateContext('efficiencyContext', data.efficiency, data.team_avg_efficiency);
+
+            // Update rank context
+            const rankCtx = document.getElementById('rankContext');
+            if (rankCtx && data.total_employees) {
+                rankCtx.innerHTML = `<span>of ${data.total_employees} employees</span>`;
+            }
+
+            // Update alerts
+            displayAlerts(data);
+
+            // Update timestamp
+            lastStatsUpdate = new Date();
+            updateLastRefreshDisplay();
         }
 
         function updateStatValue(elementId, newValue) {

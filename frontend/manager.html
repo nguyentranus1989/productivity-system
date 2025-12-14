@@ -315,7 +315,7 @@
                     <input type="text" 
                         id="availableWorkersSearch" 
                         placeholder="🔍 Search workers by name or station..." 
-                        onkeyup="filterAvailableWorkers(this.value)"
+                        onkeyup="debouncedFilterAvailableWorkers(this.value)"
                         style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); 
                                 color: #e0e0e0; border: 1px solid rgba(255,255,255,0.1); 
                                 border-radius: 8px; font-size: 14px;">
@@ -576,7 +576,7 @@
             <div id="empTabList" class="emp-tab-content" style="display: block;">
                 <div style="margin-bottom: 20px;">
                     <div style="display: flex; gap: 10px;">
-                        <input type="text" id="empSearchInput" placeholder="Search by name, email, or ID..." onkeyup="filterEmployees()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                        <input type="text" id="empSearchInput" placeholder="Search by name, email, or ID..." onkeyup="debouncedFilterEmployees()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
                         <button class="btn-action btn-secondary" onclick="syncWithConnecteam()">
                             <i class="fas fa-sync"></i> Sync Connecteam
                         </button>
@@ -600,6 +600,15 @@
                             <!-- Will be populated by JavaScript -->
                         </tbody>
                     </table>
+                    <!-- Pagination Controls -->
+                    <div id="employeePagination" style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                        <span id="paginationInfo" style="color: #808080; font-size: 0.9em;">Showing 1-50 of 0</span>
+                        <div style="display: flex; gap: 5px;">
+                            <button onclick="changeEmployeePage(-1)" id="prevPageBtn" style="padding: 8px 12px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: none; border-radius: 5px; cursor: pointer;" disabled>← Prev</button>
+                            <span id="pageIndicator" style="padding: 8px 12px; color: #e0e0e0;">Page 1</span>
+                            <button onclick="changeEmployeePage(1)" id="nextPageBtn" style="padding: 8px 12px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: none; border-radius: 5px; cursor: pointer;">Next →</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -690,7 +699,7 @@
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <input type="text" id="payrateSearchInput"
                             placeholder="Search by name..."
-                            onkeyup="filterPayrates()"
+                            onkeyup="debouncedFilterPayrates()"
                             style="padding: 8px 12px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; width: 250px;">
                         <select id="payrateSortBy" onchange="sortPayrates()"
                                 style="padding: 8px 12px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
@@ -1441,6 +1450,55 @@
         // Invalidate cache when mappings change
         function invalidateUnmappedUsersCache() {
             apiCache.unmappedUsers.timestamp = 0;
+        }
+
+        // ============= DEBOUNCE UTILITY =============
+        function debounce(fn, delay = 300) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+
+        // Debounced search handlers (300ms delay reduces CPU thrashing)
+        const debouncedFilterEmployees = debounce(() => filterEmployees(), 300);
+        const debouncedFilterPayrates = debounce(() => filterPayrates(), 300);
+        const debouncedFilterAvailableWorkers = debounce((val) => filterAvailableWorkers(val), 300);
+
+        // ============= EMPLOYEE TABLE PAGINATION =============
+        const employeePagination = {
+            currentPage: 1,
+            pageSize: 50,
+            allEmployees: [],
+            filteredEmployees: []
+        };
+
+        window.changeEmployeePage = function(delta) {
+            const newPage = employeePagination.currentPage + delta;
+            const totalPages = Math.ceil(employeePagination.filteredEmployees.length / employeePagination.pageSize);
+            if (newPage >= 1 && newPage <= totalPages) {
+                employeePagination.currentPage = newPage;
+                renderEmployeePage();
+            }
+        };
+
+        function renderEmployeePage() {
+            const { currentPage, pageSize, filteredEmployees } = employeePagination;
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageEmployees = filteredEmployees.slice(start, end);
+            const totalPages = Math.ceil(filteredEmployees.length / pageSize) || 1;
+
+            // Render current page
+            window.renderEmployeeRows(pageEmployees);
+
+            // Update pagination UI
+            document.getElementById('paginationInfo').textContent =
+                `Showing ${start + 1}-${Math.min(end, filteredEmployees.length)} of ${filteredEmployees.length}`;
+            document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('prevPageBtn').disabled = currentPage <= 1;
+            document.getElementById('nextPageBtn').disabled = currentPage >= totalPages;
         }
 
         // ============= SETTINGS & THEME SYSTEM =============
@@ -3410,40 +3468,48 @@
                 }
             };
 
-            window.displayEmployeeTable = function(employees) {  // Add window. prefix
-            const tbody = document.getElementById('employeeTableBody');
-            if (!tbody) return;
-            
-            tbody.innerHTML = employees.map(emp => {
-                // Split emails by comma and create formatted display
-                const podfactoryEmailsDisplay = emp.podfactory_emails 
-                    ? emp.podfactory_emails.split(',').map(email => 
-                        `<div style="padding: 2px 0;">${email.trim()}</div>`
-                    ).join('')
-                    : '<span style="color: #fbbf24;">Not mapped</span>';
-                
-                return `
-                    <tr>
-                        <td style="padding: 12px;">${emp.id}</td>
-                        <td style="padding: 12px;">${emp.name}</td>
-                        <td style="padding: 12px;">${emp.email || '-'}</td>
-                        <td style="padding: 12px;">${emp.connecteam_user_id || '<span style="color: #fbbf24;">Not mapped</span>'}</td>
-                        <td style="padding: 12px;">${podfactoryEmailsDisplay}</td>
-                        <td style="padding: 12px;"><span class="badge ${emp.is_active ? 'badge-success' : 'badge-danger'}" style="background: ${emp.is_active ? '#22c55e' : '#ef4444'}; padding: 4px 12px; border-radius: 12px;">${emp.is_active ? 'Active' : 'Inactive'}</span></td>
-                        <td style="padding: 12px; position: relative;">
-                            <button onclick="toggleDropdown(${emp.id})" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                                Actions ▼
-                            </button>
-                            <div id="dropdown-${emp.id}" style="display: none; position: absolute; right: 0; top: 100%; background: #2a2a2a; min-width: 120px; box-shadow: 0px 8px 16px rgba(0,0,0,0.2); z-index: 1000; border-radius: 5px; margin-top: 5px;">
-                                <a href="#" onclick="editEmployee(${emp.id}); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">✏️ Edit</a>
-                                <a href="#" onclick="mapEmployee(${emp.id}); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">🔗 Map</a>
-                                <a href="#" onclick="archiveEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: #ef4444; padding: 10px 15px; text-decoration: none; display: block;">🗑️ Archive</a>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        };
+            window.displayEmployeeTable = function(employees) {
+                // Store all employees and reset pagination
+                employeePagination.allEmployees = employees;
+                employeePagination.filteredEmployees = employees;
+                employeePagination.currentPage = 1;
+                renderEmployeePage();
+            };
+
+            // Render only the rows (used by pagination)
+            window.renderEmployeeRows = function(employees) {
+                const tbody = document.getElementById('employeeTableBody');
+                if (!tbody) return;
+
+                tbody.innerHTML = employees.map(emp => {
+                    const podfactoryEmailsDisplay = emp.podfactory_emails
+                        ? emp.podfactory_emails.split(',').map(email =>
+                            `<div style="padding: 2px 0;">${email.trim()}</div>`
+                        ).join('')
+                        : '<span style="color: #fbbf24;">Not mapped</span>';
+
+                    return `
+                        <tr>
+                            <td style="padding: 12px;">${emp.id}</td>
+                            <td style="padding: 12px;">${emp.name}</td>
+                            <td style="padding: 12px;">${emp.email || '-'}</td>
+                            <td style="padding: 12px;">${emp.connecteam_user_id || '<span style="color: #fbbf24;">Not mapped</span>'}</td>
+                            <td style="padding: 12px;">${podfactoryEmailsDisplay}</td>
+                            <td style="padding: 12px;"><span class="badge ${emp.is_active ? 'badge-success' : 'badge-danger'}" style="background: ${emp.is_active ? '#22c55e' : '#ef4444'}; padding: 4px 12px; border-radius: 12px;">${emp.is_active ? 'Active' : 'Inactive'}</span></td>
+                            <td style="padding: 12px; position: relative;">
+                                <button onclick="toggleDropdown(${emp.id})" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                    Actions ▼
+                                </button>
+                                <div id="dropdown-${emp.id}" style="display: none; position: absolute; right: 0; top: 100%; background: #2a2a2a; min-width: 120px; box-shadow: 0px 8px 16px rgba(0,0,0,0.2); z-index: 1000; border-radius: 5px; margin-top: 5px;">
+                                    <a href="#" onclick="editEmployee(${emp.id}); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">✏️ Edit</a>
+                                    <a href="#" onclick="mapEmployee(${emp.id}); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">🔗 Map</a>
+                                    <a href="#" onclick="archiveEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: #ef4444; padding: 10px 15px; text-decoration: none; display: block;">🗑️ Archive</a>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            };
 
             // Add this function right after displayEmployeeTable
             window.toggleDropdown = function(id) {
@@ -4205,12 +4271,19 @@
 
             window.filterEmployees = function() {
                 const searchText = document.getElementById('empSearchInput').value.toLowerCase();
-                const rows = document.querySelectorAll('#employeeTableBody tr');
-                
-                rows.forEach(row => {
-                    const text = row.textContent.toLowerCase();
-                    row.style.display = text.includes(searchText) ? '' : 'none';
+                // Filter from all employees, not DOM
+                employeePagination.filteredEmployees = employeePagination.allEmployees.filter(emp => {
+                    const searchFields = [
+                        emp.id?.toString(),
+                        emp.name,
+                        emp.email,
+                        emp.connecteam_user_id,
+                        emp.podfactory_emails
+                    ].filter(Boolean).join(' ').toLowerCase();
+                    return searchFields.includes(searchText);
                 });
+                employeePagination.currentPage = 1; // Reset to first page
+                renderEmployeePage();
             };
 
             // Store original payrates data
