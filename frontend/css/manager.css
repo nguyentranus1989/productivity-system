@@ -656,6 +656,29 @@ body {
         margin: 10px 20px 20px 20px;
         flex-shrink: 0;
     }
+
+    /* Center dashboard header on mobile (no hamburger) */
+    .dashboard-header {
+        padding-left: 0 !important;
+        align-items: center !important;
+        text-align: center;
+    }
+
+    .dashboard-title {
+        text-align: center;
+        width: 100%;
+    }
+
+    .header-actions {
+        flex-direction: column;
+        align-items: center !important;
+        width: 100%;
+    }
+
+    .date-filter-container {
+        justify-content: center !important;
+        flex-wrap: wrap;
+    }
 }
 
 /* Bottom nav - amber theme for manager page */
