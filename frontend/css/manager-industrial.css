@@ -1,0 +1,627 @@
+/**
+ * Manager Dashboard - Industrial Theme
+ * Created: 2025-12-13
+ *
+ * Color Palette:
+ * - Amber Primary: #f59e0b
+ * - Amber Secondary: #fbbf24
+ * - Success Green: #22c55e
+ * - Warning Red: #ef4444
+ * - Background: #0f1419
+ */
+
+/* ========================================
+   CSS VARIABLES
+   ======================================== */
+:root {
+    /* Backgrounds */
+    --ind-bg: #0f1419;
+    --ind-panel: rgba(26, 31, 38, 0.95);
+    --ind-panel-hover: rgba(30, 36, 44, 0.98);
+    --ind-surface: rgba(38, 45, 55, 0.7);
+
+    /* Industrial Colors */
+    --ind-amber: #f59e0b;
+    --ind-amber-light: #fbbf24;
+    --ind-green: #22c55e;
+    --ind-red: #ef4444;
+    --ind-blue: #3b82f6;
+    --ind-purple: #8b5cf6;
+
+    /* Glow variants */
+    --glow-amber: rgba(245, 158, 11, 0.4);
+    --glow-amber-light: rgba(251, 191, 36, 0.4);
+    --glow-green: rgba(34, 197, 94, 0.4);
+    --glow-red: rgba(239, 68, 68, 0.4);
+
+    /* Text */
+    --ind-text: #e5e7eb;
+    --ind-text-dim: #9ca3af;
+    --ind-text-muted: #6b7280;
+
+    /* Borders */
+    --ind-border: rgba(245, 158, 11, 0.2);
+    --ind-border-hover: rgba(245, 158, 11, 0.5);
+}
+
+/* ========================================
+   BASE STYLES
+   ======================================== */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    background: var(--ind-bg) !important;
+    color: var(--ind-text) !important;
+    min-height: 100vh;
+    position: relative;
+}
+
+/* Subtle Grid Background */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+        radial-gradient(ellipse at 20% 80%, rgba(245, 158, 11, 0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(251, 191, 36, 0.03) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ========================================
+   SIDEBAR
+   ======================================== */
+.sidebar {
+    background: linear-gradient(180deg, rgba(26, 31, 38, 0.98) 0%, rgba(15, 20, 25, 0.99) 100%) !important;
+    border-right: 1px solid var(--ind-border) !important;
+    box-shadow: 2px 0 30px rgba(245, 158, 11, 0.08);
+    z-index: 1000;
+}
+
+.sidebar-header h2 {
+    font-weight: 700 !important;
+    letter-spacing: 1px !important;
+    background: linear-gradient(90deg, var(--ind-amber), var(--ind-amber-light)) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+.sidebar-header p {
+    font-size: 0.75em !important;
+    letter-spacing: 1px !important;
+    color: var(--ind-text-dim) !important;
+    text-transform: uppercase;
+}
+
+/* Navigation Items */
+.nav-item {
+    font-weight: 500 !important;
+    border: 1px solid transparent !important;
+    transition: all 0.3s ease !important;
+    border-radius: 8px !important;
+}
+
+.nav-item:hover {
+    border-color: var(--ind-amber) !important;
+    background: rgba(245, 158, 11, 0.1) !important;
+    color: var(--ind-amber) !important;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+.nav-item.active {
+    background: linear-gradient(135deg, var(--ind-amber), var(--ind-amber-light)) !important;
+    color: var(--ind-bg) !important;
+    border-color: var(--ind-amber) !important;
+    box-shadow: 0 0 25px var(--glow-amber);
+}
+
+/* Sidebar User Panel */
+.sidebar-user-panel {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+}
+
+.user-info-card {
+    padding: 15px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(251, 191, 36, 0.04));
+    border: 1px solid var(--ind-border);
+    border-radius: 12px;
+    text-align: center;
+}
+
+.user-label {
+    font-size: 0.7em;
+    color: var(--ind-amber);
+    letter-spacing: 2px;
+    margin: 0 0 5px 0;
+    text-shadow: 0 0 10px var(--glow-amber);
+}
+
+.user-name {
+    font-weight: 600;
+    font-size: 1em;
+    color: var(--ind-text);
+    margin: 0 0 8px 0;
+}
+
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7em;
+    color: var(--ind-green);
+    letter-spacing: 1px;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--ind-green);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--ind-green);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 10px var(--ind-green); }
+    50% { opacity: 0.5; box-shadow: 0 0 5px var(--ind-green); }
+}
+
+/* ========================================
+   MAIN CONTENT
+   ======================================== */
+.main-content {
+    position: relative;
+    z-index: 1;
+}
+
+/* ========================================
+   HEADER
+   ======================================== */
+.dashboard-header {
+    border-bottom: 1px solid var(--ind-border) !important;
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.03), transparent) !important;
+}
+
+.dashboard-title h1 {
+    font-weight: 700 !important;
+    letter-spacing: 1px !important;
+    background: linear-gradient(90deg, #fff, var(--ind-amber)) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+.dashboard-title p {
+    color: var(--ind-text-dim) !important;
+}
+
+/* Header Buttons */
+.btn-action {
+    font-size: 12px !important;
+    border: 1px solid var(--ind-border) !important;
+    background: var(--ind-panel) !important;
+    transition: all 0.3s ease !important;
+    border-radius: 8px !important;
+}
+
+.btn-action:hover {
+    border-color: var(--ind-amber) !important;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.25) !important;
+    color: var(--ind-amber) !important;
+}
+
+.btn-action.btn-primary {
+    background: linear-gradient(135deg, var(--ind-amber), var(--ind-amber-light)) !important;
+    color: var(--ind-bg) !important;
+    border-color: var(--ind-amber) !important;
+}
+
+.btn-action.btn-primary:hover {
+    box-shadow: 0 0 30px var(--glow-amber) !important;
+}
+
+/* Date Inputs */
+.date-filter-container input[type="date"] {
+    font-size: 12px !important;
+    background: var(--ind-panel) !important;
+    border: 1px solid var(--ind-border) !important;
+    color: var(--ind-amber) !important;
+    border-radius: 8px !important;
+}
+
+.date-filter-container input[type="date"]:focus {
+    border-color: var(--ind-amber) !important;
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.25) !important;
+}
+
+/* ========================================
+   SYSTEM STATUS BAR
+   ======================================== */
+#system-status-container {
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.03), rgba(251, 191, 36, 0.02)) !important;
+    border-bottom: 1px solid var(--ind-border) !important;
+}
+
+#system-status-container span {
+    font-size: 11px !important;
+    letter-spacing: 0.5px !important;
+}
+
+/* Status Indicators */
+#connecteam-indicator,
+#podfactory-indicator,
+#flask-indicator,
+#database-indicator {
+    box-shadow: 0 0 8px currentColor;
+}
+
+/* ========================================
+   METRIC CARDS
+   ======================================== */
+.metric-card {
+    background: var(--ind-panel) !important;
+    border: 1px solid var(--ind-border) !important;
+    border-radius: 12px !important;
+    position: relative;
+    transition: all 0.3s ease !important;
+}
+
+.metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--ind-amber), var(--ind-amber-light));
+    border-radius: 12px 12px 0 0;
+}
+
+.metric-card:hover {
+    border-color: var(--ind-amber) !important;
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.15) !important;
+    transform: translateY(-3px) !important;
+}
+
+/* Different accent colors for each card */
+.metrics-grid .metric-card:nth-child(1)::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.metrics-grid .metric-card:nth-child(2)::before { background: linear-gradient(90deg, #22c55e, #4ade80); }
+.metrics-grid .metric-card:nth-child(3)::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+.metrics-grid .metric-card:nth-child(4)::before { background: linear-gradient(90deg, var(--ind-amber), var(--ind-amber-light)); }
+
+.metric-icon {
+    border-radius: 10px !important;
+}
+
+.metric-icon.blue {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: #3b82f6 !important;
+}
+
+.metric-icon.green {
+    background: rgba(34, 197, 94, 0.15) !important;
+    color: var(--ind-green) !important;
+}
+
+.metric-icon.purple {
+    background: rgba(139, 92, 246, 0.15) !important;
+    color: #8b5cf6 !important;
+}
+
+.metric-icon.yellow {
+    background: rgba(245, 158, 11, 0.15) !important;
+    color: var(--ind-amber) !important;
+}
+
+.metric-value {
+    font-weight: 700 !important;
+    font-size: 2.2em !important;
+}
+
+.metrics-grid .metric-card:nth-child(1) .metric-value { color: #3b82f6 !important; }
+.metrics-grid .metric-card:nth-child(2) .metric-value { color: var(--ind-green) !important; }
+.metrics-grid .metric-card:nth-child(3) .metric-value { color: #8b5cf6 !important; }
+.metrics-grid .metric-card:nth-child(4) .metric-value { color: var(--ind-amber) !important; }
+
+.metric-label {
+    font-size: 11px !important;
+    letter-spacing: 1px !important;
+    text-transform: uppercase !important;
+    color: var(--ind-text-dim) !important;
+}
+
+.metric-change {
+    font-size: 11px !important;
+    border-radius: 6px !important;
+    padding: 4px 10px !important;
+}
+
+.metric-change.positive,
+.metric-change[style*="color: #10b981"],
+.metric-change[style*="color: #34d399"] {
+    background: rgba(34, 197, 94, 0.15) !important;
+    color: var(--ind-green) !important;
+    border: 1px solid rgba(34, 197, 94, 0.3) !important;
+}
+
+.metric-change.negative,
+.metric-change[style*="color: #ef4444"] {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: var(--ind-red) !important;
+    border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+/* ========================================
+   DEPARTMENT CARDS
+   ======================================== */
+.department-card {
+    background: var(--ind-panel) !important;
+    border: 1px solid var(--ind-border) !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease !important;
+}
+
+.department-card:hover {
+    border-color: var(--ind-amber) !important;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.12) !important;
+}
+
+.department-card h3 {
+    font-size: 13px !important;
+    letter-spacing: 1px !important;
+    text-transform: uppercase !important;
+}
+
+/* Progress Bars */
+.progress-fill,
+.department-card .progress-bar > div {
+    background: linear-gradient(90deg, var(--ind-amber), var(--ind-amber-light)) !important;
+    box-shadow: 0 0 12px var(--glow-amber) !important;
+    border-radius: 4px !important;
+}
+
+/* ========================================
+   CHART CARDS
+   ======================================== */
+.chart-card {
+    background: var(--ind-panel) !important;
+    border: 1px solid var(--ind-border) !important;
+    border-radius: 12px !important;
+}
+
+.chart-card h3 {
+    font-size: 13px !important;
+    letter-spacing: 1px !important;
+    color: var(--ind-amber) !important;
+    text-transform: uppercase !important;
+}
+
+/* ========================================
+   ACTIVITY FEED
+   ======================================== */
+.activity-feed {
+    background: var(--ind-panel) !important;
+    border: 1px solid var(--ind-border) !important;
+    border-radius: 12px !important;
+}
+
+.activity-item {
+    border-bottom: 1px solid rgba(245, 158, 11, 0.08) !important;
+}
+
+.activity-item:hover {
+    background: rgba(245, 158, 11, 0.04) !important;
+}
+
+.activity-time {
+    font-size: 11px !important;
+    color: var(--ind-text-dim) !important;
+}
+
+/* ========================================
+   LEADERBOARD
+   ======================================== */
+.leaderboard-item {
+    border-bottom: 1px solid rgba(245, 158, 11, 0.08) !important;
+    transition: all 0.3s ease !important;
+}
+
+.leaderboard-item:hover {
+    background: rgba(245, 158, 11, 0.04) !important;
+}
+
+/* Rank Badges */
+.rank-badge,
+.employee-rank {
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+}
+
+/* ========================================
+   TABLES
+   ======================================== */
+table th {
+    font-size: 11px !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+    background: rgba(245, 158, 11, 0.05) !important;
+    border-bottom: 1px solid var(--ind-border) !important;
+    color: var(--ind-amber) !important;
+}
+
+table td {
+    border-bottom: 1px solid rgba(245, 158, 11, 0.05) !important;
+}
+
+table tr:hover td {
+    background: rgba(245, 158, 11, 0.03) !important;
+}
+
+/* ========================================
+   ALERTS
+   ======================================== */
+.alert-item {
+    background: var(--ind-panel) !important;
+    border: 1px solid var(--ind-border) !important;
+    border-left: 4px solid var(--ind-amber) !important;
+    border-radius: 8px !important;
+}
+
+.alert-item.warning {
+    border-left-color: var(--ind-amber-light) !important;
+    background: rgba(251, 191, 36, 0.05) !important;
+}
+
+.alert-item.danger,
+.alert-item.critical {
+    border-left-color: var(--ind-red) !important;
+    background: rgba(239, 68, 68, 0.05) !important;
+}
+
+.alert-item.success {
+    border-left-color: var(--ind-green) !important;
+    background: rgba(34, 197, 94, 0.05) !important;
+}
+
+/* ========================================
+   BOTTLENECK SECTION
+   ======================================== */
+.bottleneck-alert {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(245, 158, 11, 0.15)) !important;
+    border: 1px solid var(--ind-red) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.15) !important;
+}
+
+.station-card {
+    background: var(--ind-panel) !important;
+    border: 1px solid var(--ind-border) !important;
+    border-radius: 12px !important;
+}
+
+.station-card.bottleneck {
+    border-color: var(--ind-red) !important;
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.2) !important;
+}
+
+.station-card.warning {
+    border-color: var(--ind-amber) !important;
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.15) !important;
+}
+
+/* ========================================
+   COST SECTION
+   ======================================== */
+.cost-card {
+    background: var(--ind-panel) !important;
+    border: 1px solid var(--ind-border) !important;
+    border-radius: 12px !important;
+}
+
+/* ========================================
+   MODALS
+   ======================================== */
+.modal-overlay,
+[style*="position: fixed"][style*="background: rgba"] {
+    background: rgba(15, 20, 25, 0.9) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+.modal-content,
+.modal-body,
+[style*="background: #1a1a1a"],
+[style*="background: rgba(26, 26, 26"] {
+    background: var(--ind-panel) !important;
+    border: 1px solid var(--ind-amber) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 0 50px var(--glow-amber) !important;
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--ind-border) !important;
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.05), transparent) !important;
+}
+
+.modal-header h2,
+.modal-header h3 {
+    letter-spacing: 1px !important;
+    color: var(--ind-amber) !important;
+}
+
+/* ========================================
+   FORM INPUTS
+   ======================================== */
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="password"],
+input[type="search"],
+select,
+textarea {
+    background: var(--ind-surface) !important;
+    border: 1px solid var(--ind-border) !important;
+    border-radius: 8px !important;
+    color: var(--ind-text) !important;
+    transition: all 0.3s ease !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--ind-amber) !important;
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.2) !important;
+    outline: none !important;
+}
+
+/* ========================================
+   SCROLLBAR
+   ======================================== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--ind-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--ind-amber), var(--ind-amber-light));
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--ind-amber-light), var(--ind-amber));
+}
+
+/* ========================================
+   LOADING STATES
+   ======================================== */
+.loading,
+.spinner {
+    border-color: var(--ind-border) !important;
+    border-top-color: var(--ind-amber) !important;
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+.ind-text-amber { color: var(--ind-amber) !important; }
+.ind-text-green { color: var(--ind-green) !important; }
+.ind-text-red { color: var(--ind-red) !important; }
+
+.ind-border { border: 1px solid var(--ind-border) !important; }
+.ind-panel { background: var(--ind-panel) !important; }
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+@media (max-width: 768px) {
+    .sidebar {
+        background: rgba(15, 20, 25, 0.99) !important;
+    }
+}
