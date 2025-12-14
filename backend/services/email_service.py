@@ -1,34 +1,28 @@
 """
 Email Service for sending notifications to employees
-Uses Gmail SMTP with App Password
+Uses SendGrid API (HTTP-based, works on DigitalOcean)
 """
 
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 from config import Config
-from datetime import datetime
 
 
 class EmailService:
-    """Gmail SMTP email sender"""
+    """SendGrid email sender"""
 
     PORTAL_URL = "https://reports.podgasus.com/employee.html"
     COMPANY_NAME = "Productivity Tracker"
+    SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send"
 
     @staticmethod
     def is_configured():
         """Check if email is properly configured"""
-        return all([
-            Config.SMTP_HOST,
-            Config.SMTP_USER,
-            Config.SMTP_PASSWORD
-        ])
+        return bool(getattr(Config, 'SENDGRID_API_KEY', None))
 
     @staticmethod
     def send_welcome_email(employee_name, pin, to_email):
         """
-        Send welcome email with PIN to employee
+        Send welcome email with PIN to employee via SendGrid
 
         Args:
             employee_name: Employee's name
@@ -41,7 +35,7 @@ class EmailService:
         if not EmailService.is_configured():
             return {
                 'success': False,
-                'message': 'Email not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASSWORD in .env'
+                'message': 'Email not configured. Set SENDGRID_API_KEY in .env'
             }
 
         if not to_email:
@@ -51,12 +45,6 @@ class EmailService:
             }
 
         try:
-            # Create message
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = f"Welcome to {EmailService.COMPANY_NAME} - Your Login PIN"
-            msg['From'] = Config.SMTP_USER
-            msg['To'] = to_email
-
             # Plain text version
             text_content = f"""
 Hi {employee_name},
@@ -119,30 +107,44 @@ Contact your manager if you need any help.
 </html>
             """.strip()
 
-            # Attach both versions
-            msg.attach(MIMEText(text_content, 'plain'))
-            msg.attach(MIMEText(html_content, 'html'))
-
-            # Connect and send
-            with smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT) as server:
-                server.starttls()
-                server.login(Config.SMTP_USER, Config.SMTP_PASSWORD)
-                server.send_message(msg)
-
-            return {
-                'success': True,
-                'message': f'Welcome email sent to {to_email}'
+            # SendGrid API payload
+            from_email = getattr(Config, 'SENDGRID_FROM_EMAIL', 'noreply@podgasus.com')
+            payload = {
+                "personalizations": [{"to": [{"email": to_email}]}],
+                "from": {"email": from_email, "name": EmailService.COMPANY_NAME},
+                "subject": f"Welcome to {EmailService.COMPANY_NAME} - Your Login PIN",
+                "content": [
+                    {"type": "text/plain", "value": text_content},
+                    {"type": "text/html", "value": html_content}
+                ]
             }
 
-        except smtplib.SMTPAuthenticationError:
+            # Send via SendGrid API
+            response = requests.post(
+                EmailService.SENDGRID_API_URL,
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {Config.SENDGRID_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                timeout=30
+            )
+
+            if response.status_code in (200, 201, 202):
+                return {
+                    'success': True,
+                    'message': f'Welcome email sent to {to_email}'
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': f'SendGrid error: {response.status_code} - {response.text}'
+                }
+
+        except requests.exceptions.Timeout:
             return {
                 'success': False,
-                'message': 'SMTP authentication failed. Check Gmail App Password.'
-            }
-        except smtplib.SMTPException as e:
-            return {
-                'success': False,
-                'message': f'SMTP error: {str(e)}'
+                'message': 'Email request timed out'
             }
         except Exception as e:
             return {

@@ -59,7 +59,11 @@ class Config:
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FILE = os.getenv('LOG_FILE', 'logs/app.log')
     
-    # Email settings
+    # Email settings (SendGrid)
+    SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
+    SENDGRID_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', 'noreply@podgasus.com')
+
+    # Legacy SMTP settings (kept for reference)
     SMTP_HOST = os.getenv('SMTP_HOST')
     SMTP_PORT = int(os.getenv('SMTP_PORT', 587)) if os.getenv('SMTP_PORT') else 587
     SMTP_USER = os.getenv('SMTP_USER')
