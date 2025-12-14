@@ -8,11 +8,17 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/mobile-shared.css?v=20251214">
-    <link rel="stylesheet" href="css/manager.css?v=20251214">
-    <link rel="stylesheet" href="css/manager-cyberpunk.css?v=20251214" id="theme-css">
+    <link rel="stylesheet" href="css/mobile-shared.css?v=20251214b">
+    <link rel="stylesheet" href="css/manager.css?v=20251214b">
+    <link rel="stylesheet" href="css/manager-cyberpunk.css?v=20251214b" id="theme-css">
 </head>
 <body>
+    <!-- Tab Loading Overlay -->
+    <div id="tabLoadingOverlay" class="tab-loading-overlay">
+        <div class="tab-loading-spinner"></div>
+        <div class="tab-loading-text">Loading...</div>
+    </div>
+
     <!-- Mobile Menu Toggle Button (only visible on mobile) -->
     <button class="mobile-menu-toggle" onclick="toggleSidebar()" >☰</button>
     <!-- Mobile Menu Toggle Button (only visible on mobile) -->
@@ -4972,8 +4978,32 @@
                     loadDashboardDataForDateRange(startDate, endDate);
                 }
             };
+            // Tab loading helpers
+            function showTabLoading(text = 'Loading...') {
+                const overlay = document.getElementById('tabLoadingOverlay');
+                if (overlay) {
+                    overlay.querySelector('.tab-loading-text').textContent = text;
+                    overlay.classList.add('active');
+                }
+            }
+
+            function hideTabLoading() {
+                const overlay = document.getElementById('tabLoadingOverlay');
+                if (overlay) {
+                    overlay.classList.remove('active');
+                }
+            }
+
             // Make showSection globally accessible
             window.showSection = function(sectionName) {
+                // Show loading spinner
+                const sectionLabels = {
+                    'dashboard': 'Loading Dashboard...',
+                    'bottleneck': 'Analyzing Bottlenecks...',
+                    'cost': 'Loading Cost Analysis...'
+                };
+                showTabLoading(sectionLabels[sectionName] || 'Loading...');
+
                 // Hide all sections
                 document.querySelectorAll('.section-content').forEach(section => {
                     section.classList.remove('active');
@@ -5008,11 +5038,14 @@
                     bottomNavItems[sectionMap[sectionName]].classList.add('active');
                 }
 
-                // Load data if bottleneck section
+                // Load data based on section (with loading spinner)
                 if (sectionName === 'bottleneck') {
-                    loadBottleneckData();
+                    loadBottleneckData().finally(() => hideTabLoading());
                 } else if (sectionName === 'cost') {
-                    loadCostAnalysisData();  // Add this line
+                    loadCostAnalysisData().finally(() => hideTabLoading());
+                } else {
+                    // For dashboard, hide after a short delay
+                    setTimeout(() => hideTabLoading(), 300);
                 }
             }
             // Modified load function for date ranges
