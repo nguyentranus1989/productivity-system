@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class DatabaseManager:
     """Manage database connections with connection pooling"""
     
-    def __init__(self, pool_size: int = 5):
+    def __init__(self, pool_size: int = 10):
         self.pool_size = pool_size
         self._pool: Optional[pooling.MySQLConnectionPool] = None
         self._initialize_pool()

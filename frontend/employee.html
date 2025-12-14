@@ -339,6 +339,7 @@
         }
 
         .stat-icon.amber { background: var(--accent-glow); color: var(--accent-primary); }
+        .stat-icon.cyan { background: rgba(6, 182, 212, 0.15); color: #06b6d4; }
         .stat-icon.green { background: var(--success-muted); color: var(--success); }
         .stat-icon.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
         .stat-icon.purple { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
@@ -997,30 +998,48 @@
         }
 
         /* ============================================
-           LOADING STATE
+           LOADING OVERLAY (Full-screen)
            ============================================ */
-
-        .loading-state {
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 20, 25, 0.92);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 60vh;
-            color: var(--text-muted);
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
         }
-
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
         .loading-spinner {
             width: 48px;
             height: 48px;
-            border: 3px solid var(--border-subtle);
+            border: 4px solid var(--border-subtle);
             border-top-color: var(--accent-primary);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: var(--space-md);
+            animation: spin 0.8s linear infinite;
         }
-
+        .loading-text {
+            margin-top: var(--space-md);
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        /* Old loading state (kept for fallback) */
+        .loading-state {
+            display: none;
         }
 
         /* ============================================
@@ -1053,9 +1072,363 @@
 
         /* Hide employee selector for logged-in employees */
         #employeeSelector { display: none !important; }
+
+        /* ============================================
+           SCHEDULE SECTION
+           ============================================ */
+
+        .schedule-week {
+            margin-bottom: var(--space-lg);
+        }
+
+        .schedule-week-header {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .schedule-week-header .current-badge {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            font-size: 0.625rem;
+            padding: 2px 6px;
+            border-radius: var(--radius-full);
+            text-transform: uppercase;
+        }
+
+        .schedule-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: var(--space-xs);
+        }
+
+        @media (max-width: 640px) {
+            .schedule-days {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .schedule-day {
+            background: var(--bg-elevated);
+            border-radius: var(--radius-sm);
+            padding: var(--space-sm);
+            text-align: center;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .schedule-day.today {
+            border: 1px solid var(--accent-primary);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .schedule-day.off {
+            background: var(--bg-secondary);
+            opacity: 0.6;
+        }
+
+        .schedule-day-name {
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .schedule-day-date {
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            margin-bottom: var(--space-xs);
+        }
+
+        .schedule-shift {
+            font-size: 0.75rem;
+            color: var(--accent-primary);
+            margin-top: auto;
+        }
+
+        .schedule-shift.off {
+            color: var(--text-muted);
+        }
+
+        .schedule-empty {
+            text-align: center;
+            padding: var(--space-xl);
+            color: var(--text-muted);
+        }
+
+        /* ============================================
+           TIME-OFF REQUESTS
+           ============================================ */
+
+        .timeoff-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .timeoff-item {
+            background: var(--bg-elevated);
+            border-radius: var(--radius-sm);
+            padding: var(--space-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .timeoff-info {
+            flex: 1;
+        }
+
+        .timeoff-dates {
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .timeoff-reason {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .timeoff-status {
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 4px 10px;
+            border-radius: var(--radius-full);
+            text-transform: uppercase;
+        }
+
+        .timeoff-status.pending {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+        }
+
+        .timeoff-status.approved {
+            background: var(--success-muted);
+            color: var(--success);
+        }
+
+        .timeoff-status.rejected {
+            background: var(--danger-muted);
+            color: var(--danger);
+        }
+
+        .timeoff-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-left: var(--space-md);
+        }
+
+        .timeoff-cancel {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            transition: color 0.2s ease;
+        }
+
+        .timeoff-cancel:hover {
+            color: var(--danger);
+        }
+
+        .timeoff-empty {
+            text-align: center;
+            padding: var(--space-lg);
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* Time-off form in modal */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+        }
+
+        @media (max-width: 480px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        textarea.form-input {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* ============================================
+           CALENDAR PICKER FOR TIME-OFF
+           ============================================ */
+
+        .calendar-picker {
+            margin-bottom: var(--space-md);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-md);
+        }
+
+        .calendar-nav {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .calendar-nav:hover {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .calendar-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .calendar-weekday {
+            text-align: center;
+            font-size: 0.625rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            padding: var(--space-xs);
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 0.8125rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            border: 1px solid transparent;
+        }
+
+        .calendar-day:hover:not(.disabled):not(.past) {
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+        }
+
+        .calendar-day.today {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .calendar-day.selected {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            font-weight: 600;
+        }
+
+        .calendar-day.other-month {
+            color: var(--text-muted);
+            opacity: 0.4;
+        }
+
+        .calendar-day.past,
+        .calendar-day.disabled {
+            color: var(--text-muted);
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .selected-dates-summary {
+            margin-top: var(--space-md);
+            padding: var(--space-sm) var(--space-md);
+            background: var(--bg-elevated);
+            border-radius: var(--radius-sm);
+            min-height: 40px;
+        }
+
+        .selected-dates-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--space-xs);
+        }
+
+        .selected-dates-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-xs);
+        }
+
+        .selected-date-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: var(--accent-glow);
+            border: 1px solid var(--accent-primary);
+            border-radius: var(--radius-full);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent-primary);
+        }
+
+        .selected-date-tag .remove {
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.15s;
+        }
+
+        .selected-date-tag .remove:hover {
+            opacity: 1;
+        }
+
+        .no-dates-selected {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* Wider modal for calendar */
+        #timeOffModal .modal-content {
+            max-width: 440px;
+        }
     </style>
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay active">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Initializing...</div>
+    </div>
+
     <!-- Header -->
     <header class="app-header">
         <div class="header-content">
@@ -1117,6 +1490,17 @@
                     <div class="stat-label">Items Today</div>
                     <div class="stat-context neutral" id="itemsContext">
                         <i class="fas fa-minus"></i> Loading...
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon cyan">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-value" id="hoursToday">0h</div>
+                    <div class="stat-label">Hours Today</div>
+                    <div class="stat-context neutral" id="hoursContext">
+                        <i class="fas fa-minus"></i> Clocked in
                     </div>
                 </div>
 
@@ -1251,6 +1635,39 @@
                     <!-- Activity loaded dynamically -->
                 </div>
             </section>
+
+            <!-- Schedule & Time-Off Row -->
+            <div class="two-column-grid">
+                <!-- My Schedule -->
+                <section class="section-card">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <i class="fas fa-calendar-alt"></i>
+                            My Schedule
+                        </h2>
+                    </div>
+                    <div id="scheduleContainer">
+                        <!-- Schedule loaded dynamically -->
+                    </div>
+                </section>
+
+                <!-- Time-Off Requests -->
+                <section class="section-card">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <i class="fas fa-umbrella-beach"></i>
+                            Time Off
+                        </h2>
+                        <button onclick="openTimeOffModal()" class="btn-primary">
+                            <i class="fas fa-plus"></i>
+                            Request
+                        </button>
+                    </div>
+                    <div id="timeoffContainer" class="timeoff-list">
+                        <!-- Time-off requests loaded dynamically -->
+                    </div>
+                </section>
+            </div>
         </div>
     </main>
 
@@ -1321,6 +1738,66 @@
         </div>
     </div>
 
+    <!-- Time-Off Request Modal -->
+    <div id="timeOffModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-umbrella-beach"></i>
+                    Request Time Off
+                </h3>
+                <button onclick="closeTimeOffModal()" class="modal-close">&times;</button>
+            </div>
+            <div id="timeOffError" class="form-error"></div>
+            <div id="timeOffSuccess" class="form-success"></div>
+
+            <!-- Calendar Picker -->
+            <div class="calendar-picker">
+                <div class="calendar-header">
+                    <button type="button" class="calendar-nav" onclick="calendarPrevMonth()">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="calendar-title" id="calendarTitle">December 2025</span>
+                    <button type="button" class="calendar-nav" onclick="calendarNextMonth()">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="calendar-grid" id="calendarGrid">
+                    <!-- Calendar renders here -->
+                </div>
+
+                <!-- Selected dates summary -->
+                <div class="selected-dates-summary">
+                    <div class="selected-dates-label">Selected Days</div>
+                    <div id="selectedDatesList" class="selected-dates-list">
+                        <span class="no-dates-selected">Click dates to select</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Request Type</label>
+                <select id="timeOffType" class="form-select">
+                    <option value="vacation">Vacation</option>
+                    <option value="sick">Sick Leave</option>
+                    <option value="personal">Personal Day</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reason (optional)</label>
+                <textarea id="timeOffReason" class="form-input" placeholder="Enter reason for time off..." style="min-height: 60px;"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeTimeOffModal()" class="btn-secondary">Cancel</button>
+                <button onclick="submitTimeOffRequest()" class="btn-primary">
+                    <i class="fas fa-paper-plane"></i>
+                    Submit Request
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ============================================
         // CORE FUNCTIONALITY
@@ -1328,6 +1805,17 @@
 
         let lastStatsUpdate = null;
         let trendChart = null;
+
+        // Loading overlay functions
+        function showLoading(text = 'Loading...') {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.querySelector('.loading-text').textContent = text;
+            overlay.classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }
 
         // Get stored credentials
         function getEmployeeId() {
@@ -1375,11 +1863,14 @@
 
         // Initialize dashboard
         async function initDashboard() {
+            showLoading('Initializing...');
+
             const employeeId = getEmployeeId();
             const token = getToken();
             const name = getEmployeeName();
 
             if (!employeeId || !token) {
+                hideLoading();
                 window.location.href = '/login.html';
                 return;
             }
@@ -1392,13 +1883,24 @@
             document.getElementById('loadingState').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
 
-            // Load initial data
+            // Load initial data with progress
+            showLoading('Loading your stats...');
             await updateDashboardStats();
+
+            showLoading('Loading trends...');
             await loadTrendChart(30);
-            await loadGoals();
-            await loadStreak();
-            await loadAchievements();
-            await loadRecentActivity();
+
+            showLoading('Loading schedule...');
+            await Promise.all([
+                loadGoals(),
+                loadStreak(),
+                loadAchievements(),
+                loadRecentActivity(),
+                loadSchedule(),
+                loadTimeOffRequests()
+            ]);
+
+            hideLoading();
 
             // Start auto-refresh (every 60 seconds)
             setInterval(updateDashboardStats, 60000);
@@ -1429,9 +1931,17 @@
 
                 // Update stat values with animation
                 updateStatValue('itemsToday', data.items_processed || 0);
+                updateStatValue('hoursToday', (data.hours_today || 0) + 'h');
                 updateStatValue('efficiency', (data.efficiency || 0) + '%');
                 updateStatValue('currentRank', '#' + (data.employee_rank || '-'));
                 updateStatValue('pointsToday', Math.round(data.points_earned || 0));
+
+                // Update hours context
+                const hoursCtx = document.getElementById('hoursContext');
+                if (hoursCtx) {
+                    const activeHrs = Math.round((data.active_minutes || 0) / 60 * 10) / 10;
+                    hoursCtx.innerHTML = `<i class="fas fa-play"></i> ${activeHrs}h active`;
+                }
 
                 // Update context indicators
                 updateContext('itemsContext', data.items_processed, data.team_avg_items);
@@ -1752,7 +2262,8 @@
         }
 
         async function deleteGoal(goalId) {
-            if (!confirm('Remove this goal?')) return;
+            const confirmed = await confirmDialog('Remove Goal', 'Are you sure you want to remove this goal?');
+            if (!confirmed) return;
 
             const employeeId = getEmployeeId();
             const token = getToken();
@@ -1783,7 +2294,7 @@
             const target = parseFloat(document.getElementById('goalTarget').value);
 
             if (!metric || !target || target <= 0) {
-                alert('Please select a metric and enter a valid target');
+                await alertDialog('Invalid Input', 'Please select a metric and enter a valid target');
                 return;
             }
 
@@ -1806,11 +2317,11 @@
                     closeAddGoalModal();
                     loadGoals();
                 } else {
-                    alert(data.message || 'Failed to create goal');
+                    await alertDialog('Error', data.message || 'Failed to create goal');
                 }
             } catch (error) {
                 console.error('Error creating goal:', error);
-                alert('Failed to create goal');
+                await alertDialog('Error', 'Failed to create goal');
             }
         }
 
@@ -2004,6 +2515,424 @@
         }
 
         // ============================================
+        // SCHEDULE
+        // ============================================
+
+        async function loadSchedule() {
+            const employeeId = getEmployeeId();
+            const token = getToken();
+            const container = document.getElementById('scheduleContainer');
+
+            if (!employeeId || !token || !container) return;
+
+            try {
+                const response = await fetch(`/api/employee/${employeeId}/schedule/week`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    container.innerHTML = '<div class="schedule-empty"><i class="fas fa-calendar-times"></i><p>Unable to load schedule</p></div>';
+                    return;
+                }
+
+                const today = new Date().toISOString().split('T')[0];
+                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+                // Render current week
+                let html = '';
+
+                if (data.current_week && data.current_week.length > 0) {
+                    html += `
+                        <div class="schedule-week">
+                            <div class="schedule-week-header">
+                                This Week <span class="current-badge">Current</span>
+                            </div>
+                            <div class="schedule-days">
+                    `;
+
+                    data.current_week.forEach(day => {
+                        const date = new Date(day.date);
+                        const isToday = day.date === today;
+                        const isOff = !day.shift_start;
+
+                        html += `
+                            <div class="schedule-day ${isToday ? 'today' : ''} ${isOff ? 'off' : ''}">
+                                <div class="schedule-day-name">${dayNames[date.getDay()]}</div>
+                                <div class="schedule-day-date">${date.getDate()}</div>
+                                <div class="schedule-shift ${isOff ? 'off' : ''}">
+                                    ${isOff ? 'OFF' : formatShiftTime(day.shift_start, day.shift_end)}
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    html += '</div></div>';
+                }
+
+                // Render next week if available
+                if (data.next_week && data.next_week.length > 0) {
+                    html += `
+                        <div class="schedule-week">
+                            <div class="schedule-week-header">Next Week</div>
+                            <div class="schedule-days">
+                    `;
+
+                    data.next_week.forEach(day => {
+                        const date = new Date(day.date);
+                        const isOff = !day.shift_start;
+
+                        html += `
+                            <div class="schedule-day ${isOff ? 'off' : ''}">
+                                <div class="schedule-day-name">${dayNames[date.getDay()]}</div>
+                                <div class="schedule-day-date">${date.getDate()}</div>
+                                <div class="schedule-shift ${isOff ? 'off' : ''}">
+                                    ${isOff ? 'OFF' : formatShiftTime(day.shift_start, day.shift_end)}
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    html += '</div></div>';
+                }
+
+                if (!html) {
+                    html = '<div class="schedule-empty"><i class="fas fa-calendar-times"></i><p>No schedule available yet</p></div>';
+                }
+
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('Error loading schedule:', error);
+                container.innerHTML = '<div class="schedule-empty"><p>Failed to load schedule</p></div>';
+            }
+        }
+
+        function formatShiftTime(start, end) {
+            if (!start) return 'OFF';
+
+            // Format HH:MM to readable time
+            const formatTime = (time) => {
+                if (!time) return '';
+                const [hours, minutes] = time.split(':');
+                const h = parseInt(hours);
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                const displayHour = h % 12 || 12;
+                return `${displayHour}${minutes !== '00' ? ':' + minutes : ''}${ampm}`;
+            };
+
+            return `${formatTime(start)}-${formatTime(end)}`;
+        }
+
+        // ============================================
+        // TIME-OFF REQUESTS
+        // ============================================
+
+        // Calendar state
+        let calendarMonth = new Date().getMonth();
+        let calendarYear = new Date().getFullYear();
+        let selectedDates = [];
+
+        async function loadTimeOffRequests() {
+            const employeeId = getEmployeeId();
+            const token = getToken();
+            const container = document.getElementById('timeoffContainer');
+
+            if (!employeeId || !token || !container) return;
+
+            try {
+                const response = await fetch(`/api/employee/${employeeId}/time-off`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                if (!data.success || !data.requests || data.requests.length === 0) {
+                    container.innerHTML = `
+                        <div class="timeoff-empty">
+                            <p>No time-off requests</p>
+                            <p style="font-size: 0.75rem; margin-top: 4px; opacity: 0.7;">Click "Request" to submit a time-off request</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = data.requests.map(req => {
+                    // Handle multiple dates display
+                    let dateDisplay = '';
+                    if (req.dates && req.dates.length > 0) {
+                        // Multiple non-consecutive dates
+                        dateDisplay = req.dates.map(d => {
+                            const date = new Date(d);
+                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        }).join(', ');
+                    } else {
+                        // Fallback to start/end range
+                        const startDate = new Date(req.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        const endDate = new Date(req.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        dateDisplay = req.start_date === req.end_date ? startDate : `${startDate} - ${endDate}`;
+                    }
+
+                    return `
+                        <div class="timeoff-item">
+                            <div class="timeoff-info">
+                                <div class="timeoff-dates">${dateDisplay}</div>
+                                <div class="timeoff-reason">${req.request_type || 'Time off'}${req.reason ? ': ' + req.reason : ''}</div>
+                            </div>
+                            <div class="timeoff-actions">
+                                <span class="timeoff-status ${req.status}">${req.status}</span>
+                                ${req.status === 'pending' ? `
+                                    <button class="timeoff-cancel" onclick="cancelTimeOffRequest(${req.id})" title="Cancel request">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading time-off requests:', error);
+                container.innerHTML = '<p class="timeoff-empty">Failed to load time-off requests</p>';
+            }
+        }
+
+        function openTimeOffModal() {
+            const modal = document.getElementById('timeOffModal');
+            modal.classList.add('active');
+
+            // Reset state
+            const now = new Date();
+            calendarMonth = now.getMonth();
+            calendarYear = now.getFullYear();
+            selectedDates = [];
+
+            document.getElementById('timeOffType').value = 'vacation';
+            document.getElementById('timeOffReason').value = '';
+            document.getElementById('timeOffError').style.display = 'none';
+            document.getElementById('timeOffSuccess').style.display = 'none';
+
+            // Render calendar
+            renderCalendar();
+            updateSelectedDatesSummary();
+        }
+
+        function closeTimeOffModal() {
+            document.getElementById('timeOffModal').classList.remove('active');
+        }
+
+        function renderCalendar() {
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+            const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+            // Update title
+            document.getElementById('calendarTitle').textContent = `${monthNames[calendarMonth]} ${calendarYear}`;
+
+            // Get first day of month and total days
+            const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+            const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+            const daysInPrevMonth = new Date(calendarYear, calendarMonth, 0).getDate();
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Build calendar
+            let html = '';
+
+            // Weekday headers
+            weekdays.forEach(day => {
+                html += `<div class="calendar-weekday">${day}</div>`;
+            });
+
+            // Previous month days
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const day = daysInPrevMonth - i;
+                html += `<div class="calendar-day other-month disabled">${day}</div>`;
+            }
+
+            // Current month days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(calendarYear, calendarMonth, day);
+                date.setHours(0, 0, 0, 0);
+
+                const dateStr = formatDateISO(date);
+                const isPast = date < today;
+                const isToday = date.getTime() === today.getTime();
+                const isSelected = selectedDates.includes(dateStr);
+
+                let classes = 'calendar-day';
+                if (isPast) classes += ' past';
+                if (isToday) classes += ' today';
+                if (isSelected) classes += ' selected';
+
+                const onclick = isPast ? '' : `onclick="toggleDateSelection('${dateStr}')"`;
+
+                html += `<div class="${classes}" ${onclick}>${day}</div>`;
+            }
+
+            // Next month days (fill remaining cells)
+            const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+            const remainingCells = totalCells - (firstDay + daysInMonth);
+            for (let day = 1; day <= remainingCells; day++) {
+                html += `<div class="calendar-day other-month disabled">${day}</div>`;
+            }
+
+            document.getElementById('calendarGrid').innerHTML = html;
+        }
+
+        function formatDateISO(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function calendarPrevMonth() {
+            calendarMonth--;
+            if (calendarMonth < 0) {
+                calendarMonth = 11;
+                calendarYear--;
+            }
+            renderCalendar();
+        }
+
+        function calendarNextMonth() {
+            calendarMonth++;
+            if (calendarMonth > 11) {
+                calendarMonth = 0;
+                calendarYear++;
+            }
+            renderCalendar();
+        }
+
+        function toggleDateSelection(dateStr) {
+            const index = selectedDates.indexOf(dateStr);
+            if (index === -1) {
+                selectedDates.push(dateStr);
+                selectedDates.sort(); // Keep dates sorted
+            } else {
+                selectedDates.splice(index, 1);
+            }
+            renderCalendar();
+            updateSelectedDatesSummary();
+        }
+
+        function removeSelectedDate(dateStr) {
+            const index = selectedDates.indexOf(dateStr);
+            if (index !== -1) {
+                selectedDates.splice(index, 1);
+            }
+            renderCalendar();
+            updateSelectedDatesSummary();
+        }
+
+        function updateSelectedDatesSummary() {
+            const container = document.getElementById('selectedDatesList');
+
+            if (selectedDates.length === 0) {
+                container.innerHTML = '<span class="no-dates-selected">Click dates to select</span>';
+                return;
+            }
+
+            container.innerHTML = selectedDates.map(dateStr => {
+                const date = new Date(dateStr + 'T00:00:00');
+                const display = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                return `
+                    <span class="selected-date-tag">
+                        ${display}
+                        <span class="remove" onclick="removeSelectedDate('${dateStr}')">&times;</span>
+                    </span>
+                `;
+            }).join('');
+        }
+
+        async function submitTimeOffRequest() {
+            const requestType = document.getElementById('timeOffType').value;
+            const reason = document.getElementById('timeOffReason').value;
+            const errorEl = document.getElementById('timeOffError');
+            const successEl = document.getElementById('timeOffSuccess');
+
+            errorEl.style.display = 'none';
+            successEl.style.display = 'none';
+
+            if (selectedDates.length === 0) {
+                errorEl.textContent = 'Please select at least one date';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            const employeeId = getEmployeeId();
+            const token = getToken();
+
+            // Send all selected dates
+            const sortedDates = [...selectedDates].sort();
+
+            try {
+                const response = await fetch(`/api/employee/${employeeId}/time-off`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        dates: sortedDates,
+                        request_type: requestType,
+                        reason: reason
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    errorEl.textContent = data.message || 'Failed to submit request';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                successEl.textContent = `Time-off request submitted for ${sortedDates.length} day${sortedDates.length > 1 ? 's' : ''}!`;
+                successEl.style.display = 'block';
+
+                setTimeout(() => {
+                    closeTimeOffModal();
+                    loadTimeOffRequests();
+                }, 1500);
+
+            } catch (error) {
+                console.error('Error submitting time-off request:', error);
+                errorEl.textContent = 'Network error. Please try again.';
+                errorEl.style.display = 'block';
+            }
+        }
+
+        async function cancelTimeOffRequest(requestId) {
+            const confirmed = await confirmDialog('Cancel Request', 'Are you sure you want to cancel this time-off request?');
+            if (!confirmed) return;
+
+            const employeeId = getEmployeeId();
+            const token = getToken();
+
+            try {
+                const response = await fetch(`/api/employee/${employeeId}/time-off/${requestId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    loadTimeOffRequests();
+                } else {
+                    await alertDialog('Error', data.message || 'Failed to cancel request');
+                }
+            } catch (error) {
+                console.error('Error canceling time-off request:', error);
+                await alertDialog('Error', 'Failed to cancel request');
+            }
+        }
+
+        // ============================================
         // EVENT LISTENERS
         // ============================================
 
@@ -2012,6 +2941,7 @@
             if (e.key === 'Escape') {
                 closeAddGoalModal();
                 closeChangePinModal();
+                closeTimeOffModal();
             }
         });
 
@@ -2027,5 +2957,6 @@
         // Initialize on load
         document.addEventListener('DOMContentLoaded', initDashboard);
     </script>
+    <script src="shared-ui.js"></script>
 </body>
 </html>

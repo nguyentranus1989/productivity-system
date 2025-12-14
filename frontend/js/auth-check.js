@@ -28,7 +28,7 @@
         '/manager.html': ['admin', 'manager'],
         '/employee.html': ['admin', 'manager', 'employee'],
         '/shop-floor.html': ['admin', 'manager', 'employee', 'shopfloor'],
-        '/index.html': ['admin', 'manager'],  // Dashboard selector
+        // index.html removed - admins go directly to manager.html
         '/dashboard-selector.html': ['admin', 'manager']
     };
     
@@ -224,8 +224,7 @@
         //     }
         // });
         
-        // Add logout button
-        addLogoutButton(userRole);
+        // Logout button handled by individual pages, not here
         
         // Store current user role for page use
         window.currentUserRole = userRole;

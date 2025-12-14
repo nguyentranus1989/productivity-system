@@ -197,7 +197,6 @@
             <button type="button" class="btn btn-primary w-100" onclick="doAdminLogin()">Login</button>
         </div>
     </div>
-    <button id="adminLogoutBtn" style="position: fixed; top: 20px; right: 20px; z-index: 9999; background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; display: none;" onclick="doAdminLogout()">Logout</button>
     <!-- Header -->
     <div class="admin-header">
         <div class="container-fluid">
@@ -233,8 +232,8 @@
             <button class="nav-link" id="nav-usermgmt-tab" data-bs-toggle="tab" data-bs-target="#nav-usermgmt" type="button">
                 <i class="fas fa-user-cog"></i> User Management
             </button>
-            <button class="nav-link" onclick="window.location.href='index.html'" type="button">
-                <i class="fas fa-home"></i> Home
+            <button class="nav-link" onclick="window.location.href='manager.html'" type="button">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
             </button>
         </div>
     </nav>
@@ -681,10 +680,10 @@
             try {
                 await api.syncEmployees();
                 await api.syncTodayShifts();
-                alert('Connecteam sync completed!');
+                await alertDialog('Success', 'Connecteam sync completed!');
                 loadEmployees();
             } catch (error) {
-                alert('Sync failed: ' + error.message);
+                await alertDialog('Error', 'Sync failed: ' + error.message);
             }
         }
 
@@ -692,8 +691,8 @@
             await syncConnecteam();
         }
 
-        function testPodFactory() {
-            alert('PodFactory endpoint: POST /api/activities/activity\nWaiting for scanner data...');
+        async function testPodFactory() {
+            await alertDialog('PodFactory Info', 'PodFactory endpoint: POST /api/activities/activity\nWaiting for scanner data...');
         }
 
         function editEmployee(id) {
@@ -788,13 +787,14 @@
                 showPinSlip(data.employee_name, data.pin);
                 refreshEmployeeAuth();
             } catch (error) {
-                alert('Failed to set PIN: ' + error.message);
+                await alertDialog('Error', 'Failed to set PIN: ' + error.message);
             }
         }
 
         // Reset employee PIN
         async function resetEmployeePin(employeeId) {
-            if (!confirm('Reset PIN for this employee? A new random PIN will be generated.')) return;
+            const confirmed = await confirmDialog('Reset PIN', 'Reset PIN for this employee? A new random PIN will be generated.');
+            if (!confirmed) return;
 
             try {
                 const response = await fetch(`/api/admin/employees/${employeeId}/reset-pin`, {
@@ -808,13 +808,14 @@
                 showPinSlip(data.employee_name, data.pin);
                 refreshEmployeeAuth();
             } catch (error) {
-                alert('Failed to reset PIN: ' + error.message);
+                await alertDialog('Error', 'Failed to reset PIN: ' + error.message);
             }
         }
 
         // Toggle employee active status
         async function toggleEmployeeActive(employeeId) {
-            if (!confirm('Toggle active status for this employee?')) return;
+            const confirmed = await confirmDialog('Toggle Status', 'Toggle active status for this employee?');
+            if (!confirmed) return;
 
             try {
                 const response = await fetch(`/api/admin/employees/${employeeId}/toggle-active`, {
@@ -825,10 +826,10 @@
                 const data = await response.json();
                 if (!data.success) throw new Error(data.message);
 
-                alert(data.message);
+                await alertDialog('Success', data.message);
                 refreshEmployeeAuth();
             } catch (error) {
-                alert('Failed to toggle status: ' + error.message);
+                await alertDialog('Error', 'Failed to toggle status: ' + error.message);
             }
         }
 
@@ -904,12 +905,12 @@
             const pin = document.getElementById('newShopFloorPin').value;
 
             if (!pin) {
-                alert('Please enter a new PIN');
+                await alertDialog('Invalid Input', 'Please enter a new PIN');
                 return;
             }
 
             if (!/^\d{4,6}$/.test(pin)) {
-                alert('PIN must be 4-6 digits');
+                await alertDialog('Invalid Input', 'PIN must be 4-6 digits');
                 return;
             }
 
@@ -926,11 +927,11 @@
                 const data = await response.json();
                 if (!data.success) throw new Error(data.message);
 
-                alert('Shop floor PIN updated successfully!');
+                await alertDialog('Success', 'Shop floor PIN updated successfully!');
                 document.getElementById('newShopFloorPin').value = '';
                 loadShopFloorStatus();
             } catch (error) {
-                alert('Failed to set shop floor PIN: ' + error.message);
+                await alertDialog('Error', 'Failed to set shop floor PIN: ' + error.message);
             }
         }
 
@@ -977,8 +978,7 @@
             }, 30000);
         });
     </script>
-<script>
-</script>
+<script src="shared-ui.js"></script>
 <script src="/js/auth-check.js"></script>
 </body>
 </html>

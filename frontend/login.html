@@ -4,8 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Productivity System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-primary: #0a0d10;
+            --bg-secondary: #12171d;
+            --bg-card: #1a2028;
+            --bg-input: #0f1419;
+            --border-color: #2a3441;
+            --border-active: #f59e0b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #f59e0b;
+            --accent-hover: #fbbf24;
+            --accent-glow: rgba(245, 158, 11, 0.15);
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,28 +32,103 @@
         }
 
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--bg-primary);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Animated background grid */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(245, 158, 11, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(245, 158, 11, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(60px, 60px); }
+        }
+
+        /* Floating geometric shapes */
+        .bg-shapes {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .shape {
+            position: absolute;
+            border: 1px solid rgba(245, 158, 11, 0.1);
+            animation: float 15s ease-in-out infinite;
+        }
+
+        .shape-1 {
+            width: 300px;
+            height: 300px;
+            top: -100px;
+            right: -100px;
+            border-radius: 50%;
+            animation-delay: 0s;
+        }
+
+        .shape-2 {
+            width: 200px;
+            height: 200px;
+            bottom: -50px;
+            left: -50px;
+            transform: rotate(45deg);
+            animation-delay: -5s;
+        }
+
+        .shape-3 {
+            width: 150px;
+            height: 150px;
+            top: 30%;
+            left: 10%;
+            border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.5; }
+            50% { transform: translateY(-30px) rotate(10deg); opacity: 1; }
+        }
+
+        /* Main container */
+        .login-wrapper {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
         }
 
         .login-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
             overflow: hidden;
-            width: 90%;
-            max-width: 450px;
-            animation: slideIn 0.5s ease-out;
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow:
+                0 4px 6px -1px rgba(0, 0, 0, 0.3),
+                0 20px 40px -10px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.03);
         }
 
-        @keyframes slideIn {
+        @keyframes slideUp {
             from {
                 opacity: 0;
-                transform: translateY(-30px);
+                transform: translateY(40px);
             }
             to {
                 opacity: 1;
@@ -42,156 +136,215 @@
             }
         }
 
+        /* Header */
         .login-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
+            padding: 40px 32px 32px;
             text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, transparent 100%);
+        }
+
+        .logo-mark {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, var(--accent) 0%, #d97706 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 28px;
+            color: var(--bg-primary);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3); }
+            50% { box-shadow: 0 4px 30px rgba(245, 158, 11, 0.5); }
         }
 
         .login-header h1 {
+            font-family: 'Bebas Neue', sans-serif;
             font-size: 28px;
-            margin-bottom: 10px;
+            letter-spacing: 3px;
+            color: var(--text-primary);
+            margin-bottom: 8px;
         }
 
         .login-header p {
-            opacity: 0.9;
-            font-size: 14px;
+            color: var(--text-muted);
+            font-size: 13px;
         }
 
+        /* Login body */
         .login-body {
-            padding: 40px 30px;
+            padding: 32px;
         }
 
-        .role-selector {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 30px;
-        }
-
-        .role-btn {
-            background: #f8f9fa;
-            border: 2px solid #dee2e6;
-            border-radius: 10px;
-            padding: 15px 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-        }
-
-        .role-btn:hover {
-            background: #e9ecef;
-            transform: translateY(-2px);
-        }
-
-        .role-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
-        }
-
-        .role-icon {
-            font-size: 24px;
-            margin-bottom: 5px;
-        }
-
-        .role-label {
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .login-form {
-            display: none;
-            animation: fadeIn 0.3s ease-in;
-        }
-
-        .login-form.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .form-floating {
+        /* Form */
+        .form-group {
             margin-bottom: 20px;
         }
 
-        .form-control {
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
             border-radius: 10px;
-            border: 2px solid #dee2e6;
-            padding: 12px 15px;
-            font-size: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
         }
 
-        .form-control:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        .form-input::placeholder {
+            color: var(--text-muted);
+            font-family: 'Inter', sans-serif;
         }
 
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .input-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* Checkbox */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .checkbox-input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .checkbox-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        /* Button */
         .btn-login {
             width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--accent) 0%, #d97706 100%);
             border: none;
             border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 18px;
+            letter-spacing: 2px;
+            color: var(--bg-primary);
             cursor: pointer;
-            transition: transform 0.2s ease;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn-login:hover::before {
+            left: 100%;
         }
 
         .btn-login:hover {
             transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.35);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
         }
 
         .btn-login:disabled {
             opacity: 0.6;
             cursor: not-allowed;
+            transform: none;
         }
 
-        .remember-me {
-            display: flex;
+        .btn-login:disabled::before {
+            display: none;
+        }
+
+        /* Shop Floor Link */
+        .shop-floor-link {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .shop-floor-btn {
+            display: inline-flex;
             align-items: center;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-
-        .remember-me input {
-            margin-right: 8px;
-        }
-
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 12px;
+            gap: 8px;
+            padding: 12px 20px;
+            background: transparent;
+            border: 1px solid var(--border-color);
             border-radius: 8px;
-            margin-top: 15px;
-            font-size: 14px;
-            display: none;
+            color: var(--text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
-        .success-message {
-            background: #d4edda;
-            color: #155724;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 15px;
-            font-size: 14px;
-            display: none;
+        .shop-floor-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
         }
 
+        .shop-floor-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            fill: none;
+        }
+
+        /* Spinner */
         .spinner {
             display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #ffffff;
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--bg-primary);
             border-radius: 50%;
             border-top-color: transparent;
             animation: spin 0.8s linear infinite;
+            vertical-align: middle;
             margin-left: 8px;
         }
 
@@ -199,132 +352,257 @@
             to { transform: rotate(360deg); }
         }
 
-        .company-logo {
-            width: 120px;
+        /* Messages */
+        .message {
+            padding: 14px 16px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 14px;
+            display: none;
+            animation: messageSlide 0.3s ease-out;
+        }
+
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .success-message {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
+
+        /* Shop Floor Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px;
+            width: 90%;
+            max-width: 380px;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 22px;
+            letter-spacing: 1px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-close svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .modal-hint {
+            font-size: 13px;
+            color: var(--text-muted);
             margin-bottom: 20px;
         }
 
+        /* Footer */
+        .login-footer {
+            text-align: center;
+            padding: 16px 32px;
+            border-top: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .login-footer p {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Responsive */
         @media (max-width: 480px) {
-            .role-selector {
-                grid-template-columns: 1fr;
+            .login-wrapper {
+                padding: 16px;
             }
-            
-            .login-container {
-                width: 95%;
-                margin: 20px;
+
+            .login-header {
+                padding: 32px 24px 24px;
+            }
+
+            .login-body {
+                padding: 24px;
+            }
+
+            .login-header h1 {
+                font-size: 24px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-header">
-            <!-- Add your company logo here if you have one -->
-            <!-- <img src="logo.png" alt="Company Logo" class="company-logo"> -->
-            <h1>Productivity System</h1>
-            <p>Select your role and login to continue</p>
+    <!-- Background elements -->
+    <div class="bg-grid"></div>
+    <div class="bg-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+
+    <div class="login-wrapper">
+        <div class="login-container">
+            <div class="login-header">
+                <div class="logo-mark">PS</div>
+                <h1>PRODUCTIVITY SYSTEM</h1>
+                <p>Sign in with your credentials</p>
+            </div>
+
+            <div class="login-body">
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="username">Username / Employee ID</label>
+                        <input type="text" class="form-input" id="username" placeholder="Enter username or ID" required autocomplete="username">
+                        <p class="input-hint">Managers use username, employees use ID number</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="password">Password / PIN</label>
+                        <input type="password" class="form-input" id="password" placeholder="Enter password or PIN" required autocomplete="current-password">
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" class="checkbox-input" id="rememberMe">
+                        <label class="checkbox-label" for="rememberMe">Remember me</label>
+                    </div>
+                    <button type="submit" class="btn-login" id="loginBtn">
+                        SIGN IN
+                    </button>
+                </form>
+
+                <!-- Error/Success Messages -->
+                <div id="errorMessage" class="message error-message"></div>
+                <div id="successMessage" class="message success-message"></div>
+
+                <!-- Shop Floor Access -->
+                <div class="shop-floor-link">
+                    <button type="button" class="shop-floor-btn" onclick="openShopFloorModal()">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="2" y="3" width="20" height="14" rx="2"/>
+                            <path d="M8 21h8"/>
+                            <path d="M12 17v4"/>
+                        </svg>
+                        Shop Floor Display
+                    </button>
+                </div>
+            </div>
+
+            <div class="login-footer">
+                <p>Productivity Tracking System v2.0</p>
+            </div>
         </div>
-        
-        <div class="login-body">
-            <!-- Role Selector -->
-            <div class="role-selector">
-                <div class="role-btn" onclick="selectRole('admin')">
-                    <div class="role-icon">👔</div>
-                    <div class="role-label">Manager/Admin</div>
+    </div>
+
+    <!-- Shop Floor Modal -->
+    <div id="shopFloorModal" class="modal-overlay" onclick="closeShopFloorModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title">Shop Floor Display</div>
+                <button class="modal-close" onclick="closeShopFloorModal()">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M18 6L6 18"/>
+                        <path d="M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <p class="modal-hint">Enter the display PIN to access the shop floor view</p>
+            <form onsubmit="handleShopFloorLogin(event)">
+                <div class="form-group">
+                    <label class="form-label" for="shopfloorPin">Display PIN</label>
+                    <input type="password" class="form-input" id="shopfloorPin" placeholder="Enter PIN" maxlength="6" required>
                 </div>
-                <div class="role-btn" onclick="selectRole('employee')">
-                    <div class="role-icon">👤</div>
-                    <div class="role-label">Employee</div>
+                <div class="checkbox-group">
+                    <input type="checkbox" class="checkbox-input" id="rememberShopfloor" checked>
+                    <label class="checkbox-label" for="rememberShopfloor">Remember this device</label>
                 </div>
-                <div class="role-btn" onclick="selectRole('shopfloor')">
-                    <div class="role-icon">📺</div>
-                    <div class="role-label">Shop Floor</div>
-                </div>
-            </div>
-
-            <!-- Admin/Manager Login Form -->
-            <div id="adminForm" class="login-form">
-                <h5 class="mb-3">Manager/Admin Login</h5>
-                <form onsubmit="handleAdminLogin(event)">
-                    <div class="form-floating mb-3">
-                        <input type="text" class="form-control" id="adminUsername" placeholder="Username" required>
-                        <label for="adminUsername">Username</label>
-                    </div>
-                    <div class="form-floating mb-3">
-                        <input type="password" class="form-control" id="adminPassword" placeholder="Password" required>
-                        <label for="adminPassword">Password</label>
-                    </div>
-                    <div class="remember-me">
-                        <input type="checkbox" id="rememberAdmin">
-                        <label for="rememberAdmin">Remember me</label>
-                    </div>
-                    <button type="submit" class="btn-login" id="adminLoginBtn">
-                        Login
-                    </button>
-                </form>
-            </div>
-
-            <!-- Employee Login Form -->
-            <div id="employeeForm" class="login-form">
-                <h5 class="mb-3">Employee Login</h5>
-                <form onsubmit="handleEmployeeLogin(event)">
-                    <div class="form-floating mb-3">
-                        <input type="text" class="form-control" id="employeeId" placeholder="Employee ID" required>
-                        <label for="employeeId">Employee ID</label>
-                    </div>
-                    <div class="form-floating mb-3">
-                        <input type="password" class="form-control" id="employeePin" placeholder="PIN" maxlength="6" required>
-                        <label for="employeePin">PIN</label>
-                    </div>
-                    <div class="remember-me">
-                        <input type="checkbox" id="rememberEmployee">
-                        <label for="rememberEmployee">Remember me</label>
-                    </div>
-                    <button type="submit" class="btn-login" id="employeeLoginBtn">
-                        Login
-                    </button>
-                </form>
-            </div>
-
-            <!-- Shop Floor Login Form -->
-            <div id="shopfloorForm" class="login-form">
-                <h5 class="mb-3">Shop Floor Display</h5>
-                <p class="text-muted mb-3">Enter the shop floor PIN to display on TV</p>
-                <form onsubmit="handleShopFloorLogin(event)">
-                    <div class="form-floating mb-3">
-                        <input type="password" class="form-control" id="shopfloorPin" placeholder="PIN" maxlength="6" required>
-                        <label for="shopfloorPin">Shop Floor PIN</label>
-                    </div>
-                    <div class="remember-me">
-                        <input type="checkbox" id="rememberShopfloor" checked>
-                        <label for="rememberShopfloor">Remember me</label>
-                    </div>
-                    <button type="submit" class="btn-login" id="shopfloorLoginBtn">
-                        Access Display
-                    </button>
-                </form>
-            </div>
-
-            <!-- Error/Success Messages -->
-            <div id="errorMessage" class="error-message"></div>
-            <div id="successMessage" class="success-message"></div>
+                <button type="submit" class="btn-login" id="shopfloorLoginBtn">
+                    ACCESS DISPLAY
+                </button>
+            </form>
+            <div id="shopfloorError" class="message error-message"></div>
         </div>
     </div>
 
     <script>
-        // Configuration
-        const API_BASE = '';  // Leave empty if same domain
-        // Shop floor PIN is now validated via backend API
-
         // Check if already logged in
         window.onload = function() {
             const adminToken = localStorage.getItem('adminToken');
             const employeeToken = localStorage.getItem('employeeToken');
             const shopfloorToken = localStorage.getItem('shopfloorToken');
-            
-            // Auto-redirect if already logged in
+
             if (adminToken) {
-                window.location.href = '/index.html';
+                window.location.href = '/manager.html';
             } else if (employeeToken) {
                 window.location.href = '/employee.html';
             } else if (shopfloorToken) {
@@ -332,27 +610,6 @@
             }
         };
 
-        // Role selection
-        function selectRole(role) {
-            // Update button states
-            document.querySelectorAll('.role-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.closest('.role-btn').classList.add('active');
-
-            // Hide all forms
-            document.querySelectorAll('.login-form').forEach(form => {
-                form.classList.remove('active');
-            });
-
-            // Show selected form
-            document.getElementById(role + 'Form').classList.add('active');
-
-            // Clear any error messages
-            hideMessages();
-        }
-
-        // Show error message
         function showError(message) {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.textContent = message;
@@ -360,7 +617,6 @@
             document.getElementById('successMessage').style.display = 'none';
         }
 
-        // Show success message
         function showSuccess(message) {
             const successDiv = document.getElementById('successMessage');
             successDiv.textContent = message;
@@ -368,53 +624,52 @@
             document.getElementById('errorMessage').style.display = 'none';
         }
 
-        // Hide all messages
         function hideMessages() {
             document.getElementById('errorMessage').style.display = 'none';
             document.getElementById('successMessage').style.display = 'none';
         }
 
-        // Handle Admin/Manager login
-        async function handleAdminLogin(event) {
+        // Unified login handler
+        async function handleLogin(event) {
             event.preventDefault();
             hideMessages();
 
-            const username = document.getElementById('adminUsername').value;
-            const password = document.getElementById('adminPassword').value;
-            const remember = document.getElementById('rememberAdmin').checked;
-            const btn = document.getElementById('adminLoginBtn');
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const remember = document.getElementById('rememberMe').checked;
+            const btn = document.getElementById('loginBtn');
 
-            // Show loading state
             btn.disabled = true;
-            btn.innerHTML = 'Logging in... <span class="spinner"></span>';
+            btn.innerHTML = 'SIGNING IN<span class="spinner"></span>';
 
             try {
-                const response = await fetch('/api/admin/login', {
+                const response = await fetch('/api/auth/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    // Store token
-                    if (remember) {
-                        localStorage.setItem('adminToken', data.token);
-                        localStorage.setItem('adminUser', JSON.stringify(data.admin));
-                    } else {
-                        sessionStorage.setItem('adminToken', data.token);
-                        sessionStorage.setItem('adminUser', JSON.stringify(data.admin));
+                    const storage = remember ? localStorage : sessionStorage;
+
+                    if (data.user_type === 'admin') {
+                        storage.setItem('adminToken', data.token);
+                        storage.setItem('adminUser', JSON.stringify(data.user));
+                    } else if (data.user_type === 'employee') {
+                        storage.setItem('employeeToken', data.token);
+                        storage.setItem('employeeData', JSON.stringify({
+                            token: data.token,
+                            employee_id: data.user.id,
+                            name: data.user.name
+                        }));
                     }
 
                     showSuccess('Login successful! Redirecting...');
-                    
-                    // Redirect to index/dashboard selector
                     setTimeout(() => {
-                        window.location.href = '/index.html';
-                    }, 1000);
+                        window.location.href = data.redirect || '/manager.html';
+                    }, 800);
                 } else {
                     showError(data.message || 'Invalid credentials');
                 }
@@ -423,82 +678,37 @@
                 console.error('Login error:', error);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = 'Login';
+                btn.innerHTML = 'SIGN IN';
             }
         }
 
-        // Handle Employee login
-        async function handleEmployeeLogin(event) {
-            event.preventDefault();
-            hideMessages();
+        // Shop Floor Modal
+        function openShopFloorModal() {
+            document.getElementById('shopFloorModal').classList.add('active');
+            document.getElementById('shopfloorPin').focus();
+        }
 
-            const employeeId = document.getElementById('employeeId').value;
-            const pin = document.getElementById('employeePin').value;
-            const remember = document.getElementById('rememberEmployee').checked;
-            const btn = document.getElementById('employeeLoginBtn');
-
-            // Show loading state
-            btn.disabled = true;
-            btn.innerHTML = 'Logging in... <span class="spinner"></span>';
-
-            try {
-                const response = await fetch('/api/employee/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        employee_id: employeeId,
-                        pin: pin 
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    // Store token
-                    if (remember) {
-                        localStorage.setItem('employeeToken', data.token);
-                        localStorage.setItem('employeeData', JSON.stringify(data));
-                    } else {
-                        sessionStorage.setItem('employeeToken', data.token);
-                        sessionStorage.setItem('employeeData', JSON.stringify(data));
-                    }
-
-                    showSuccess('Login successful! Redirecting...');
-                    
-                    // Redirect to employee portal
-                    setTimeout(() => {
-                        window.location.href = '/employee.html';
-                    }, 1000);
-                } else {
-                    showError(data.message || 'Invalid Employee ID or PIN');
-                }
-            } catch (error) {
-                showError('Connection error. Please try again.');
-                console.error('Login error:', error);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'Login';
+        function closeShopFloorModal(event) {
+            if (!event || event.target.id === 'shopFloorModal') {
+                document.getElementById('shopFloorModal').classList.remove('active');
+                document.getElementById('shopfloorError').style.display = 'none';
             }
         }
 
-        // Handle Shop Floor login
         async function handleShopFloorLogin(event) {
             event.preventDefault();
-            hideMessages();
 
             const pin = document.getElementById('shopfloorPin').value;
             const remember = document.getElementById('rememberShopfloor').checked;
             const btn = document.getElementById('shopfloorLoginBtn');
+            const errorDiv = document.getElementById('shopfloorError');
 
-            // Disable button and show loading
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+            btn.innerHTML = 'VERIFYING<span class="spinner"></span>';
+            errorDiv.style.display = 'none';
 
             try {
-                // Validate PIN via backend API
-                const response = await fetch(`${API_BASE}/api/shopfloor/login`, {
+                const response = await fetch('/api/shopfloor/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ pin })
@@ -507,7 +717,6 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Store token
                     if (remember) {
                         localStorage.setItem('shopfloorToken', data.token);
                         localStorage.setItem('shopfloorExpiry', Date.now() + (180 * 24 * 60 * 60 * 1000));
@@ -515,35 +724,27 @@
                         sessionStorage.setItem('shopfloorToken', data.token);
                     }
 
-                    showSuccess('Access granted! Redirecting...');
-
-                    // Redirect to shop floor display
-                    setTimeout(() => {
-                        window.location.href = '/shop-floor.html';
-                    }, 1000);
+                    window.location.href = '/shop-floor.html';
                 } else {
-                    showError(data.message || 'Invalid PIN. Please try again.');
+                    errorDiv.textContent = data.message || 'Invalid PIN';
+                    errorDiv.style.display = 'block';
                 }
             } catch (error) {
-                console.error('Shop floor login error:', error);
-                showError('Network error. Please try again.');
+                errorDiv.textContent = 'Network error. Please try again.';
+                errorDiv.style.display = 'block';
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = 'Access Shop Floor';
+                btn.innerHTML = 'ACCESS DISPLAY';
             }
         }
 
-        // Enter key should submit forms
-        document.querySelectorAll('input').forEach(input => {
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    const form = this.closest('form');
-                    if (form) {
-                        form.dispatchEvent(new Event('submit'));
-                    }
-                }
-            });
+        // Close modal on Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeShopFloorModal();
+            }
         });
     </script>
+    <script src="shared-ui.js"></script>
 </body>
 </html>

@@ -50,10 +50,6 @@
                 <i class="fas fa-user"></i>
                 <span>Employee Portal</span>
             </a>
-            <a href="#" class="nav-item">
-                <i class="fas fa-chart-line"></i>
-                <span>Analytics</span>
-            </a>
             <a href="#" class="nav-item" onclick="openSettingsModal(); return false;">
                 <i class="fas fa-cog"></i>
                 <span>Settings</span>
@@ -66,6 +62,9 @@
                 <p class="user-name">Manager Admin</p>
                 <div class="status-indicator"><span class="status-dot"></span>ONLINE</div>
             </div>
+            <button onclick="logout()" class="logout-btn" style="width: 100%; margin-top: 10px; padding: 10px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s;">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
         </div>
     </div>
     
@@ -345,7 +344,7 @@
     <div id="cost-section" class="section-content">
         <!-- Cost Toolbar -->
         <div class="section-toolbar" style="display: flex; justify-content: flex-end; padding: 10px 0; margin-bottom: 10px;">
-            <button id="exportCostBtn" class="btn-action btn-secondary" onclick="exportCostReport()" disabled title="Load data first">
+            <button id="exportCostBtn" class="btn-action btn-secondary" disabled title="Load data first">
                 <i class="fas fa-download"></i>
                 <span>Export Cost Report</span>
             </button>
@@ -437,7 +436,7 @@
                         <option value="efficiency">Sort by Efficiency</option>
                         <option value="non_active">Sort by Idle Time</option>
                     </select>
-                    <button class="btn-action btn-secondary" id="exportCostBtn" style="padding: 8px 16px;">
+                    <button class="btn-action btn-secondary" id="exportCostTableBtn" style="padding: 8px 16px;">
                         <i class="fas fa-download"></i>
                         <span>Export</span>
                     </button>
@@ -513,22 +512,13 @@
             </div>
         </div>
     </div>
-    <!-- Analytics Section (placeholder) -->
-    <div id="analytics-section" class="section-content">
-
     <!-- Intelligent Scheduling Section -->
     <div id="scheduling-section" class="section-content">
-        <iframe 
-            src="/intelligent-schedule.html" 
+        <iframe
+            src="/intelligent-schedule.html"
             style="width: 100%; height: calc(100vh - 100px); border: none; border-radius: 10px;"
             title="Intelligent Scheduling System">
         </iframe>
-    </div>
-        <div style="text-align: center; padding: 100px 20px;">
-            <i class="fas fa-chart-bar" style="font-size: 4em; color: #667eea; margin-bottom: 20px;"></i>
-            <h2 style="color: #e0e0e0; margin-bottom: 10px;">Analytics Dashboard</h2>
-            <p style="color: #808080;">Advanced analytics features coming soon</p>
-        </div>
     </div>
     <!-- Employee Management Section -->
     <div id="employee-management-section" class="section-content">
@@ -5921,16 +5911,16 @@
                         return [
                             emp.name,
                             emp.pay_type || 'hourly',
-                            (emp.hourly_rate || 0).toFixed(2),
-                            (emp.clocked_hours || 0).toFixed(2),
-                            (emp.active_hours || 0).toFixed(2),
-                            (emp.non_active_hours || 0).toFixed(2),
-                            (emp.total_cost || 0).toFixed(2),
-                            (emp.active_cost || 0).toFixed(2),
-                            (emp.non_active_cost || 0).toFixed(2),
-                            (emp.utilization_rate || 0).toFixed(1),
+                            parseFloat(emp.hourly_rate || 0).toFixed(2),
+                            parseFloat(emp.clocked_hours || 0).toFixed(2),
+                            parseFloat(emp.active_hours || 0).toFixed(2),
+                            parseFloat(emp.non_active_hours || 0).toFixed(2),
+                            parseFloat(emp.total_cost || 0).toFixed(2),
+                            parseFloat(emp.active_cost || 0).toFixed(2),
+                            parseFloat(emp.non_active_cost || 0).toFixed(2),
+                            parseFloat(emp.utilization_rate || 0).toFixed(1),
                             emp.items_processed || 0,
-                            emp.items_processed > 0 ? (emp.total_cost / emp.items_processed).toFixed(3) : '0',
+                            emp.items_processed > 0 ? (parseFloat(emp.total_cost) / emp.items_processed).toFixed(3) : '0',
                             breakdown.picking || 0,
                             breakdown.labeling || 0,
                             breakdown.film_matching || 0,
@@ -5941,19 +5931,19 @@
 
                     // Add totals row
                     const totals = costData.employee_costs.reduce((acc, emp) => {
-                        acc.clocked += emp.clocked_hours || 0;
-                        acc.active += emp.active_hours || 0;
-                        acc.nonActive += emp.non_active_hours || 0;
-                        acc.cost += emp.total_cost || 0;
-                        acc.activeCost += emp.active_cost || 0;
-                        acc.nonActiveCost += emp.non_active_cost || 0;
-                        acc.items += emp.items_processed || 0;
+                        acc.clocked += parseFloat(emp.clocked_hours || 0);
+                        acc.active += parseFloat(emp.active_hours || 0);
+                        acc.nonActive += parseFloat(emp.non_active_hours || 0);
+                        acc.cost += parseFloat(emp.total_cost || 0);
+                        acc.activeCost += parseFloat(emp.active_cost || 0);
+                        acc.nonActiveCost += parseFloat(emp.non_active_cost || 0);
+                        acc.items += parseInt(emp.items_processed || 0);
                         const b = emp.activity_breakdown || {};
-                        acc.picking += b.picking || 0;
-                        acc.labeling += b.labeling || 0;
-                        acc.filmMatching += b.film_matching || 0;
-                        acc.inProduction += b.in_production || 0;
-                        acc.qcPassed += b.qc_passed || 0;
+                        acc.picking += parseInt(b.picking || 0);
+                        acc.labeling += parseInt(b.labeling || 0);
+                        acc.filmMatching += parseInt(b.film_matching || 0);
+                        acc.inProduction += parseInt(b.in_production || 0);
+                        acc.qcPassed += parseInt(b.qc_passed || 0);
                         return acc;
                     }, { clocked: 0, active: 0, nonActive: 0, cost: 0, activeCost: 0, nonActiveCost: 0, items: 0, picking: 0, labeling: 0, filmMatching: 0, inProduction: 0, qcPassed: 0 });
                     
@@ -6016,11 +6006,20 @@
                     costSortElement.addEventListener('change', updateCostTable);
                 }
 
-                // Add event listener for export button
+                // Add event listeners for export buttons
                 const exportBtn = document.getElementById('exportCostBtn');
                 if (exportBtn) {
                     exportBtn.addEventListener('click', exportCostReport);
                 }
+
+                // Also wire up the table section export button
+                const exportTableBtn = document.getElementById('exportCostTableBtn');
+                if (exportTableBtn) {
+                    exportTableBtn.addEventListener('click', exportCostReport);
+                }
+
+                // Expose to global scope for any onclick handlers
+                window.exportCostReport = exportCostReport;
 
                 });  // <-- This closes the DOMContentLoaded function
 

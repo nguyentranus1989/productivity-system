@@ -9,6 +9,7 @@ from api.connecteam import connecteam_bp
 from api.dashboard import dashboard_bp
 from api.employee_auth import employee_auth_bp
 from api.admin_auth import admin_auth_bp
+from api.unified_auth import unified_auth_bp
 from api.user_management import user_management_bp
 from api.shop_floor_auth import shop_floor_auth_bp
 from flask import Flask, jsonify, send_from_directory
@@ -174,6 +175,7 @@ def register_blueprints(app):
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
     app.register_blueprint(employee_auth_bp)
     app.register_blueprint(admin_auth_bp)
+    app.register_blueprint(unified_auth_bp)
     app.register_blueprint(user_management_bp)
     app.register_blueprint(shop_floor_auth_bp)
     app.register_blueprint(schedule_bp)
@@ -217,8 +219,8 @@ def health_check():
 
 @app.route('/', methods=['GET'])
 def index():
-    """Serve frontend index page"""
-    return send_from_directory(app.static_folder, 'index.html')
+    """Redirect root to login page"""
+    return send_from_directory(app.static_folder, 'login.html')
 
 @app.route('/<path:filename>')
 def serve_frontend(filename):
@@ -227,8 +229,8 @@ def serve_frontend(filename):
     file_path = os.path.join(app.static_folder, filename)
     if os.path.isfile(file_path):
         return send_from_directory(app.static_folder, filename)
-    # For SPA routing, return index.html (fallback)
-    return send_from_directory(app.static_folder, 'index.html')
+    # For SPA routing, return login page (fallback)
+    return send_from_directory(app.static_folder, 'login.html')
 
 @app.route('/api/scheduler/status', methods=['GET'])
 def scheduler_status():
@@ -320,7 +322,7 @@ def get_station_performance():
 
 if __name__ == '__main__':
     try:
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        app.run(host='0.0.0.0', port=5000, debug=False)
     except KeyboardInterrupt:
         app.logger.info('Shutting down...')
         shutdown_schedulers()
