@@ -4982,11 +4982,9 @@
                     const data = await response.json();
                     if (data.success) {
                         document.getElementById('pinModal').remove();
-                        // Show notification status
-                        if (data.notification?.success) {
-                            showNotification('Welcome email sent!', 'success');
-                        } else if (sendNotification && data.notification?.message) {
-                            showNotification('PIN set, but email failed: ' + data.notification.message, 'warning');
+                        // Show notification status (email sent async)
+                        if (data.notification?.queued) {
+                            showNotification('Welcome email queued!', 'success');
                         }
                         showPinSlip(employeeName, data.pin);
                         loadEmployeeManagementData();
@@ -5031,11 +5029,9 @@
                     const data = await response.json();
                     hideLoadingOverlay();
                     if (data.success) {
-                        // Show notification status
-                        if (data.notification?.success) {
-                            showNotification('Welcome email sent!', 'success');
-                        } else if (sendNotification && data.notification?.message) {
-                            showNotification('PIN reset, but email failed: ' + data.notification.message, 'warning');
+                        // Show notification status (email sent async)
+                        if (data.notification?.queued) {
+                            showNotification('Welcome email queued!', 'success');
                         }
                         showPinSlip(employeeName, data.pin);
                         loadEmployeeManagementData();

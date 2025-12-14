@@ -7,10 +7,31 @@ from flask import Blueprint, request, jsonify
 import bcrypt
 import secrets
 import string
+import threading
 from datetime import datetime
 from database.db_manager import get_db
 from api.auth import require_api_key
 from services.email_service import EmailService
+
+
+def send_email_async(employee_id, employee_name, pin, personal_email):
+    """Send welcome email in background thread"""
+    def _send():
+        try:
+            result = EmailService.send_welcome_email(employee_name, pin, personal_email)
+            if result['success']:
+                # Update welcome_sent_at in database
+                get_db().execute_query("""
+                    UPDATE employees SET welcome_sent_at = NOW() WHERE id = %s
+                """, (employee_id,))
+                print(f"[Email] Welcome email sent to {personal_email}")
+            else:
+                print(f"[Email] Failed to send: {result['message']}")
+        except Exception as e:
+            print(f"[Email] Error: {str(e)}")
+
+    thread = threading.Thread(target=_send, daemon=True)
+    thread.start()
 
 user_management_bp = Blueprint('user_management', __name__)
 
@@ -102,18 +123,11 @@ def set_employee_pin(employee_id):
                 VALUES (%s, %s, %s, NOW())
             """, (employee_id, pin_hash, pin))
 
-        # Send notification if requested
-        notification_result = None
+        # Send notification if requested (async to avoid timeout)
+        email_queued = False
         if send_notification and employee.get('personal_email'):
-            notification_result = EmailService.send_welcome_email(
-                employee['name'],
-                pin,
-                employee['personal_email']
-            )
-            if notification_result['success']:
-                get_db().execute_query("""
-                    UPDATE employees SET welcome_sent_at = NOW() WHERE id = %s
-                """, (employee_id,))
+            send_email_async(employee_id, employee['name'], pin, employee['personal_email'])
+            email_queued = True
 
         return jsonify({
             'success': True,
@@ -121,7 +135,7 @@ def set_employee_pin(employee_id):
             'employee_name': employee['name'],
             'pin': pin,  # Only returned once for print slip
             'message': 'PIN set successfully',
-            'notification': notification_result
+            'notification': {'queued': email_queued} if email_queued else None
         })
 
     except Exception as e:
@@ -164,18 +178,11 @@ def reset_employee_pin(employee_id):
                 VALUES (%s, %s, %s, NOW())
             """, (employee_id, pin_hash, new_pin))
 
-        # Send notification if requested
-        notification_result = None
+        # Send notification if requested (async to avoid timeout)
+        email_queued = False
         if send_notification and employee.get('personal_email'):
-            notification_result = EmailService.send_welcome_email(
-                employee['name'],
-                new_pin,
-                employee['personal_email']
-            )
-            if notification_result['success']:
-                get_db().execute_query("""
-                    UPDATE employees SET welcome_sent_at = NOW() WHERE id = %s
-                """, (employee_id,))
+            send_email_async(employee_id, employee['name'], new_pin, employee['personal_email'])
+            email_queued = True
 
         return jsonify({
             'success': True,
@@ -183,7 +190,7 @@ def reset_employee_pin(employee_id):
             'employee_name': employee['name'],
             'pin': new_pin,  # Only returned once for print slip
             'message': 'PIN reset successfully',
-            'notification': notification_result
+            'notification': {'queued': email_queued} if email_queued else None
         })
 
     except Exception as e:
