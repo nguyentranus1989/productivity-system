@@ -31,13 +31,13 @@ def list_employees_with_auth():
                 e.id,
                 e.name,
                 e.email,
-                e.role,
-                e.department,
+                rc.role_name as role,
                 e.is_active,
                 CASE WHEN ea.pin IS NOT NULL THEN 1 ELSE 0 END as has_pin,
                 ea.last_login,
                 ea.pin_set_at
             FROM employees e
+            LEFT JOIN role_configs rc ON e.role_id = rc.id
             LEFT JOIN employee_auth ea ON e.id = ea.employee_id
             ORDER BY e.name
         """)
@@ -83,18 +83,18 @@ def set_employee_pin(employee_id):
         """, (employee_id,))
 
         if existing:
-            # Update existing record
+            # Update existing record (store both hash and plain for export)
             get_db().execute_query("""
                 UPDATE employee_auth
-                SET pin = %s, pin_set_at = NOW()
+                SET pin = %s, pin_plain = %s, pin_set_at = NOW()
                 WHERE employee_id = %s
-            """, (pin_hash, employee_id))
+            """, (pin_hash, pin, employee_id))
         else:
             # Insert new record
             get_db().execute_query("""
-                INSERT INTO employee_auth (employee_id, pin, pin_set_at)
-                VALUES (%s, %s, NOW())
-            """, (employee_id, pin_hash))
+                INSERT INTO employee_auth (employee_id, pin, pin_plain, pin_set_at)
+                VALUES (%s, %s, %s, NOW())
+            """, (employee_id, pin_hash, pin))
 
         return jsonify({
             'success': True,
@@ -132,14 +132,14 @@ def reset_employee_pin(employee_id):
         if existing:
             get_db().execute_query("""
                 UPDATE employee_auth
-                SET pin = %s, pin_set_at = NOW(), login_token = NULL, token_expires = NULL
+                SET pin = %s, pin_plain = %s, pin_set_at = NOW(), login_token = NULL, token_expires = NULL
                 WHERE employee_id = %s
-            """, (pin_hash, employee_id))
+            """, (pin_hash, new_pin, employee_id))
         else:
             get_db().execute_query("""
-                INSERT INTO employee_auth (employee_id, pin, pin_set_at)
-                VALUES (%s, %s, NOW())
-            """, (employee_id, pin_hash))
+                INSERT INTO employee_auth (employee_id, pin, pin_plain, pin_set_at)
+                VALUES (%s, %s, %s, NOW())
+            """, (employee_id, pin_hash, new_pin))
 
         return jsonify({
             'success': True,
@@ -213,6 +213,101 @@ def revoke_employee_session(employee_id):
             'success': True,
             'employee_id': employee_id,
             'message': 'Session revoked successfully'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@user_management_bp.route('/api/admin/employees/export-pins', methods=['GET'])
+@require_api_key
+def export_employee_pins():
+    """Export all employees with their PINs as CSV"""
+    try:
+        employees = get_db().execute_query("""
+            SELECT
+                e.id,
+                e.name,
+                rc.role_name as role,
+                ea.pin_plain as pin,
+                ea.pin_set_at
+            FROM employees e
+            LEFT JOIN role_configs rc ON e.role_id = rc.id
+            LEFT JOIN employee_auth ea ON e.id = ea.employee_id
+            WHERE e.is_active = 1
+            ORDER BY e.name
+        """)
+
+        # Build CSV
+        import io
+        import csv
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Employee ID', 'Name', 'Role', 'PIN', 'PIN Set Date'])
+        for emp in employees:
+            writer.writerow([
+                emp['id'],
+                emp['name'],
+                emp['role'] or '',
+                emp['pin'] or 'NOT SET',
+                emp['pin_set_at'].strftime('%Y-%m-%d %H:%M') if emp['pin_set_at'] else ''
+            ])
+
+        from flask import Response
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=employee_pins.csv'}
+        )
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@user_management_bp.route('/api/admin/employees/bulk-generate-pins', methods=['POST'])
+@require_api_key
+def bulk_generate_pins():
+    """Generate PINs for all employees without one"""
+    try:
+        # Get employees without PINs
+        employees = get_db().execute_query("""
+            SELECT e.id, e.name
+            FROM employees e
+            LEFT JOIN employee_auth ea ON e.id = ea.employee_id
+            WHERE e.is_active = 1 AND (ea.pin IS NULL OR ea.pin = '')
+        """)
+
+        if not employees:
+            return jsonify({'success': True, 'message': 'All employees already have PINs', 'count': 0})
+
+        generated = []
+        for emp in employees:
+            pin = generate_random_pin(4)
+            pin_hash = hash_pin(pin)
+
+            # Check if auth record exists
+            existing = get_db().execute_one(
+                "SELECT employee_id FROM employee_auth WHERE employee_id = %s",
+                (emp['id'],)
+            )
+
+            if existing:
+                get_db().execute_query("""
+                    UPDATE employee_auth
+                    SET pin = %s, pin_plain = %s, pin_set_at = NOW()
+                    WHERE employee_id = %s
+                """, (pin_hash, pin, emp['id']))
+            else:
+                get_db().execute_query("""
+                    INSERT INTO employee_auth (employee_id, pin, pin_plain, pin_set_at)
+                    VALUES (%s, %s, %s, NOW())
+                """, (emp['id'], pin_hash, pin))
+
+            generated.append({'id': emp['id'], 'name': emp['name'], 'pin': pin})
+
+        return jsonify({
+            'success': True,
+            'message': f'Generated PINs for {len(generated)} employees',
+            'count': len(generated),
+            'employees': generated
         })
 
     except Exception as e:

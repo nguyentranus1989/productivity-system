@@ -3,6 +3,14 @@
 
 (function() {
     'use strict';
+    // Define logout function (needed even in dev mode)
+    window.logout = function() {
+        sessionStorage.removeItem('adminToken');
+        sessionStorage.removeItem('userRole');
+        localStorage.removeItem('shopFloorPin');
+        window.location.href = '/login.html';
+    };
+
     // Check if running locally - BYPASS AUTH FOR DEVELOPMENT
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         console.log('Auth disabled for local development');

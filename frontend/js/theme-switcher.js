@@ -24,6 +24,12 @@ const ThemeSwitcher = {
             description: 'Premium dark slate professional',
             managerCss: 'css/manager-executive.css',
             shopFloorCss: 'css/shop-floor-executive.css'
+        },
+        'industrial': {
+            label: 'Industrial',
+            description: 'Factory floor inspired theme',
+            managerCss: 'css/manager-industrial.css',
+            shopFloorCss: null
         }
     },
 

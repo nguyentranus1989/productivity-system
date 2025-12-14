@@ -2620,27 +2620,29 @@ def get_employees():
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
-        # Get all employees with their mapping info
+
+        # Get all employees with their mapping info and PIN status
         query = """
-            SELECT 
+            SELECT
                 e.id,
                 e.name,
                 e.email,
                 e.connecteam_user_id,
                 e.is_active,
-                GROUP_CONCAT(DISTINCT m.podfactory_email) as podfactory_emails
+                GROUP_CONCAT(DISTINCT m.podfactory_email) as podfactory_emails,
+                CASE WHEN ea.pin IS NOT NULL THEN 1 ELSE 0 END as has_pin
             FROM employees e
             LEFT JOIN employee_podfactory_mapping_v2 m ON e.id = m.employee_id
+            LEFT JOIN employee_auth ea ON e.id = ea.employee_id
             GROUP BY e.id
             ORDER BY e.name
         """
         cursor.execute(query)
         employees = cursor.fetchall()
-        
+
         cursor.close()
         conn.close()
-        
+
         return jsonify({
             'success': True,
             'employees': employees
