@@ -18,7 +18,7 @@ def send_email_async(employee_id, employee_name, pin, personal_email):
     """Send welcome email in background thread"""
     def _send():
         try:
-            result = EmailService.send_welcome_email(employee_name, pin, personal_email)
+            result = EmailService.send_welcome_email(employee_name, pin, personal_email, employee_id)
             if result['success']:
                 # Update welcome_sent_at in database
                 get_db().execute_query("""
@@ -418,7 +418,8 @@ def send_welcome_notification(employee_id):
         result = EmailService.send_welcome_email(
             employee['name'],
             employee['pin_plain'],
-            employee['personal_email']
+            employee['personal_email'],
+            employee_id
         )
 
         if result['success']:

@@ -20,7 +20,7 @@ class EmailService:
         return bool(getattr(Config, 'SENDGRID_API_KEY', None))
 
     @staticmethod
-    def send_welcome_email(employee_name, pin, to_email):
+    def send_welcome_email(employee_name, pin, to_email, employee_id=None):
         """
         Send welcome email with PIN to employee via SendGrid
 
@@ -28,6 +28,7 @@ class EmailService:
             employee_name: Employee's name
             pin: Their login PIN
             to_email: Employee's personal email
+            employee_id: Employee's user ID
 
         Returns:
             dict: {success: bool, message: str}
@@ -46,12 +47,13 @@ class EmailService:
 
         try:
             # Plain text version
+            id_line = f"Your User ID: {employee_id}\n" if employee_id else ""
             text_content = f"""
 Hi {employee_name},
 
-Welcome! Your employee portal PIN has been set up.
+Welcome! Your employee portal account has been set up.
 
-Your PIN: {pin}
+{id_line}Your PIN: {pin}
 
 Access the portal at: {EmailService.PORTAL_URL}
 
@@ -84,10 +86,12 @@ Contact your manager if you need any help.
         </div>
         <div class="content">
             <p>Hi <strong>{employee_name}</strong>,</p>
-            <p>Your employee portal PIN has been set up:</p>
+            <p>Your employee portal account has been set up:</p>
 
             <div class="pin-box">
+                {"<div style='font-size: 14px; color: #666; margin-bottom: 10px;'>User ID: <strong style=\"color: #333;\">" + str(employee_id) + "</strong></div>" if employee_id else ""}
                 <div class="pin">{pin}</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">PIN</div>
             </div>
 
             <p style="text-align: center;">
