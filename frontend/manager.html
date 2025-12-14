@@ -6441,11 +6441,19 @@
                         const nonActivePercent = (emp.non_active_hours / emp.clocked_hours * 100) || 0;
                         const nonActiveColor = nonActivePercent > 50 ? '#ef4444' : (nonActivePercent > 30 ? '#f59e0b' : '#22c55e');
 
-                        // Check if still clocked in (for single day view)
-                        const isStillClockedIn = isSingleDay && emp.clock_times && emp.clock_times.length > 0 &&
-                            emp.clock_times.some(ct => !ct.clock_out || ct.clock_out === 'Active');
-                        const clockedInIndicator = isStillClockedIn ?
-                            `<span style="display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 8px; animation: pulse 1.5s infinite; box-shadow: 0 0 8px #22c55e;" title="Currently clocked in"></span>` : '';
+                        // Check clock status (for single day view)
+                        let statusIndicator = '';
+                        if (isSingleDay && emp.clock_times && emp.clock_times.length > 0) {
+                            const isStillClockedIn = emp.clock_times.some(ct => !ct.clock_out || ct.clock_out === 'Active');
+                            if (isStillClockedIn) {
+                                // Green pulsing = currently clocked in
+                                statusIndicator = `<span style="display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 8px; animation: pulse 1.5s infinite; box-shadow: 0 0 8px #22c55e;" title="Currently clocked in"></span>`;
+                            } else {
+                                // Red static = clocked out
+                                statusIndicator = `<span style="display: inline-block; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; margin-right: 8px;" title="Clocked out"></span>`;
+                            }
+                        }
+                        // No indicator = no activity today
 
                         // Build clock times with clickable icon for mobile
                         let clockTimesHtml = '';
@@ -6462,7 +6470,7 @@
 
                         return `
                             <tr>
-                                <td style="padding: 12px;">${clockedInIndicator}${emp.name}</td>
+                                <td style="padding: 12px;">${statusIndicator}${emp.name}</td>
                                 <td style="padding: 12px; text-align: center;">$${parseFloat(emp.hourly_rate || 0).toFixed(2)}</td>
                                 ${clockTimesHtml}
                                 <td style="padding: 12px; text-align: center; color: #22c55e;">${parseFloat(emp.active_hours || 0).toFixed(1)}</td>
