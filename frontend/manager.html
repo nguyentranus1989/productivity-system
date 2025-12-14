@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/manager.css">
+    <link rel="stylesheet" href="css/mobile-shared.css">
     <link rel="stylesheet" href="css/manager-cyberpunk.css" id="theme-css">
 </head>
 <body>
@@ -17,6 +18,7 @@
     <!-- Mobile Menu Toggle Button (only visible on mobile) -->
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
+        <button class="sidebar-close-btn" onclick="toggleSidebar()"><i class="fas fa-times"></i></button>
         <div class="sidebar-header">
             <h2>PODFACTORY</h2>
             <p style="color: #606080; font-size: 0.7em; letter-spacing: 2px;">COMMAND CENTER</p>
@@ -67,7 +69,10 @@
             </button>
         </div>
     </div>
-    
+
+    <!-- Sidebar Overlay (for mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
     <!-- Main Content -->
     <div class="main-content">
         <!-- Header -->
@@ -1682,15 +1687,22 @@
         // Mobile sidebar toggle function
         function toggleSidebar() {
             const sidebar = document.getElementById("sidebar");
+            const overlay = document.getElementById("sidebarOverlay");
             sidebar.classList.toggle("active");
+            if (overlay) {
+                overlay.classList.toggle("active");
+            }
         }
-        
+
         // Close sidebar when clicking outside on mobile
         document.addEventListener("click", function(event) {
             const sidebar = document.getElementById("sidebar");
+            const overlay = document.getElementById("sidebarOverlay");
             const toggleBtn = document.querySelector(".mobile-menu-toggle");
-            if (window.innerWidth <= 768 && !sidebar.contains(event.target) && !toggleBtn.contains(event.target)) {
+            const bottomNavMore = event.target.closest('.mobile-bottom-nav__item');
+            if (window.innerWidth <= 768 && !sidebar.contains(event.target) && !toggleBtn.contains(event.target) && !bottomNavMore) {
                 sidebar.classList.remove("active");
+                if (overlay) overlay.classList.remove("active");
             }
         });
 
@@ -4958,18 +4970,18 @@
                 document.querySelectorAll('.section-content').forEach(section => {
                     section.classList.remove('active');
                 });
-                
+
                 // Remove active from all nav items
                 document.querySelectorAll('.nav-item').forEach(item => {
                     item.classList.remove('active');
                 });
-                
+
                 // Show selected section
                 const targetSection = document.getElementById(`${sectionName}-section`);
                 if (targetSection) {
                     targetSection.classList.add('active');
                 }
-                
+
                 // Mark nav item as active
                 if (event && event.target) {
                     const navItem = event.target.closest('.nav-item');
@@ -4977,7 +4989,17 @@
                         navItem.classList.add('active');
                     }
                 }
-                
+
+                // Update mobile bottom nav active state
+                document.querySelectorAll('.mobile-bottom-nav__item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                const sectionMap = { 'dashboard': 0, 'bottleneck': 1, 'cost': 2 };
+                const bottomNavItems = document.querySelectorAll('.mobile-bottom-nav__item');
+                if (sectionMap[sectionName] !== undefined && bottomNavItems[sectionMap[sectionName]]) {
+                    bottomNavItems[sectionMap[sectionName]].classList.add('active');
+                }
+
                 // Load data if bottleneck section
                 if (sectionName === 'bottleneck') {
                     loadBottleneckData();
@@ -6100,6 +6122,26 @@
         // functions earlier in this file (around lines 3904-3974). Do NOT duplicate here.
 
         </script>
+<!-- Mobile Bottom Navigation -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+    <a href="#" class="mobile-bottom-nav__item active" onclick="showSection('dashboard'); return false;">
+        <i class="fas fa-tachometer-alt"></i>
+        <span>Dashboard</span>
+    </a>
+    <a href="#" class="mobile-bottom-nav__item" onclick="showSection('bottleneck'); return false;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>Bottleneck</span>
+    </a>
+    <a href="#" class="mobile-bottom-nav__item" onclick="showSection('cost'); return false;">
+        <i class="fas fa-dollar-sign"></i>
+        <span>Cost</span>
+    </a>
+    <a href="#" class="mobile-bottom-nav__item" onclick="toggleSidebar(); return false;">
+        <i class="fas fa-bars"></i>
+        <span>More</span>
+    </a>
+</nav>
+
 <script src="shared-ui.js"></script>
 <script src="/js/auth-check.js"></script>
     </body>

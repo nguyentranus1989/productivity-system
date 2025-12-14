@@ -1420,6 +1420,91 @@
         #timeOffModal .modal-content {
             max-width: 440px;
         }
+
+        /* ============================================
+           MOBILE BOTTOM NAVIGATION
+           ============================================ */
+        .mobile-bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-subtle);
+            display: none;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 100;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        .mobile-bottom-nav__item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 10px;
+            gap: 4px;
+            padding: 8px 12px;
+            min-width: 64px;
+            min-height: 44px;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s ease;
+        }
+
+        .mobile-bottom-nav__item i {
+            font-size: 20px;
+        }
+
+        .mobile-bottom-nav__item.active {
+            color: var(--accent-primary);
+            background: var(--accent-glow);
+        }
+
+        @media (max-width: 768px) {
+            .mobile-bottom-nav {
+                display: flex;
+            }
+
+            body {
+                padding-bottom: 60px;
+            }
+
+            /* Improve header on mobile */
+            .header-content {
+                padding: var(--space-sm) var(--space-md);
+            }
+
+            .header-btn .btn-text {
+                display: none;
+            }
+
+            .header-btn {
+                padding: var(--space-sm);
+                min-width: 44px;
+                min-height: 44px;
+            }
+
+            /* Better modal on mobile */
+            .modal-content {
+                width: 95%;
+                max-width: none;
+                max-height: 90vh;
+                margin: 0;
+                border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+            }
+
+            .modal-overlay {
+                align-items: flex-end;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1461,7 +1546,7 @@
         <!-- Main Content (hidden initially) -->
         <div id="mainContent" style="display: none;">
             <!-- Hero Section -->
-            <section class="hero-section">
+            <section class="hero-section" id="heroSection">
                 <div class="hero-content">
                     <p class="hero-greeting">Welcome back</p>
                     <h1 class="hero-title">
@@ -1481,7 +1566,7 @@
             <div id="alertsContainer" class="alerts-container"></div>
 
             <!-- Stats Grid -->
-            <section class="stats-grid">
+            <section class="stats-grid" id="statsSection">
                 <div class="stat-card">
                     <div class="stat-icon amber">
                         <i class="fas fa-box"></i>
@@ -1624,7 +1709,7 @@
             </div>
 
             <!-- Today's Activity -->
-            <section class="section-card">
+            <section class="section-card" id="activitySection">
                 <div class="section-header">
                     <h2 class="section-title">
                         <i class="fas fa-history"></i>
@@ -1637,7 +1722,7 @@
             </section>
 
             <!-- Schedule & Time-Off Row -->
-            <div class="two-column-grid">
+            <div class="two-column-grid" id="scheduleSection">
                 <!-- My Schedule -->
                 <section class="section-card">
                     <div class="section-header">
@@ -3005,7 +3090,40 @@
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', initDashboard);
+
+        // Mobile bottom nav scroll helper
+        function scrollToSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            // Update active state
+            document.querySelectorAll('.mobile-bottom-nav__item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+        }
     </script>
     <script src="shared-ui.js"></script>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-bottom-nav">
+        <a href="#" class="mobile-bottom-nav__item active" onclick="scrollToSection('heroSection'); return false;">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="#" class="mobile-bottom-nav__item" onclick="scrollToSection('statsSection'); return false;">
+            <i class="fas fa-chart-bar"></i>
+            <span>Stats</span>
+        </a>
+        <a href="#" class="mobile-bottom-nav__item" onclick="scrollToSection('scheduleSection'); return false;">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Schedule</span>
+        </a>
+        <a href="#" class="mobile-bottom-nav__item" onclick="scrollToSection('activitySection'); return false;">
+            <i class="fas fa-history"></i>
+            <span>Activity</span>
+        </a>
+    </nav>
 </body>
 </html>

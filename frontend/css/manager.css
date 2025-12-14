@@ -90,7 +90,7 @@ body {
 
 .workflow-stations {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
     gap: 15px;
     margin-bottom: 30px;
 }
@@ -238,7 +238,7 @@ body {
 /* Metric Cards */
 .metrics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
     gap: 25px;
     margin-bottom: 40px;
 }
@@ -330,7 +330,7 @@ body {
 /* Department Performance */
 .department-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
     gap: 25px;
     margin-bottom: 40px;
 }
@@ -482,7 +482,7 @@ body {
 /* Charts Container */
 .charts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
     gap: 25px;
     margin-bottom: 40px;
 }
@@ -750,36 +750,6 @@ body {
     color: #667eea;
 }
 /* Mobile Scrolling Fix */
-/* Mobile Scrolling Fix */
-@media only screen and (max-width: 768px) {
-    /* Make sidebar accessible on mobile */
-    .sidebar {
-        position: fixed !important;
-        left: -250px !important;
-        top: 0 !important;
-        height: 100vh !important;
-        z-index: 9999 !important;
-        transition: left 0.3s ease !important;
-        background: #1a1a2e !important;
-    }
-    .sidebar.active {
-        left: 0 !important;
-    }
-}
-    /* Add hamburger menu button for mobile */
-    .mobile-menu-toggle { display: none !important; } @media only screen and (max-width: 768px) { .mobile-menu-toggle {
-        display: none !important;
-        position: fixed !important;
-        top: 10px !important;
-        left: 10px !important;
-        z-index: 10000 !important;
-        background: #007bff !important;
-        color: white !important;
-        border: none !important;
-        padding: 10px 15px !important;
-        border-radius: 5px !important;
-        font-size: 20px !important;
-    }
 @media only screen and (max-width: 768px) {
     body {
         overflow: auto !important;
@@ -789,27 +759,6 @@ body {
     .main-container, .container, .dashboard-container {
         height: auto !important;
         overflow: visible !important;
-    }
-}
-/* Mobile Menu Button Fix */
-.mobile-menu-toggle {
-    display: none;
-}
-
-@media only screen and (max-width: 768px) {
-    .mobile-menu-toggle {
-        display: block !important;
-        position: fixed !important;
-        top: 10px !important;
-        left: 10px !important;
-        z-index: 10000 !important;
-        background: #007bff !important;
-        color: white !important;
-        border: none !important;
-        padding: 10px 15px !important;
-        border-radius: 5px !important;
-        font-size: 20px !important;
-        cursor: pointer !important;
     }
 }
 

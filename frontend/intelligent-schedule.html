@@ -1070,9 +1070,226 @@
             color: var(--text-primary);
             font-weight: 500;
         }
+
+        /* ============================================
+           MOBILE OPTIMIZATION
+           ============================================ */
+
+        /* Mobile Menu Button */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 200;
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            border-radius: var(--radius-md);
+            color: var(--bg-primary);
+            font-size: 18px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .mobile-menu-toggle:active {
+            transform: scale(0.95);
+        }
+
+        /* Sidebar Overlay */
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 149;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(2px);
+        }
+
+        .sidebar-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Sidebar Close Button */
+        .sidebar-close-btn {
+            display: none;
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            font-size: 14px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sidebar-close-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--text-primary);
+        }
+
+        /* Mobile Bottom Navigation */
+        .mobile-bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-subtle);
+            display: none;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 100;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        .mobile-bottom-nav__item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 10px;
+            gap: 4px;
+            padding: 8px 12px;
+            min-width: 64px;
+            min-height: 44px;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s ease;
+        }
+
+        .mobile-bottom-nav__item i {
+            font-size: 20px;
+        }
+
+        .mobile-bottom-nav__item.active {
+            color: var(--accent-primary);
+            background: var(--accent-glow);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .mobile-menu-toggle {
+                display: flex !important;
+            }
+
+            .mobile-bottom-nav {
+                display: flex;
+            }
+
+            body {
+                padding-bottom: 60px;
+            }
+
+            .sidebar {
+                position: fixed !important;
+                left: -100% !important;
+                top: 0 !important;
+                width: 280px !important;
+                height: 100vh !important;
+                z-index: 150 !important;
+                transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                border-radius: 0 !important;
+                max-height: 100vh !important;
+                display: block !important;
+            }
+
+            .sidebar.active {
+                left: 0 !important;
+                box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5) !important;
+            }
+
+            .sidebar-close-btn {
+                display: flex;
+            }
+
+            .main-layout {
+                grid-template-columns: 1fr !important;
+            }
+
+            .app-header {
+                padding-left: 60px;
+            }
+
+            .header-content {
+                padding: var(--space-sm) var(--space-md);
+                padding-left: 50px;
+            }
+
+            .header-actions {
+                gap: var(--space-xs);
+            }
+
+            .header-btn span {
+                display: none;
+            }
+
+            .header-btn {
+                padding: var(--space-sm);
+            }
+
+            /* Schedule Grid Mobile */
+            .schedule-grid {
+                min-width: 100% !important;
+            }
+
+            .day-column {
+                min-width: 100px !important;
+            }
+
+            /* Touch targets */
+            .shift-card {
+                min-height: 44px;
+            }
+
+            .btn, button {
+                min-height: 44px;
+            }
+
+            /* Main content padding */
+            .main-content {
+                padding: var(--space-md) !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .schedule-header {
+                flex-direction: column;
+                gap: var(--space-md);
+                align-items: stretch;
+            }
+
+            .week-nav {
+                justify-content: center;
+            }
+
+            .header-actions-group {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay">
         <div class="loading-spinner"></div>
@@ -1140,7 +1357,10 @@
     <!-- MAIN LAYOUT -->
     <div class="main-layout">
         <!-- SIDEBAR - Employee Pool -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
+            <button class="sidebar-close-btn" onclick="toggleSidebar()">
+                <i class="fas fa-times"></i>
+            </button>
             <div class="sidebar-title">
                 <i class="fas fa-users"></i>
                 Employees
@@ -1150,6 +1370,9 @@
                 <!-- Loaded dynamically -->
             </div>
         </aside>
+
+        <!-- Sidebar Overlay (for mobile) -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
         <!-- MAIN CONTENT -->
         <main class="main-content">
@@ -3259,6 +3482,38 @@
 
             hideLoading();
         });
+
+        // ============================================
+        // MOBILE SIDEBAR TOGGLE
+        // ============================================
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            if (overlay) {
+                overlay.classList.toggle('active');
+            }
+        }
     </script>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-bottom-nav">
+        <a href="#" class="mobile-bottom-nav__item active" onclick="document.querySelector('[data-tab=schedule]').click(); return false;">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Schedule</span>
+        </a>
+        <a href="#" class="mobile-bottom-nav__item" onclick="document.querySelector('[data-tab=timeoff]').click(); return false;">
+            <i class="fas fa-umbrella-beach"></i>
+            <span>Time-Off</span>
+        </a>
+        <a href="#" class="mobile-bottom-nav__item" onclick="toggleSidebar(); return false;">
+            <i class="fas fa-users"></i>
+            <span>Employees</span>
+        </a>
+        <a href="manager.html" class="mobile-bottom-nav__item">
+            <i class="fas fa-arrow-left"></i>
+            <span>Dashboard</span>
+        </a>
+    </nav>
 </body>
 </html>
