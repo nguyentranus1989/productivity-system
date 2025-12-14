@@ -4858,7 +4858,7 @@
                 }
             };
 
-            function showPinSlip(employeeName, pin) {
+            window.showPinSlip = function(employeeName, pin) {
                 const modal = `
                     <div id="pinSlipModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10001; display: flex; align-items: center; justify-content: center;">
                         <div style="background: #2a2a2a; padding: 40px; border-radius: 12px; width: 320px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
@@ -4893,7 +4893,7 @@
                 document.body.insertAdjacentHTML('beforeend', modal);
             }
 
-            function printPinSlip(employeeName, pin) {
+            window.printPinSlip = function(employeeName, pin) {
                 const printWindow = window.open('', '_blank', 'width=400,height=400');
                 if (!printWindow) {
                     alertDialog('Popup Blocked', 'Please allow popups for this site to print the PIN slip.');
