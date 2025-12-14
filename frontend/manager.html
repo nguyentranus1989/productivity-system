@@ -4677,6 +4677,12 @@
                     return;
                 }
 
+                // Show loading state
+                const btn = event.target.closest('button');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Setting...';
+                btn.disabled = true;
+
                 try {
                     const body = pin ? { pin } : {};
                     const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/set-pin`, {
@@ -4693,10 +4699,14 @@
                         document.getElementById('pinModal').remove();
                         showPinSlip(employeeName, data.pin);
                     } else {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
                         await alertDialog('Error', data.error || 'Failed to set PIN');
                     }
                 } catch (error) {
                     console.error('Error setting PIN:', error);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                     await alertDialog('Error', 'Failed to set PIN: ' + error.message);
                 }
             };
@@ -4704,6 +4714,12 @@
             window.resetEmployeePin = async function(employeeId, employeeName) {
                 const confirmed = await confirmDialog('Reset PIN', `Reset PIN for ${employeeName}? A new random PIN will be generated.`);
                 if (!confirmed) return;
+
+                // Show loading state
+                const btn = event.target.closest('button');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+                btn.disabled = true;
 
                 try {
                     const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/reset-pin`, {
@@ -4718,10 +4734,14 @@
                         }
                         showPinSlip(employeeName, data.pin);
                     } else {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
                         await alertDialog('Error', data.error || 'Failed to reset PIN');
                     }
                 } catch (error) {
                     console.error('Error resetting PIN:', error);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                     await alertDialog('Error', 'Failed to reset PIN: ' + error.message);
                 }
             };
