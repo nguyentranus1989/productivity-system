@@ -25,15 +25,15 @@
         </div>
         
         <nav class="sidebar-nav">
-            <a href="#" class="nav-item active" onclick="showSection('dashboard'); document.getElementById('sidebar').classList.remove('active'); return false;">
+            <a href="#" class="nav-item active" onclick="showSection('dashboard'); closeSidebar(); return false;">
                 <i class="fas fa-tachometer-alt"></i>
                 <span>Dashboard</span>
             </a>
-            <a href="#" class="nav-item" onclick="showSection('bottleneck'); document.getElementById('sidebar').classList.remove('active'); return false;">
+            <a href="#" class="nav-item" onclick="showSection('bottleneck'); closeSidebar(); return false;">
                 <i class="fas fa-exclamation-triangle"></i>
                 <span>Bottleneck Detection</span>
             </a>
-            <a href="#" class="nav-item" onclick="showSection('cost'); document.getElementById('sidebar').classList.remove('active'); return false;">
+            <a href="#" class="nav-item" onclick="showSection('cost'); closeSidebar(); return false;">
                     <i class="fas fa-dollar-sign"></i>
                     <span>Cost Analysis</span>
             </a>
@@ -1692,6 +1692,14 @@
             if (overlay) {
                 overlay.classList.toggle("active");
             }
+        }
+
+        // Close sidebar (for nav item clicks)
+        function closeSidebar() {
+            const sidebar = document.getElementById("sidebar");
+            const overlay = document.getElementById("sidebarOverlay");
+            if (sidebar) sidebar.classList.remove("active");
+            if (overlay) overlay.classList.remove("active");
         }
 
         // Close sidebar when clicking outside on mobile
@@ -6124,15 +6132,15 @@
         </script>
 <!-- Mobile Bottom Navigation -->
 <nav class="mobile-bottom-nav" id="mobileBottomNav">
-    <a href="#" class="mobile-bottom-nav__item active" onclick="showSection('dashboard'); return false;">
+    <a href="#" class="mobile-bottom-nav__item active" onclick="showSection('dashboard'); closeSidebar(); return false;">
         <i class="fas fa-tachometer-alt"></i>
         <span>Dashboard</span>
     </a>
-    <a href="#" class="mobile-bottom-nav__item" onclick="showSection('bottleneck'); return false;">
+    <a href="#" class="mobile-bottom-nav__item" onclick="showSection('bottleneck'); closeSidebar(); return false;">
         <i class="fas fa-exclamation-triangle"></i>
         <span>Bottleneck</span>
     </a>
-    <a href="#" class="mobile-bottom-nav__item" onclick="showSection('cost'); return false;">
+    <a href="#" class="mobile-bottom-nav__item" onclick="showSection('cost'); closeSidebar(); return false;">
         <i class="fas fa-dollar-sign"></i>
         <span>Cost</span>
     </a>

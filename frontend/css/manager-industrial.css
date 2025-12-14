@@ -625,3 +625,47 @@ textarea:focus {
         background: rgba(15, 20, 25, 0.99) !important;
     }
 }
+
+/* ========================================
+   MOBILE HAMBURGER BUTTON - Industrial Theme
+   ======================================== */
+.mobile-menu-toggle {
+    background: linear-gradient(135deg, var(--ind-amber) 0%, var(--ind-amber-light) 100%) !important;
+    box-shadow: 0 4px 15px var(--glow-amber) !important;
+}
+
+.mobile-menu-toggle:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 10px var(--glow-amber) !important;
+}
+
+/* ========================================
+   BUTTON COLOR OVERRIDES - Industrial Theme
+   Override inline #667eea purple buttons with amber
+   ======================================== */
+button[style*="background: #667eea"],
+button[style*="background:#667eea"] {
+    background: linear-gradient(135deg, var(--ind-amber) 0%, var(--ind-amber-light) 100%) !important;
+    border-color: var(--ind-amber) !important;
+}
+
+button[style*="background: #667eea"]:hover,
+button[style*="background:#667eea"]:hover {
+    box-shadow: 0 4px 15px var(--glow-amber) !important;
+}
+
+/* Confirmation dialog OK button */
+#confirmOk {
+    background: linear-gradient(135deg, var(--ind-amber) 0%, var(--ind-amber-light) 100%) !important;
+}
+
+/* System controls modal buttons */
+.modal button[style*="#667eea"],
+[style*="modal"] button[style*="#667eea"] {
+    background: var(--ind-amber) !important;
+}
+
+/* Info badge colors - keep purple for info distinction, but amber for actions */
+.badge[style*="#667eea"] {
+    background: var(--ind-amber) !important;
+}

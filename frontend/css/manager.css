@@ -494,6 +494,14 @@ body {
     padding: 25px;
 }
 
+.chart-container {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 25px;
+}
+
 .chart-header {
     display: flex;
     justify-content: space-between;
@@ -604,6 +612,11 @@ body {
     .department-grid,
     .charts-grid {
         grid-template-columns: 1fr;
+    }
+
+    .chart-container {
+        padding: 15px;
+        margin-bottom: 20px;
     }
 }
 
