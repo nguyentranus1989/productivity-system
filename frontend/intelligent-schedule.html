@@ -1140,6 +1140,11 @@
             color: var(--text-primary);
         }
 
+        /* Mobile hint - hidden by default on desktop */
+        .mobile-assign-hint {
+            display: none;
+        }
+
         /* Mobile Bottom Navigation */
         .mobile-bottom-nav {
             position: fixed;
@@ -1199,7 +1204,8 @@
                 position: fixed !important;
                 left: -100% !important;
                 top: 0 !important;
-                width: 280px !important;
+                width: 85vw !important;
+                max-width: 320px !important;
                 height: 100vh !important;
                 z-index: 150 !important;
                 transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
@@ -1215,6 +1221,39 @@
 
             .sidebar-close-btn {
                 display: flex;
+            }
+
+            /* Mobile: Tap-to-select employee styling */
+            .employee-chip {
+                cursor: pointer !important;
+            }
+
+            .employee-chip.selected {
+                background: var(--accent-primary) !important;
+                border-color: var(--accent-primary) !important;
+                color: white !important;
+            }
+
+            .employee-chip.selected .employee-avatar {
+                background: rgba(255,255,255,0.2) !important;
+                color: white !important;
+            }
+
+            .employee-chip.selected .employee-name,
+            .employee-chip.selected .employee-hours {
+                color: white !important;
+            }
+
+            /* Mobile hint for tap workflow */
+            .mobile-assign-hint {
+                display: block;
+                padding: 8px 12px;
+                background: var(--accent-glow);
+                border-radius: var(--radius-sm);
+                font-size: 12px;
+                color: var(--accent-primary);
+                margin-bottom: 12px;
+                text-align: center;
             }
 
             .main-layout {
@@ -1366,6 +1405,10 @@
                 Employees
             </div>
             <input type="text" class="sidebar-search" placeholder="Search..." oninput="filterEmployees(this.value)">
+            <!-- Mobile instruction (visible only on touch devices) -->
+            <div class="mobile-assign-hint" id="sidebarMobileHint">
+                <i class="fas fa-hand-pointer"></i> Tap to select, then tap slot
+            </div>
             <div class="employee-list" id="employeeList">
                 <!-- Loaded dynamically -->
             </div>
@@ -1417,6 +1460,11 @@
                         <strong id="predictionOrders">~350 orders predicted this week</strong><br>
                         <span id="predictionStaff">Recommended: 8-10 staff members</span>
                     </div>
+                </div>
+
+                <!-- Mobile Assign Hint (shown when employee selected) -->
+                <div class="mobile-assign-hint" id="mobileAssignHint" style="display:none;">
+                    <i class="fas fa-hand-pointer"></i> Tap an employee, then tap a slot to assign
                 </div>
 
                 <!-- Schedule Grid -->
@@ -1567,6 +1615,15 @@
         let approvedTimeOff = {}; // { employee_id: ['2025-12-16', '2025-12-17'] }
         let pendingTimeOff = {}; // { employee_id: ['2025-12-16', '2025-12-17'] } - pending requests
         let pendingAutoFill = null; // Store pending auto-fill for conflict resolution
+
+        // Mobile: tap-to-select employee (for touch devices)
+        let selectedMobileEmployee = null;
+
+        // Check if device supports touch
+        function isTouchDevice() {
+            return window.matchMedia('(max-width: 1024px)').matches &&
+                   ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        }
 
         // Nickname mapping for template name resolution (edit here to add more)
         const NICKNAME_MAP = {
@@ -1816,6 +1873,7 @@
                          data-id="${emp.id}" data-name="${emp.name}"
                          ondragstart="handleDragStart(event)"
                          ondragend="handleDragEnd(event)"
+                         onclick="handleMobileEmployeeSelect(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')"
                          ${tooltip ? `title="${tooltip}"` : ''}>
                         <div class="employee-avatar" style="position:relative;">
                             ${getInitials(emp.name)}
@@ -1934,7 +1992,8 @@
                              data-date="${dateStr}"
                              ondragover="handleDragOver(event)"
                              ondragleave="handleDragLeave(event)"
-                             ondrop="handleDrop(event)">
+                             ondrop="handleDrop(event)"
+                             onclick="handleMobileSlotTap('${station.id}', '${dateStr}')">
                             ${shifts.map(s => {
                                 const safeName = s.name.replace(/'/g, "\\'");
                                 return `
@@ -2168,6 +2227,88 @@
         function getStationName(stationId) {
             const station = STATIONS.find(s => s.id === stationId);
             return station ? station.name : stationId;
+        }
+
+        // ============================================
+        // MOBILE TAP-TO-ASSIGN WORKFLOW
+        // ============================================
+
+        // Select employee on mobile (tap instead of drag)
+        function handleMobileEmployeeSelect(empId, empName) {
+            if (!isTouchDevice()) return;
+
+            const chips = document.querySelectorAll('.employee-chip');
+            chips.forEach(chip => chip.classList.remove('selected'));
+
+            if (selectedMobileEmployee && selectedMobileEmployee.id === empId) {
+                // Deselect if tapping same employee
+                selectedMobileEmployee = null;
+                updateMobileHint();
+                return;
+            }
+
+            // Select the employee
+            selectedMobileEmployee = { id: empId, name: empName };
+            const selectedChip = document.querySelector(`.employee-chip[data-id="${empId}"]`);
+            if (selectedChip) {
+                selectedChip.classList.add('selected');
+            }
+
+            // Close sidebar and show hint
+            toggleSidebar();
+            updateMobileHint();
+            showToast(`${empName} selected - tap a schedule slot to assign`, 'info');
+        }
+
+        // Assign selected employee to tapped slot (mobile)
+        async function handleMobileSlotTap(stationId, dateStr) {
+            if (!isTouchDevice() || !selectedMobileEmployee) return false;
+
+            const emp = selectedMobileEmployee;
+
+            // Check time-off
+            if (isEmployeeOnTimeOff(emp.id, dateStr)) {
+                showToast(`${emp.name} has approved time-off on this day`, 'error');
+                return true;
+            }
+
+            // Check pending time-off
+            const hasPending = isEmployeePendingTimeOff(emp.id, dateStr);
+            if (hasPending) {
+                const confirmed = await confirmDialog('Pending Time-Off', `${emp.name} has a PENDING time-off request for this day.\n\nSchedule anyway?`, { confirmText: 'Schedule Anyway' });
+                if (!confirmed) return true;
+            }
+
+            // Check if already scheduled
+            if (isEmployeeScheduled(emp.id, dateStr)) {
+                showToast(`${emp.name} is already scheduled on this day`, 'error');
+                return true;
+            }
+
+            // Add the shift
+            addShift(stationId, dateStr, emp);
+            updateCell(stationId, dateStr);
+            showToast(`${emp.name} added to ${getStationName(stationId)}${hasPending ? ' (pending request!)' : ''}`);
+
+            // Clear selection
+            selectedMobileEmployee = null;
+            document.querySelectorAll('.employee-chip').forEach(c => c.classList.remove('selected'));
+            updateMobileHint();
+
+            return true;
+        }
+
+        // Update mobile hint text
+        function updateMobileHint() {
+            const hint = document.getElementById('mobileAssignHint');
+            if (!hint) return;
+
+            if (selectedMobileEmployee) {
+                hint.innerHTML = `<i class="fas fa-hand-pointer"></i> Tap slot to assign <strong>${selectedMobileEmployee.name}</strong>`;
+                hint.style.display = 'block';
+            } else {
+                hint.style.display = 'none';
+            }
         }
 
         // Check if employee has approved time-off on a date
