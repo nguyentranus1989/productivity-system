@@ -13,7 +13,7 @@ from datetime import datetime
 class EmailService:
     """Gmail SMTP email sender"""
 
-    PORTAL_URL = "http://134.199.194.237/employee.html"
+    PORTAL_URL = "https://reports.podgasus.com/employee.html"
     COMPANY_NAME = "Productivity Tracker"
 
     @staticmethod
