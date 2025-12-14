@@ -34,3 +34,6 @@ backups/
 Note.txt
 Screenshot/
 *.pdf
+
+# Credentials (NEVER COMMIT)
+keys/
