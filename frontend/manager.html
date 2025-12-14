@@ -1630,6 +1630,55 @@
             }, 3000);
         }
 
+        // Show clock times popup (for mobile tap on clock icon)
+        function showClockTimes(employeeName, clockDataStr) {
+            // Parse the clock data
+            const clockTimes = JSON.parse(clockDataStr.replace(/&quot;/g, '"'));
+
+            // Build the times list
+            const timesList = clockTimes.map(ct => `
+                <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(245, 158, 11, 0.2);">
+                    <div>
+                        <span style="color: #22c55e;"><i class="fas fa-sign-in-alt"></i> ${ct.clock_in}</span>
+                        <span style="margin: 0 8px; color: #6b7280;">→</span>
+                        <span style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> ${ct.clock_out || 'Active'}</span>
+                    </div>
+                    <div style="color: #fbbf24; font-weight: 600;">
+                        ${Math.floor(ct.minutes/60)}h ${ct.minutes%60}m
+                    </div>
+                </div>
+            `).join('');
+
+            // Calculate total
+            const totalMinutes = clockTimes.reduce((sum, ct) => sum + ct.minutes, 0);
+            const totalHours = Math.floor(totalMinutes / 60);
+            const totalMins = totalMinutes % 60;
+
+            // Create popup
+            const popup = document.createElement('div');
+            popup.id = 'clockTimesPopup';
+            popup.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 99998; display: flex; align-items: center; justify-content: center; padding: 20px;" onclick="if(event.target === this) this.remove();">
+                    <div style="background: #1a1f26; border: 2px solid rgba(245, 158, 11, 0.3); border-radius: 16px; padding: 24px; width: 350px; max-width: 95%; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h3 style="color: #fbbf24; margin: 0; font-size: 1.1em;">
+                                <i class="fas fa-clock" style="margin-right: 8px;"></i>${employeeName}
+                            </h3>
+                            <button onclick="document.getElementById('clockTimesPopup').remove()" style="background: none; border: none; color: #9ca3af; font-size: 20px; cursor: pointer;">&times;</button>
+                        </div>
+                        <div style="color: #e5e7eb; font-size: 14px;">
+                            ${timesList}
+                        </div>
+                        <div style="margin-top: 16px; padding-top: 12px; border-top: 2px solid rgba(245, 158, 11, 0.3); display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #9ca3af;">Total Time</span>
+                            <span style="color: #f59e0b; font-size: 1.2em; font-weight: 700;">${totalHours}h ${totalMins}m</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(popup);
+        }
+
         // Custom confirm modal (replaces browser confirm)
         function showConfirmModal(title, message, onConfirm, onCancel) {
             const modal = document.createElement('div');
@@ -6387,16 +6436,14 @@
                         const nonActivePercent = (emp.non_active_hours / emp.clocked_hours * 100) || 0;
                         const nonActiveColor = nonActivePercent > 50 ? '#ef4444' : (nonActivePercent > 30 ? '#f59e0b' : '#22c55e');
 
-                        // Build clock times tooltip for single day view
+                        // Build clock times with clickable icon for mobile
                         let clockTimesHtml = '';
                         if (isSingleDay && emp.clock_times && emp.clock_times.length > 0) {
-                            const tooltipLines = emp.clock_times.map(ct =>
-                                `${ct.clock_in} - ${ct.clock_out} (${Math.floor(ct.minutes/60)}h ${ct.minutes%60}m)`
-                            ).join('&#10;');
+                            const clockData = JSON.stringify(emp.clock_times).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                             clockTimesHtml = `
-                                <td style="padding: 12px; text-align: center; cursor: help; position: relative;" class="clock-times-cell" title="${tooltipLines}">
+                                <td style="padding: 12px; text-align: center; position: relative;">
                                     ${parseFloat(emp.clocked_hours || 0).toFixed(1)}
-                                    <i class="fas fa-clock" style="font-size: 10px; opacity: 0.5; margin-left: 4px;"></i>
+                                    <i class="fas fa-clock" onclick="showClockTimes('${emp.name}', '${clockData}')" style="font-size: 12px; opacity: 0.7; margin-left: 4px; cursor: pointer; color: #f59e0b;"></i>
                                 </td>`;
                         } else {
                             clockTimesHtml = `<td style="padding: 12px; text-align: center;">${parseFloat(emp.clocked_hours || 0).toFixed(1)}</td>`;
