@@ -176,6 +176,22 @@ def get_employee_stats(employee_id):
             WHERE score_date = %s AND items_processed > 0
         """, (ct_date,))
 
+        # Get hours clocked in today
+        clock_time = get_db().execute_one("""
+            SELECT
+                MIN(clock_in) as first_clock_in,
+                MAX(clock_out) as last_clock_out
+            FROM clock_times
+            WHERE employee_id = %s AND clock_in >= %s AND clock_in < %s
+        """, (employee_id, utc_start, utc_end))
+
+        hours_today = 0
+        if clock_time and clock_time['first_clock_in']:
+            from datetime import datetime
+            clock_in = clock_time['first_clock_in']
+            clock_out = clock_time['last_clock_out'] or datetime.utcnow()
+            hours_today = round((clock_out - clock_in).total_seconds() / 3600, 1)
+
         return jsonify({
             'success': True,
             'employee_id': employee_id,
@@ -183,6 +199,8 @@ def get_employee_stats(employee_id):
             'items_processed': stats['items_processed'],
             'points_earned': stats['points_earned'],
             'efficiency': stats['efficiency'],
+            'active_minutes': stats['active_minutes'],
+            'hours_today': hours_today,
             'idle_minutes': min(stats['idle_minutes'], 999),  # Cap at 999
             'employee_rank': rank_result['rank'] if rank_result else 999,
             'total_employees': total_result['total'] if total_result else 1,
@@ -537,7 +555,7 @@ def get_recent_activity(employee_id):
             SELECT
                 window_start,
                 window_end,
-                items_processed,
+                items_count,
                 station
             FROM activity_logs
             WHERE employee_id = %s
@@ -550,7 +568,7 @@ def get_recent_activity(employee_id):
         for act in (activities or []):
             result.append({
                 'time': act['window_end'].strftime('%H:%M'),
-                'items': act['items_processed'],
+                'items': act['items_count'],
                 'station': act['station']
             })
 
@@ -558,6 +576,546 @@ def get_recent_activity(employee_id):
             'success': True,
             'activities': result,
             'date': ct_date.strftime('%Y-%m-%d')
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# ========== SCHEDULE API ==========
+
+@employee_auth_bp.route('/api/employee/<int:employee_id>/schedule', methods=['GET'])
+def get_employee_schedule(employee_id):
+    """Get employee's schedule for current/upcoming weeks from published_shifts"""
+    try:
+        ct_date = tz_helper.get_current_ct_date()
+        db = get_db()
+
+        # Get current week start (Sunday for display)
+        days_since_sunday = (ct_date.weekday() + 1) % 7
+        current_week_start = ct_date - timedelta(days=days_since_sunday)
+        next_week_start = current_week_start + timedelta(days=7)
+        two_weeks_end = next_week_start + timedelta(days=7)
+
+        # Get approved time-off dates for this employee
+        time_off_dates = set()
+        time_off = db.execute_query("""
+            SELECT start_date, end_date, notes
+            FROM time_off
+            WHERE employee_id = %s
+            AND is_approved = 1
+            AND end_date >= %s
+            AND start_date < %s
+        """, (employee_id, current_week_start, two_weeks_end))
+
+        import json
+        for to in (time_off or []):
+            # Check if notes contains specific dates
+            specific_dates = None
+            if to.get('notes'):
+                try:
+                    notes_data = json.loads(to['notes'])
+                    if isinstance(notes_data, dict) and 'dates' in notes_data:
+                        specific_dates = notes_data['dates']
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            if specific_dates:
+                # Use specific dates from notes
+                for date_str in specific_dates:
+                    time_off_dates.add(date_str)
+            else:
+                # Fall back to full range
+                current = to['start_date']
+                while current <= to['end_date']:
+                    time_off_dates.add(current.strftime('%Y-%m-%d'))
+                    current += timedelta(days=1)
+
+        # Get shifts from published_shifts (use DISTINCT to avoid duplicates, take latest schedule)
+        shifts = db.execute_query("""
+            SELECT DISTINCT
+                ps.shift_date,
+                ps.start_time,
+                ps.end_time,
+                ps.station,
+                pub.status as schedule_status
+            FROM published_shifts ps
+            JOIN published_schedules pub ON ps.schedule_id = pub.id
+            WHERE ps.employee_id = %s
+            AND ps.shift_date >= %s
+            AND ps.shift_date < %s
+            AND ps.schedule_id = (
+                SELECT MAX(id) FROM published_schedules
+                WHERE week_start_date = pub.week_start_date
+            )
+            ORDER BY ps.shift_date
+        """, (employee_id, current_week_start, two_weeks_end))
+
+        # Group shifts by week, excluding time-off dates
+        day_names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        weeks = {}
+
+        for shift in (shifts or []):
+            shift_date = shift['shift_date']
+            date_str = shift_date.strftime('%Y-%m-%d')
+
+            # Skip if this date is approved time-off
+            if date_str in time_off_dates:
+                continue
+
+            # Find week start (Sunday) for this shift
+            days_from_sunday = (shift_date.weekday() + 1) % 7
+            week_start = shift_date - timedelta(days=days_from_sunday)
+            week_key = week_start.strftime('%Y-%m-%d')
+
+            if week_key not in weeks:
+                weeks[week_key] = {
+                    'week_start': week_key,
+                    'status': shift['schedule_status'] or 'draft',
+                    'days': {}
+                }
+
+            day_name = day_names[(shift_date.weekday() + 1) % 7]
+            weeks[week_key]['days'][date_str] = {
+                'day': day_name,
+                'date': date_str,
+                'start': str(shift['start_time'])[:5] if shift['start_time'] else None,
+                'end': str(shift['end_time'])[:5] if shift['end_time'] else None,
+                'station': shift['station'] or ''
+            }
+
+        # Convert to list format with all 7 days per week
+        result = []
+        for week_key in sorted(weeks.keys()):
+            week_data = weeks[week_key]
+            week_start_date = datetime.strptime(week_key, '%Y-%m-%d').date()
+
+            days_list = []
+            for i in range(7):
+                day_date = week_start_date + timedelta(days=i)
+                date_str = day_date.strftime('%Y-%m-%d')
+
+                if date_str in week_data['days']:
+                    days_list.append(week_data['days'][date_str])
+                elif date_str in time_off_dates:
+                    # Show as time-off day
+                    days_list.append({
+                        'day': day_names[i],
+                        'date': date_str,
+                        'off': True,
+                        'time_off': True
+                    })
+                else:
+                    days_list.append({
+                        'day': day_names[i],
+                        'date': date_str,
+                        'off': True
+                    })
+
+            result.append({
+                'week_start': week_key,
+                'status': week_data['status'],
+                'days': days_list
+            })
+
+        # If no schedules found, still return current and next week structure
+        if not result:
+            for week_start in [current_week_start, next_week_start]:
+                week_key = week_start.strftime('%Y-%m-%d')
+                days_list = []
+                for i in range(7):
+                    day_date = week_start + timedelta(days=i)
+                    date_str = day_date.strftime('%Y-%m-%d')
+                    if date_str in time_off_dates:
+                        days_list.append({
+                            'day': day_names[i],
+                            'date': date_str,
+                            'off': True,
+                            'time_off': True
+                        })
+                    else:
+                        days_list.append({
+                            'day': day_names[i],
+                            'date': date_str,
+                            'off': True
+                        })
+                result.append({
+                    'week_start': week_key,
+                    'status': 'none',
+                    'days': days_list
+                })
+
+        return jsonify({
+            'success': True,
+            'schedules': result
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# ========== TIME OFF API ==========
+
+@employee_auth_bp.route('/api/employee/<int:employee_id>/time-off', methods=['GET'])
+def get_employee_time_off(employee_id):
+    """Get employee's time-off requests"""
+    import json
+    try:
+        requests = get_db().execute_query("""
+            SELECT
+                t.id,
+                t.start_date,
+                t.end_date,
+                t.time_off_type,
+                t.is_approved,
+                t.notes,
+                t.created_at,
+                e.name as approved_by_name
+            FROM time_off t
+            LEFT JOIN employees e ON t.approved_by = e.id
+            WHERE t.employee_id = %s
+            ORDER BY t.start_date DESC
+            LIMIT 20
+        """, (employee_id,))
+
+        result = []
+        for req in (requests or []):
+            status = 'pending'
+            if req['is_approved'] == 1:
+                status = 'approved'
+            elif req['is_approved'] == 0 and req['approved_by_name']:
+                status = 'rejected'
+
+            # Parse notes for dates array and reason
+            dates = None
+            reason = ''
+            notes_raw = req['notes'] or ''
+            if notes_raw:
+                try:
+                    notes_data = json.loads(notes_raw)
+                    dates = notes_data.get('dates')
+                    reason = notes_data.get('reason', '')
+                except:
+                    reason = notes_raw
+
+            result.append({
+                'id': req['id'],
+                'start_date': req['start_date'].strftime('%Y-%m-%d'),
+                'end_date': req['end_date'].strftime('%Y-%m-%d'),
+                'dates': dates,  # Array of individual dates if non-consecutive
+                'request_type': req['time_off_type'],
+                'status': status,
+                'reason': reason,
+                'approved_by': req['approved_by_name']
+            })
+
+        return jsonify({
+            'success': True,
+            'requests': result
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@employee_auth_bp.route('/api/employee/<int:employee_id>/time-off', methods=['POST'])
+def request_time_off(employee_id):
+    """Submit a time-off request"""
+    import json
+    try:
+        data = request.json
+
+        # Support both formats: dates array (new) or start_date/end_date (legacy)
+        dates = data.get('dates', [])
+        if dates and len(dates) > 0:
+            # New format: array of dates
+            sorted_dates = sorted(dates)
+            start_date = sorted_dates[0]
+            end_date = sorted_dates[-1]
+            # Store individual dates in notes as JSON for non-consecutive days
+            notes_data = {
+                'dates': sorted_dates,
+                'reason': data.get('reason', '')
+            }
+            notes = json.dumps(notes_data)
+        else:
+            # Legacy format: start_date and end_date
+            start_date = data.get('start_date')
+            end_date = data.get('end_date')
+            reason = data.get('reason', '')
+            notes = json.dumps({'reason': reason}) if reason else ''
+
+        time_off_type = data.get('request_type') or data.get('type', 'vacation')
+
+        if not start_date or not end_date:
+            return jsonify({'success': False, 'message': 'At least one date required'}), 400
+
+        valid_types = ['vacation', 'sick', 'personal', 'holiday', 'unpaid', 'other']
+        if time_off_type not in valid_types:
+            time_off_type = 'other'
+
+        # Insert request (is_approved = NULL means pending)
+        get_db().execute_query("""
+            INSERT INTO time_off (employee_id, start_date, end_date, time_off_type, notes, is_approved)
+            VALUES (%s, %s, %s, %s, %s, NULL)
+        """, (employee_id, start_date, end_date, time_off_type, notes))
+
+        return jsonify({
+            'success': True,
+            'message': 'Time-off request submitted'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@employee_auth_bp.route('/api/employee/<int:employee_id>/time-off/<int:request_id>', methods=['DELETE'])
+def cancel_time_off(employee_id, request_id):
+    """Cancel a pending time-off request"""
+    try:
+        # Only allow canceling pending requests
+        result = get_db().execute_one("""
+            SELECT is_approved FROM time_off
+            WHERE id = %s AND employee_id = %s
+        """, (request_id, employee_id))
+
+        if not result:
+            return jsonify({'success': False, 'message': 'Request not found'}), 404
+
+        if result['is_approved'] is not None:
+            return jsonify({'success': False, 'message': 'Cannot cancel approved/denied requests'}), 400
+
+        get_db().execute_query("""
+            DELETE FROM time_off WHERE id = %s AND employee_id = %s
+        """, (request_id, employee_id))
+
+        return jsonify({
+            'success': True,
+            'message': 'Request cancelled'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# ========== MANAGER TIME-OFF APPROVAL API ==========
+
+@employee_auth_bp.route('/api/manager/time-off/pending', methods=['GET'])
+def get_all_pending_time_off():
+    """Get all pending time-off requests for manager review"""
+    import json
+    try:
+        requests = get_db().execute_query("""
+            SELECT
+                t.id,
+                t.employee_id,
+                e.name as employee_name,
+                t.start_date,
+                t.end_date,
+                t.time_off_type,
+                t.notes,
+                t.created_at
+            FROM time_off t
+            JOIN employees e ON t.employee_id = e.id
+            WHERE t.is_approved IS NULL
+            ORDER BY t.start_date ASC
+        """)
+
+        result = []
+        for req in (requests or []):
+            # Parse notes for dates array and reason
+            dates = None
+            reason = ''
+            notes_raw = req['notes'] or ''
+            if notes_raw:
+                try:
+                    notes_data = json.loads(notes_raw)
+                    dates = notes_data.get('dates')
+                    reason = notes_data.get('reason', '')
+                except:
+                    reason = notes_raw
+
+            result.append({
+                'id': req['id'],
+                'employee_id': req['employee_id'],
+                'employee_name': req['employee_name'],
+                'start_date': req['start_date'].strftime('%Y-%m-%d'),
+                'end_date': req['end_date'].strftime('%Y-%m-%d'),
+                'dates': dates,
+                'request_type': req['time_off_type'],
+                'reason': reason,
+                'created_at': req['created_at'].strftime('%Y-%m-%d %H:%M') if req['created_at'] else None
+            })
+
+        return jsonify({
+            'success': True,
+            'requests': result,
+            'count': len(result)
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@employee_auth_bp.route('/api/manager/time-off/<int:request_id>/approve', methods=['PUT'])
+def approve_time_off(request_id):
+    """Approve a time-off request"""
+    try:
+        data = request.json or {}
+        approved_by = data.get('approved_by')  # Optional - can be NULL
+
+        # If approved_by provided, validate it exists
+        if approved_by:
+            get_db().execute_query("""
+                UPDATE time_off
+                SET is_approved = 1, approved_by = %s
+                WHERE id = %s AND is_approved IS NULL
+            """, (approved_by, request_id))
+        else:
+            # Approve without setting approved_by (leave as NULL)
+            get_db().execute_query("""
+                UPDATE time_off
+                SET is_approved = 1
+                WHERE id = %s AND is_approved IS NULL
+            """, (request_id,))
+
+        return jsonify({
+            'success': True,
+            'message': 'Time-off request approved'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@employee_auth_bp.route('/api/manager/time-off/<int:request_id>/reject', methods=['PUT'])
+def reject_time_off(request_id):
+    """Reject a time-off request"""
+    try:
+        data = request.json or {}
+        approved_by = data.get('approved_by')  # Optional - can be NULL
+
+        # If approved_by provided, validate it exists
+        if approved_by:
+            get_db().execute_query("""
+                UPDATE time_off
+                SET is_approved = 0, approved_by = %s
+                WHERE id = %s AND is_approved IS NULL
+            """, (approved_by, request_id))
+        else:
+            # Reject without setting approved_by
+            get_db().execute_query("""
+                UPDATE time_off
+                SET is_approved = 0
+                WHERE id = %s AND is_approved IS NULL
+            """, (request_id,))
+
+        return jsonify({
+            'success': True,
+            'message': 'Time-off request rejected'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@employee_auth_bp.route('/api/manager/time-off/history', methods=['GET'])
+def get_time_off_history():
+    """Get history of all time-off decisions (approved and denied)"""
+    import json
+    try:
+        requests = get_db().execute_query("""
+            SELECT
+                t.id,
+                t.employee_id,
+                e.name as employee_name,
+                t.start_date,
+                t.end_date,
+                t.time_off_type,
+                t.notes,
+                t.is_approved,
+                t.created_at
+            FROM time_off t
+            JOIN employees e ON t.employee_id = e.id
+            WHERE t.is_approved IS NOT NULL
+            ORDER BY t.created_at DESC
+            LIMIT 50
+        """)
+
+        result = []
+        for req in (requests or []):
+            dates = None
+            reason = ''
+            notes_raw = req['notes'] or ''
+            if notes_raw:
+                try:
+                    notes_data = json.loads(notes_raw)
+                    dates = notes_data.get('dates')
+                    reason = notes_data.get('reason', '')
+                except:
+                    reason = notes_raw
+
+            result.append({
+                'id': req['id'],
+                'employee_id': req['employee_id'],
+                'employee_name': req['employee_name'],
+                'start_date': req['start_date'].strftime('%Y-%m-%d'),
+                'end_date': req['end_date'].strftime('%Y-%m-%d'),
+                'dates': dates,
+                'request_type': req['time_off_type'],
+                'reason': reason,
+                'status': 'approved' if req['is_approved'] == 1 else 'denied',
+                'created_at': req['created_at'].strftime('%Y-%m-%d %H:%M') if req['created_at'] else None
+            })
+
+        return jsonify({
+            'success': True,
+            'history': result
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@employee_auth_bp.route('/api/manager/time-off/approved', methods=['GET'])
+def get_approved_time_off():
+    """Get all approved time-off for schedule overlay"""
+    import json
+    try:
+        # Get approved time-off for the next 30 days
+        requests = get_db().execute_query("""
+            SELECT
+                t.id,
+                t.employee_id,
+                e.name as employee_name,
+                t.start_date,
+                t.end_date,
+                t.time_off_type,
+                t.notes
+            FROM time_off t
+            JOIN employees e ON t.employee_id = e.id
+            WHERE t.is_approved = 1
+              AND t.end_date >= CURDATE()
+              AND t.start_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+            ORDER BY t.start_date ASC
+        """)
+
+        result = []
+        for req in (requests or []):
+            dates = None
+            notes_raw = req['notes'] or ''
+            if notes_raw:
+                try:
+                    notes_data = json.loads(notes_raw)
+                    dates = notes_data.get('dates')
+                except:
+                    pass
+
+            result.append({
+                'id': req['id'],
+                'employee_id': req['employee_id'],
+                'employee_name': req['employee_name'],
+                'start_date': req['start_date'].strftime('%Y-%m-%d'),
+                'end_date': req['end_date'].strftime('%Y-%m-%d'),
+                'dates': dates,
+                'request_type': req['time_off_type']
+            })
+
+        return jsonify({
+            'success': True,
+            'time_off': result
         })
 
     except Exception as e:

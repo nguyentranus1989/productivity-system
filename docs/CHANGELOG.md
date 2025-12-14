@@ -2,6 +2,29 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.4.1] - 2025-12-13
+
+### Fixed - Employee Portal Schedule Display
+
+#### Bug Fixes
+- **Schedule API Wrong Tables**: Employee schedule API (`/api/employee/{id}/schedule/week`) was querying empty `employee_schedules` + `weekly_schedules` tables instead of `published_shifts` + `published_schedules` where actual data exists
+- **Status Filter Blocking Data**: Removed `pub.status = 'published'` filter that blocked all schedules (all had `status = 'draft'`)
+- **Time-Off Date Range Bug**: Time-off was marking entire date range as off, but `notes.dates` array specifies individual dates. Now correctly parses specific dates from JSON notes
+- **Recent Activity Column Error**: Fixed `items_processed` → `items_count` in recent-activity endpoint (was causing 500 errors)
+- **Duplicate Shifts**: Added subquery to select only latest schedule per week, eliminating duplicate shift entries
+
+#### Technical Details
+| Issue | Root Cause | Fix |
+|-------|------------|-----|
+| All days showing "OFF" | Wrong DB tables queried | Use `published_shifts` JOIN `published_schedules` |
+| No shifts returned | `status='published'` filter | Removed filter (show drafts too) |
+| Dec 16 showing time-off | Range Dec 15-17 marked as off | Parse `notes.dates` for specific dates only |
+| 500 on recent-activity | Column `items_processed` doesn't exist | Changed to `items_count` |
+
+#### Files Modified
+- `backend/api/schedule.py` - Fixed `/schedule/week` endpoint
+- `backend/api/employee_auth.py` - Fixed `/schedule` and `/recent-activity` endpoints
+
 ## [2.4.0] - 2025-12-13
 
 ### Added - Professional Authentication System
