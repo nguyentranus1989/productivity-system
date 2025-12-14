@@ -150,12 +150,6 @@
     transform: scale(0.95);
 }
 
-@media (max-width: 768px) {
-    .mobile-menu-toggle {
-        display: flex !important;
-    }
-}
-
 /* Close button in sidebar for mobile */
 .sidebar-close-btn {
     display: none;
