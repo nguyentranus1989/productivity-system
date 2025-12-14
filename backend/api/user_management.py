@@ -34,6 +34,7 @@ def list_employees_with_auth():
                 rc.role_name as role,
                 e.is_active,
                 CASE WHEN ea.pin IS NOT NULL THEN 1 ELSE 0 END as has_pin,
+                ea.pin_plain,
                 ea.last_login,
                 ea.pin_set_at
             FROM employees e
