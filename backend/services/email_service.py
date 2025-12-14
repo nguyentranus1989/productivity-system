@@ -63,13 +63,13 @@ Contact your manager if you need any help.
 - {EmailService.COMPANY_NAME} Team
             """.strip()
 
-            # HTML version - Stacked Cards Design
+            # HTML version - Industrial Theme Design
             id_card = f"""
-            <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; border-radius: 12px; padding: 20px; margin: 15px 0; display: flex; align-items: center;">
-                <div style="width: 50px; height: 50px; border-radius: 50%; background: #22c55e; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; margin-right: 15px;">ID</div>
+            <div style="background: #1a1f26; border: 2px solid rgba(34, 197, 94, 0.5); border-radius: 12px; padding: 20px; margin: 15px 0; display: flex; align-items: center;">
+                <div style="width: 50px; height: 50px; border-radius: 50%; background: #22c55e; color: #0f1419; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; margin-right: 15px;">ID</div>
                 <div>
-                    <div style="font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Your User ID</div>
-                    <div style="font-size: 32px; font-weight: bold; font-family: 'Courier New', monospace; letter-spacing: 4px; color: #15803d;">{employee_id}</div>
+                    <div style="font-size: 13px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Your User ID</div>
+                    <div style="font-size: 32px; font-weight: bold; font-family: 'Courier New', monospace; letter-spacing: 4px; color: #22c55e;">{employee_id}</div>
                 </div>
             </div>
             """ if employee_id else ""
@@ -79,39 +79,39 @@ Contact your manager if you need any help.
 <html>
 <head>
     <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #e5e7eb; }}
     </style>
 </head>
-<body>
+<body style="background: #0f1419; margin: 0; padding: 20px;">
     <div style="max-width: 500px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 25px; text-align: center; border-radius: 12px 12px 0 0;">
-            <h1 style="margin: 0; font-size: 28px;">Welcome!</h1>
-            <p style="margin: 10px 0 0 0; opacity: 0.9;">Your account is ready</p>
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); color: #0f1419; padding: 25px; text-align: center; border-radius: 12px 12px 0 0;">
+            <h1 style="margin: 0; font-size: 28px; font-weight: 700;">Welcome!</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.8;">Your account is ready</p>
         </div>
-        <div style="background: #ffffff; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <p>Hi <strong>{employee_name}</strong>,</p>
-            <p>Your employee portal credentials:</p>
+        <div style="background: #1a1f26; padding: 30px; border-radius: 0 0 12px 12px; border: 1px solid rgba(245, 158, 11, 0.2); border-top: none;">
+            <p style="color: #e5e7eb;">Hi <strong style="color: #fbbf24;">{employee_name}</strong>,</p>
+            <p style="color: #9ca3af;">Your employee portal credentials:</p>
 
             {id_card}
 
-            <div style="background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); border: 2px solid #6366f1; border-radius: 12px; padding: 20px; margin: 15px 0; display: flex; align-items: center;">
-                <div style="width: 50px; height: 50px; border-radius: 50%; background: #6366f1; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; margin-right: 15px;">#</div>
+            <div style="background: #1a1f26; border: 2px solid rgba(245, 158, 11, 0.5); border-radius: 12px; padding: 20px; margin: 15px 0; display: flex; align-items: center;">
+                <div style="width: 50px; height: 50px; border-radius: 50%; background: #f59e0b; color: #0f1419; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; margin-right: 15px;">#</div>
                 <div>
-                    <div style="font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Your PIN Code</div>
-                    <div style="font-size: 32px; font-weight: bold; font-family: 'Courier New', monospace; letter-spacing: 4px; color: #4f46e5;">{pin}</div>
+                    <div style="font-size: 13px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Your PIN Code</div>
+                    <div style="font-size: 32px; font-weight: bold; font-family: 'Courier New', monospace; letter-spacing: 4px; color: #f59e0b;">{pin}</div>
                 </div>
             </div>
 
             <p style="text-align: center;">
-                <a href="{EmailService.PORTAL_URL}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; margin-top: 20px; font-weight: 600;">Access Employee Portal</a>
+                <a href="{EmailService.PORTAL_URL}" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); color: #0f1419; padding: 14px 35px; text-decoration: none; border-radius: 8px; margin-top: 20px; font-weight: 600;">Access Employee Portal</a>
             </p>
 
-            <p style="color: #666; font-size: 14px; margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; font-size: 14px; margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(245, 158, 11, 0.2);">
                 Keep these credentials secure and do not share them.<br>
                 Contact your manager if you need any help.
             </p>
         </div>
-        <div style="text-align: center; color: #666; font-size: 12px; margin-top: 20px;">
+        <div style="text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px;">
             <p>{EmailService.COMPANY_NAME}</p>
         </div>
     </div>
