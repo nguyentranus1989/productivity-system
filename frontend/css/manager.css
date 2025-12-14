@@ -635,6 +635,27 @@ body {
     .mobile-menu-toggle {
         display: none !important;
     }
+
+    /* Fix sidebar user panel overlapping nav items on mobile */
+    .sidebar {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sidebar-nav {
+        flex: 1;
+        overflow-y: auto;
+        padding-bottom: 10px;
+    }
+
+    .sidebar-user-panel {
+        position: relative !important;
+        bottom: auto !important;
+        left: auto !important;
+        right: auto !important;
+        margin: 10px 20px 20px 20px;
+        flex-shrink: 0;
+    }
 }
 
 /* Bottom nav - amber theme for manager page */
