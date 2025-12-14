@@ -8,8 +8,9 @@ echo "🚀 Deploying: $MESSAGE"
 git add .
 git commit -m "$MESSAGE"
 
-# Push to GitHub
-git push
+# Push to both remotes
+git push origin main
+git push server main
 
 # Deploy to production
 echo "📥 Updating production server..."
