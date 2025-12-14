@@ -500,6 +500,10 @@ body {
     border-radius: 20px;
     padding: 25px;
     margin-bottom: 25px;
+    position: relative;
+    z-index: 1;
+    display: block;
+    overflow: hidden;
 }
 
 .chart-header {
@@ -618,6 +622,18 @@ body {
         padding: 15px;
         margin-bottom: 20px;
     }
+
+    /* Fix Cost Analysis sections stacking on mobile */
+    .charts-grid {
+        position: relative;
+        z-index: 1;
+    }
+}
+
+/* Manager page hamburger button - amber theme */
+.mobile-menu-toggle {
+    background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%) !important;
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4) !important;
 }
 
 /* Scrollbar Styling */
