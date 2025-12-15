@@ -143,7 +143,8 @@ class Auth0Manager:
                 'name': str,
                 'email': str,
                 'role_id': str (Auth0 role ID),
-                'workspace': str ('TX' or 'MS')
+                'workspace': str ('TX' or 'MS'),
+                'password': str (optional - custom password, generates random if not provided)
             }
 
         Returns:
@@ -153,8 +154,8 @@ class Auth0Manager:
             return {'success': False, 'message': 'Auth0 not configured'}
 
         try:
-            # Generate password
-            password = Auth0Manager.generate_password()
+            # Use custom password or generate random
+            password = employee_data.get('password') or Auth0Manager.generate_password()
 
             # Create user payload
             payload = {
@@ -249,12 +250,13 @@ class Auth0Manager:
             return {'success': False, 'message': f"Auth0 deletion failed: {str(e)}"}
 
     @staticmethod
-    def reset_password(auth0_user_id):
+    def reset_password(auth0_user_id, custom_password=None):
         """
-        Reset Auth0 user password to a new random password
+        Reset Auth0 user password
 
         Args:
             auth0_user_id: Auth0 user ID (e.g., 'auth0|xxx')
+            custom_password: Optional custom password (generates random if not provided)
 
         Returns:
             {'success': bool, 'password': str, 'message': str}
@@ -266,8 +268,8 @@ class Auth0Manager:
             return {'success': False, 'message': 'No Auth0 user ID provided'}
 
         try:
-            # Generate new password
-            new_password = Auth0Manager.generate_password()
+            # Use custom password or generate random
+            new_password = custom_password or Auth0Manager.generate_password()
 
             # Update password via Management API
             response = requests.patch(

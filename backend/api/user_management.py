@@ -277,6 +277,9 @@ def get_podfactory_credentials(employee_id):
 def setup_podfactory_auth0(mapping_id):
     """Create Auth0 account for a specific PodFactory email"""
     try:
+        data = request.get_json() or {}
+        custom_password = data.get('password')  # Optional custom password
+
         # Get mapping with employee info
         mapping = get_db().execute_one("""
             SELECT m.id, m.podfactory_email, m.auth0_user_id, e.id as employee_id, e.name, e.workspace
@@ -291,12 +294,13 @@ def setup_podfactory_auth0(mapping_id):
         if mapping.get('auth0_user_id'):
             return jsonify({'success': False, 'message': 'Auth0 account already exists for this email'}), 400
 
-        # Create Auth0 account
+        # Create Auth0 account (with custom password if provided)
         auth0_result = Auth0Manager.create_user({
             'employee_id': mapping['employee_id'],
             'name': mapping['name'],
             'email': mapping['podfactory_email'],
-            'workspace': mapping.get('workspace', 'MS')
+            'workspace': mapping.get('workspace', 'MS'),
+            'password': custom_password
         })
 
         if not auth0_result['success']:
@@ -356,6 +360,9 @@ def setup_podfactory_auth0(mapping_id):
 def reset_podfactory_auth0_password(mapping_id):
     """Reset Auth0 password for a specific PodFactory email"""
     try:
+        data = request.get_json() or {}
+        custom_password = data.get('password')  # Optional custom password
+
         # Get mapping
         mapping = get_db().execute_one("""
             SELECT id, podfactory_email, auth0_user_id
@@ -369,8 +376,8 @@ def reset_podfactory_auth0_password(mapping_id):
         if not mapping.get('auth0_user_id'):
             return jsonify({'success': False, 'message': 'No Auth0 account for this email'}), 400
 
-        # Reset password
-        result = Auth0Manager.reset_password(mapping['auth0_user_id'])
+        # Reset password (with custom password if provided)
+        result = Auth0Manager.reset_password(mapping['auth0_user_id'], custom_password)
 
         if not result['success']:
             return jsonify({'success': False, 'message': result['message']}), 400

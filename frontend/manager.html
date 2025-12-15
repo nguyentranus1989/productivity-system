@@ -5300,14 +5300,16 @@
                         : credentials.map(cred => {
                             const hasAuth0 = cred.auth0_user_id;
                             const hasPassword = cred.auth0_password;
+                            const escapedEmail = cred.podfactory_email.replace(/'/g, "\\'");
+                            const escapedName = employeeName.replace(/'/g, "\\'");
                             let actionButton = '';
                             if (!hasAuth0) {
-                                actionButton = `<button onclick="setupPodFactoryAuth0(${cred.id}, '${employeeName.replace(/'/g, "\\'")}')" style="padding: 4px 8px; background: #22c55e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;"><i class="fas fa-plus"></i> Setup</button>`;
+                                actionButton = `<button onclick="setupPodFactoryAuth0(${cred.id}, '${escapedName}', '${escapedEmail}')" style="padding: 4px 8px; background: #22c55e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;"><i class="fas fa-plus"></i> Setup</button>`;
                             } else if (!hasPassword) {
-                                actionButton = `<button onclick="resetPodFactoryAuth0Password(${cred.id}, '${employeeName.replace(/'/g, "\\'")}')" style="padding: 4px 8px; background: #f59e0b; color: #1e1e1e; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;"><i class="fas fa-sync-alt"></i> Reset</button>`;
+                                actionButton = `<button onclick="resetPodFactoryAuth0Password(${cred.id}, '${escapedName}', '${escapedEmail}')" style="padding: 4px 8px; background: #f59e0b; color: #1e1e1e; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;"><i class="fas fa-sync-alt"></i> Reset</button>`;
                             } else {
-                                actionButton = `<button onclick="copyPodFactoryCredentials('${cred.podfactory_email.replace(/'/g, "\\'")}', '${cred.auth0_password.replace(/'/g, "\\'")}')" style="padding: 4px 8px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;"><i class="fas fa-copy"></i> Copy</button>
-                                                <button onclick="resetPodFactoryAuth0Password(${cred.id}, '${employeeName.replace(/'/g, "\\'")}')" style="padding: 4px 8px; background: #3f3f46; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;"><i class="fas fa-sync-alt"></i></button>`;
+                                actionButton = `<button onclick="copyPodFactoryCredentials('${escapedEmail}', '${cred.auth0_password.replace(/'/g, "\\'")}')" style="padding: 4px 8px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;"><i class="fas fa-copy"></i> Copy</button>
+                                                <button onclick="resetPodFactoryAuth0Password(${cred.id}, '${escapedName}', '${escapedEmail}')" style="padding: 4px 8px; background: #3f3f46; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;"><i class="fas fa-sync-alt"></i></button>`;
                             }
                             return `
                                 <div style="background: rgba(251,191,36,0.1); padding: 12px; border-radius: 8px; margin-bottom: 10px;">
@@ -5359,63 +5361,127 @@
                 navigator.clipboard.writeText(text).then(() => showNotification('PodFactory credentials copied!', 'success'));
             };
 
-            // Setup Auth0 account for a PodFactory email mapping
-            window.setupPodFactoryAuth0 = async function(mappingId, employeeName) {
-                const modal = document.getElementById('viewPodFactoryModal');
-                const employeeId = modal ? modal.dataset.employeeId : null;
-                if (modal) modal.remove();
+            // Setup Auth0 account for a PodFactory email mapping - shows modal with password option
+            window.setupPodFactoryAuth0 = function(mappingId, employeeName, email) {
+                const parentModal = document.getElementById('viewPodFactoryModal');
+                const employeeId = parentModal ? parentModal.dataset.employeeId : null;
+                if (parentModal) parentModal.remove();
+
+                const modal = document.createElement('div');
+                modal.id = 'setupAuth0Modal';
+                modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 10001; display: flex; align-items: center; justify-content: center;';
+                modal.innerHTML = `
+                    <div style="background: #1e1e1e; padding: 25px; border-radius: 12px; width: 400px; max-width: 90%; border: 1px solid rgba(34,197,94,0.3);">
+                        <h3 style="color: #22c55e; margin: 0 0 15px 0; font-size: 14px;">
+                            <i class="fas fa-user-plus"></i> Setup Auth0 Account
+                        </h3>
+                        <div style="color: #fcd34d; font-size: 12px; font-family: monospace; margin-bottom: 15px; word-break: break-all;">${email}</div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: flex; align-items: center; color: #a0a0a0; font-size: 12px; cursor: pointer;">
+                                <input type="checkbox" id="useCustomPwd" onchange="document.getElementById('customPwdInput').style.display = this.checked ? 'block' : 'none'" style="margin-right: 8px;">
+                                Set custom password
+                            </label>
+                            <input type="text" id="customPwdInput" placeholder="Enter password (min 8 chars)" style="display: none; width: 100%; margin-top: 8px; padding: 10px; background: #2a2a2a; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #e0e0e0; font-size: 13px;">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="executeSetupAuth0(${mappingId}, '${employeeName.replace(/'/g, "\\'")}', ${employeeId})" style="flex: 1; padding: 10px; background: #22c55e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                                <i class="fas fa-check"></i> Create Account
+                            </button>
+                            <button onclick="document.getElementById('setupAuth0Modal').remove(); viewPodFactoryCredentials(${employeeId}, '${employeeName.replace(/'/g, "\\'")}')" style="flex: 1; padding: 10px; background: #3f3f46; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            };
+
+            // Execute the actual Auth0 setup
+            window.executeSetupAuth0 = async function(mappingId, employeeName, employeeId) {
+                const useCustom = document.getElementById('useCustomPwd')?.checked;
+                const customPassword = useCustom ? document.getElementById('customPwdInput')?.value : null;
+                document.getElementById('setupAuth0Modal')?.remove();
 
                 showNotification('Creating Auth0 account...', 'info');
 
                 try {
                     const response = await fetch(`${API_BASE}/api/admin/podfactory-mappings/${mappingId}/setup-auth0`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY }
+                        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+                        body: JSON.stringify({ password: customPassword })
                     });
                     const data = await response.json();
 
                     if (data.success) {
                         showNotification(`Auth0 account created: ${data.email}`, 'success');
-                        // Reopen modal to show updated credentials
-                        if (employeeId) {
-                            setTimeout(() => viewPodFactoryCredentials(employeeId, employeeName), 300);
-                        }
+                        if (employeeId) setTimeout(() => viewPodFactoryCredentials(employeeId, employeeName), 300);
                     } else {
                         showNotification(data.message || 'Failed to create Auth0 account', 'error');
                     }
                 } catch (error) {
                     showNotification('Error creating Auth0 account', 'error');
-                    console.error('Setup Auth0 error:', error);
                 }
             };
 
-            // Reset Auth0 password for a PodFactory email mapping
-            window.resetPodFactoryAuth0Password = async function(mappingId, employeeName) {
-                const modal = document.getElementById('viewPodFactoryModal');
-                const employeeId = modal ? modal.dataset.employeeId : null;
-                if (modal) modal.remove();
+            // Reset Auth0 password - shows modal with password option
+            window.resetPodFactoryAuth0Password = function(mappingId, employeeName, email) {
+                const parentModal = document.getElementById('viewPodFactoryModal');
+                const employeeId = parentModal ? parentModal.dataset.employeeId : null;
+                if (parentModal) parentModal.remove();
+
+                const modal = document.createElement('div');
+                modal.id = 'resetPwdModal';
+                modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 10001; display: flex; align-items: center; justify-content: center;';
+                modal.innerHTML = `
+                    <div style="background: #1e1e1e; padding: 25px; border-radius: 12px; width: 400px; max-width: 90%; border: 1px solid rgba(251,191,36,0.3);">
+                        <h3 style="color: #fbbf24; margin: 0 0 15px 0; font-size: 14px;">
+                            <i class="fas fa-key"></i> Reset Password
+                        </h3>
+                        <div style="color: #fcd34d; font-size: 12px; font-family: monospace; margin-bottom: 15px; word-break: break-all;">${email}</div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: flex; align-items: center; color: #a0a0a0; font-size: 12px; cursor: pointer;">
+                                <input type="checkbox" id="useCustomPwdReset" onchange="document.getElementById('customPwdInputReset').style.display = this.checked ? 'block' : 'none'" style="margin-right: 8px;">
+                                Set custom password
+                            </label>
+                            <input type="text" id="customPwdInputReset" placeholder="Enter password (min 8 chars)" style="display: none; width: 100%; margin-top: 8px; padding: 10px; background: #2a2a2a; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #e0e0e0; font-size: 13px;">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="executeResetPassword(${mappingId}, '${employeeName.replace(/'/g, "\\'")}', ${employeeId})" style="flex: 1; padding: 10px; background: #f59e0b; color: #1e1e1e; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                                <i class="fas fa-sync-alt"></i> Reset Password
+                            </button>
+                            <button onclick="document.getElementById('resetPwdModal').remove(); viewPodFactoryCredentials(${employeeId}, '${employeeName.replace(/'/g, "\\'")}')" style="flex: 1; padding: 10px; background: #3f3f46; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            };
+
+            // Execute the actual password reset
+            window.executeResetPassword = async function(mappingId, employeeName, employeeId) {
+                const useCustom = document.getElementById('useCustomPwdReset')?.checked;
+                const customPassword = useCustom ? document.getElementById('customPwdInputReset')?.value : null;
+                document.getElementById('resetPwdModal')?.remove();
 
                 showNotification('Resetting password...', 'info');
 
                 try {
                     const response = await fetch(`${API_BASE}/api/admin/podfactory-mappings/${mappingId}/reset-auth0-password`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY }
+                        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+                        body: JSON.stringify({ password: customPassword })
                     });
                     const data = await response.json();
 
                     if (data.success) {
                         showNotification(`Password reset: ${data.email}`, 'success');
-                        // Reopen modal to show updated credentials
-                        if (employeeId) {
-                            setTimeout(() => viewPodFactoryCredentials(employeeId, employeeName), 300);
-                        }
+                        if (employeeId) setTimeout(() => viewPodFactoryCredentials(employeeId, employeeName), 300);
                     } else {
                         showNotification(data.message || 'Failed to reset password', 'error');
                     }
                 } catch (error) {
                     showNotification('Error resetting password', 'error');
-                    console.error('Reset password error:', error);
                 }
             };
 
