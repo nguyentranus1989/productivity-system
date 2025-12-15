@@ -3716,22 +3716,18 @@
                 if (!tbody) return;
 
                 tbody.innerHTML = employees.map(emp => {
-                    // Portal credentials display (ID + PIN)
-                    let portalDisplay;
-                    if (!emp.has_pin) {
-                        portalDisplay = `<span style="color: #808080; font-size: 11px;">No PIN</span>`;
-                    } else if (emp.pin_plain) {
-                        portalDisplay = `<button onclick="viewPortalCredentials(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${emp.pin_plain}')" style="padding: 4px 10px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;">View</button>`;
-                    } else {
-                        portalDisplay = `<button onclick="resetEmployeePin(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.personal_email || '').replace(/'/g, "\\'")}')" style="padding: 4px 10px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;" title="Legacy PIN - reset to view">Reset</button>`;
-                    }
+                    // Portal credentials display (ID + PIN) - Always show View with dot indicator if missing
+                    const pinMissing = !emp.has_pin || !emp.pin_plain;
+                    const portalDot = pinMissing ? `<span style="display: inline-block; width: 6px; height: 6px; background: #f59e0b; border-radius: 50%; margin-left: 4px; vertical-align: middle;" title="PIN needs to be set"></span>` : '';
+                    const portalDisplay = `<button onclick="viewPortalCredentials(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.pin_plain || '').replace(/'/g, "\\'")}', '${(emp.personal_email || '').replace(/'/g, "\\'")}')" style="padding: 4px 10px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;">View</button>${portalDot}`;
 
-                    // PodFactory credentials display (Email + Password)
+                    // PodFactory credentials display (Email + Password) - View if has work email, dot if password missing
+                    const hasWorkEmail = emp.email && emp.email.includes('@colorecommerce');
                     let podFactoryDisplay;
-                    if (emp.auth0_password) {
-                        podFactoryDisplay = `<button onclick="viewPodFactoryCredentials('${emp.name.replace(/'/g, "\\'")}', '${(emp.email || '').replace(/'/g, "\\'")}', '${(emp.auth0_password || '').replace(/'/g, "\\'")}')" style="padding: 4px 10px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;">View</button>`;
-                    } else if (emp.email && emp.email.includes('@colorecommerce')) {
-                        podFactoryDisplay = `<span style="color: #808080; font-size: 11px;">No Pass</span>`;
+                    if (hasWorkEmail) {
+                        const passMissing = !emp.auth0_password;
+                        const podDot = passMissing ? `<span style="display: inline-block; width: 6px; height: 6px; background: #f59e0b; border-radius: 50%; margin-left: 4px; vertical-align: middle;" title="Password not stored"></span>` : '';
+                        podFactoryDisplay = `<button onclick="viewPodFactoryCredentials(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.email || '').replace(/'/g, "\\'")}', '${(emp.auth0_password || '').replace(/'/g, "\\'")}')" style="padding: 4px 10px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;">View</button>${podDot}`;
                     } else {
                         podFactoryDisplay = `<span style="color: #808080; font-size: 11px;">-</span>`;
                     }
@@ -5228,8 +5224,22 @@
                 });
             };
 
-            // View Portal Credentials (ID + PIN)
-            window.viewPortalCredentials = function(employeeId, employeeName, pin) {
+            // View Portal Credentials (ID + PIN) - with reset option if PIN missing
+            window.viewPortalCredentials = function(employeeId, employeeName, pin, personalEmail) {
+                const hasPIN = pin && pin.length > 0;
+                const pinDisplay = hasPIN
+                    ? `<div style="color: #a5b4fc; font-size: 28px; font-weight: bold; font-family: monospace; letter-spacing: 4px;">${pin}</div>`
+                    : `<div style="color: #808080; font-size: 14px; margin-bottom: 8px;">Not set</div>
+                       <button onclick="document.getElementById('viewPortalModal').remove(); openSetPinModal(${employeeId}, '${employeeName.replace(/'/g, "\\'")}', '${(personalEmail || '').replace(/'/g, "\\'")}');" style="padding: 6px 12px; background: #f59e0b; color: #1e1e1e; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;">
+                           <i class="fas fa-sync-alt"></i> Set PIN
+                       </button>`;
+
+                const copyButton = hasPIN
+                    ? `<button onclick="copyPortalCredentials(${employeeId}, '${pin}')" style="flex: 1; padding: 10px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                           <i class="fas fa-copy"></i> Copy
+                       </button>`
+                    : '';
+
                 const modal = document.createElement('div');
                 modal.id = 'viewPortalModal';
                 modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 10000; display: flex; align-items: center; justify-content: center;';
@@ -5245,13 +5255,11 @@
                             </div>
                             <div style="flex: 1; background: rgba(99,102,241,0.1); padding: 15px; border-radius: 8px; text-align: center;">
                                 <div style="color: #808080; font-size: 11px; margin-bottom: 5px;">PIN</div>
-                                <div style="color: #a5b4fc; font-size: 28px; font-weight: bold; font-family: monospace; letter-spacing: 4px;">${pin}</div>
+                                ${pinDisplay}
                             </div>
                         </div>
                         <div style="display: flex; gap: 10px;">
-                            <button onclick="copyPortalCredentials(${employeeId}, '${pin}')" style="flex: 1; padding: 10px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
-                                <i class="fas fa-copy"></i> Copy
-                            </button>
+                            ${copyButton}
                             <button onclick="document.getElementById('viewPortalModal').remove();" style="flex: 1; padding: 10px; background: #3f3f46; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
                                 Close
                             </button>
@@ -5262,8 +5270,22 @@
                 modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
             };
 
-            // View PodFactory Credentials (Email + Password)
-            window.viewPodFactoryCredentials = function(employeeName, email, password) {
+            // View PodFactory Credentials (Email + Password) - with reset option if password missing
+            window.viewPodFactoryCredentials = function(employeeId, employeeName, email, password) {
+                const hasPassword = password && password.length > 0;
+                const passwordDisplay = hasPassword
+                    ? `<div style="color: #fbbf24; font-size: 18px; font-weight: bold; font-family: monospace; letter-spacing: 1px;">${password}</div>`
+                    : `<div style="color: #808080; font-size: 14px; margin-bottom: 8px;">Not stored</div>
+                       <button onclick="resetAuth0Password(${employeeId}, '${employeeName.replace(/'/g, "\\'")}')" style="padding: 6px 12px; background: #f59e0b; color: #1e1e1e; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;">
+                           <i class="fas fa-sync-alt"></i> Reset Password
+                       </button>`;
+
+                const copyButton = hasPassword
+                    ? `<button onclick="copyPodFactoryCredentials('${email.replace(/'/g, "\\'")}', '${password.replace(/'/g, "\\'")}')" style="flex: 1; padding: 10px; background: #f59e0b; color: #1e1e1e; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                           <i class="fas fa-copy"></i> Copy
+                       </button>`
+                    : '';
+
                 const modal = document.createElement('div');
                 modal.id = 'viewPodFactoryModal';
                 modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 10000; display: flex; align-items: center; justify-content: center;';
@@ -5278,12 +5300,10 @@
                         </div>
                         <div style="background: rgba(251,191,36,0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                             <div style="color: #808080; font-size: 11px; margin-bottom: 5px;">Password</div>
-                            <div style="color: #fbbf24; font-size: 18px; font-weight: bold; font-family: monospace; letter-spacing: 1px;">${password}</div>
+                            ${passwordDisplay}
                         </div>
                         <div style="display: flex; gap: 10px;">
-                            <button onclick="copyPodFactoryCredentials('${email.replace(/'/g, "\\'")}', '${password.replace(/'/g, "\\'")}')" style="flex: 1; padding: 10px; background: #f59e0b; color: #1e1e1e; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
-                                <i class="fas fa-copy"></i> Copy
-                            </button>
+                            ${copyButton}
                             <button onclick="document.getElementById('viewPodFactoryModal').remove();" style="flex: 1; padding: 10px; background: #3f3f46; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
                                 Close
                             </button>
@@ -5304,6 +5324,41 @@
             window.copyPodFactoryCredentials = function(email, password) {
                 const text = `PodFactory Login\nEmail: ${email}\nPassword: ${password}`;
                 navigator.clipboard.writeText(text).then(() => showNotification('PodFactory credentials copied!', 'success'));
+            };
+
+            // Reset Auth0 password for employee
+            window.resetAuth0Password = async function(employeeId, employeeName) {
+                // Close the current modal
+                const modal = document.getElementById('viewPodFactoryModal');
+                if (modal) modal.remove();
+
+                // Show loading
+                showNotification('Resetting password...', 'info');
+
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/reset-auth0-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY }
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showNotification(`Password reset for ${employeeName}`, 'success');
+                        // Reload employee list to get new password
+                        loadEmployees();
+                        // Show new credentials
+                        if (data.password && data.email) {
+                            setTimeout(() => {
+                                viewPodFactoryCredentials(employeeId, employeeName, data.email, data.password);
+                            }, 500);
+                        }
+                    } else {
+                        showNotification(data.message || 'Failed to reset password', 'error');
+                    }
+                } catch (error) {
+                    showNotification('Error resetting password', 'error');
+                    console.error('Reset password error:', error);
+                }
             };
 
             // Edit personal email modal

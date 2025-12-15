@@ -249,6 +249,49 @@ class Auth0Manager:
             return {'success': False, 'message': f"Auth0 deletion failed: {str(e)}"}
 
     @staticmethod
+    def reset_password(auth0_user_id):
+        """
+        Reset Auth0 user password to a new random password
+
+        Args:
+            auth0_user_id: Auth0 user ID (e.g., 'auth0|xxx')
+
+        Returns:
+            {'success': bool, 'password': str, 'message': str}
+        """
+        if not Auth0Manager.is_configured():
+            return {'success': False, 'message': 'Auth0 not configured'}
+
+        if not auth0_user_id:
+            return {'success': False, 'message': 'No Auth0 user ID provided'}
+
+        try:
+            # Generate new password
+            new_password = Auth0Manager.generate_password()
+
+            # Update password via Management API
+            response = requests.patch(
+                f"{Auth0Manager._base_url()}/users/{auth0_user_id}",
+                headers=Auth0Manager._get_headers(),
+                json={"password": new_password},
+                timeout=15
+            )
+
+            if response.status_code == 200:
+                return {
+                    'success': True,
+                    'password': new_password,
+                    'message': 'Password reset successfully'
+                }
+            elif response.status_code == 404:
+                return {'success': False, 'message': 'Auth0 user not found'}
+            else:
+                return {'success': False, 'message': f"Auth0 password reset error: {response.status_code} - {response.text}"}
+
+        except Exception as e:
+            return {'success': False, 'message': f"Auth0 password reset failed: {str(e)}"}
+
+    @staticmethod
     def get_workspaces():
         """Get available workspaces"""
         return [

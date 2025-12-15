@@ -201,6 +201,45 @@ def reset_employee_pin(employee_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@user_management_bp.route('/api/admin/employees/<int:employee_id>/reset-auth0-password', methods=['POST'])
+@require_api_key
+def reset_auth0_password(employee_id):
+    """Reset Auth0 password for employee and store new password in database"""
+    try:
+        # Get employee with Auth0 info
+        employee = get_db().execute_one("""
+            SELECT id, name, email, auth0_user_id FROM employees WHERE id = %s
+        """, (employee_id,))
+
+        if not employee:
+            return jsonify({'success': False, 'message': 'Employee not found'}), 404
+
+        if not employee.get('auth0_user_id'):
+            return jsonify({'success': False, 'message': 'Employee has no Auth0 account'}), 400
+
+        # Reset password in Auth0
+        result = Auth0Manager.reset_password(employee['auth0_user_id'])
+
+        if not result['success']:
+            return jsonify({'success': False, 'message': result['message']}), 400
+
+        # Store new password in database
+        get_db().execute_query("""
+            UPDATE employees SET auth0_password = %s WHERE id = %s
+        """, (result['password'], employee_id))
+
+        return jsonify({
+            'success': True,
+            'employee_id': employee_id,
+            'employee_name': employee['name'],
+            'email': employee['email'],
+            'password': result['password'],
+            'message': 'Auth0 password reset successfully'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @user_management_bp.route('/api/admin/employees/<int:employee_id>/toggle-active', methods=['POST'])
 @require_api_key
 def toggle_employee_active(employee_id):
