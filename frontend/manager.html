@@ -3923,34 +3923,61 @@
 
         // Delete employee and Auth0 account
         window.deleteEmployee = async function(employeeId, employeeName) {
-            if (!confirm(`⚠️ PERMANENTLY DELETE "${employeeName}"?\n\nThis will:\n- Delete employee record\n- Delete Auth0 account\n- Remove all data\n\nThis action cannot be undone!`)) {
-                return;
-            }
+            // First confirmation
+            showDeleteConfirmModal(
+                '⚠️ Delete Employee',
+                `<strong>Permanently delete "${employeeName}"?</strong><br><br>This will:<br>• Delete employee record<br>• Delete Auth0 account<br>• Remove all data<br><br><span style="color: #ef4444;">This action cannot be undone!</span>`,
+                () => {
+                    // Second confirmation
+                    showDeleteConfirmModal(
+                        '⚠️ Final Confirmation',
+                        `Are you absolutely sure you want to delete <strong>"${employeeName}"</strong>?`,
+                        async () => {
+                            try {
+                                const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/delete`, {
+                                    method: 'DELETE',
+                                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                                });
 
-            // Double confirm
-            if (!confirm(`Are you absolutely sure you want to delete "${employeeName}"?`)) {
-                return;
-            }
+                                const data = await response.json();
 
-            try {
-                const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/delete`, {
-                    method: 'DELETE',
-                    headers: { 'X-API-Key': 'dev-api-key-123' }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    alert(`Employee "${employeeName}" deleted successfully.\nAuth0 account: ${data.auth0_deleted ? 'Deleted' : 'Not found'}`);
-                    await loadEmployeeManagementData();
-                } else {
-                    alert('Error: ' + data.message);
+                                if (data.success) {
+                                    showNotification(`Employee "${employeeName}" deleted. Auth0: ${data.auth0_deleted ? 'Deleted' : 'Not found'}`, 'success');
+                                    await loadEmployeeManagementData();
+                                } else {
+                                    showNotification('Error: ' + data.message, 'error');
+                                }
+                            } catch (error) {
+                                console.error('Error deleting employee:', error);
+                                showNotification('Error deleting employee. Please try again.', 'error');
+                            }
+                        }
+                    );
                 }
-            } catch (error) {
-                console.error('Error deleting employee:', error);
-                alert('Error deleting employee. Please try again.');
-            }
+            );
         };
+
+        // Delete confirmation modal (red button variant)
+        function showDeleteConfirmModal(title, message, onConfirm, onCancel) {
+            const modal = document.createElement('div');
+            modal.id = 'deleteConfirmModal';
+            modal.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 99998; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: #1e1e1e; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; width: 420px; max-width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                        <h3 style="color: #ef4444; margin: 0 0 15px 0; font-size: 1.3em;">${title}</h3>
+                        <p style="color: #a0a0a0; margin: 0 0 25px 0; line-height: 1.6;">${message}</p>
+                        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                            <button id="deleteCancel" style="padding: 10px 24px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-weight: 500;">Cancel</button>
+                            <button id="deleteConfirm" style="padding: 10px 24px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('deleteConfirm').onclick = () => { modal.remove(); if(onConfirm) onConfirm(); };
+            document.getElementById('deleteCancel').onclick = () => { modal.remove(); if(onCancel) onCancel(); };
+        }
 
         // ============= UNIFIED NEEDS ATTENTION FUNCTIONS =============
 
