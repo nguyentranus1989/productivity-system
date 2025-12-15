@@ -1639,7 +1639,7 @@ def get_team_metrics():
             'total_hours_worked': metrics['total_hours_worked'] or 0,
             'overall_efficiency': overall_efficiency,
             'average_items_per_hour': round(metrics['items_today'] / max(metrics['total_hours_worked'], 1), 1),
-            'daily_goal': 5000,
+            'daily_goal': 3000,  # QC passed items target
             'vs_yesterday': round(vs_yesterday, 1),
             'top_department': top_dept['department'] if top_dept else 'None',
             'top_department_points': round(top_dept['dept_points'], 1) if top_dept else 0
@@ -1664,7 +1664,7 @@ def get_team_metrics():
             'total_hours_worked': 0,
             'overall_efficiency': 0,
             'average_items_per_hour': 0,
-            'daily_goal': 5000,
+            'daily_goal': 3000,  # QC passed items target
             'vs_yesterday': 0,
             'top_department': 'None',
             'top_department_points': 0
