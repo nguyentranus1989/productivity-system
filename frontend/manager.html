@@ -768,11 +768,14 @@
                             <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Full Name *</label>
                             <input type="text" id="newEmpName" required oninput="updateAutoEmail()" placeholder="John Smith" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
                         </div>
-                        <!-- Auth0 Role -->
+                        <!-- Role -->
                         <div>
-                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">PodFactory Role *</label>
+                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Role *</label>
                             <select id="newEmpAuth0Role" required onchange="updateAutoEmail()" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
-                                <option value="">Loading roles...</option>
+                                <option value="">Select Role...</option>
+                                <option value="rol_fVPfxa7qJ2RXNGqM">Admin</option>
+                                <option value="rol_hbsGZtnRUIxFDdRX">Heat Pressing</option>
+                                <option value="rol_z0sgcfPqwEghlxEk">Packing and Shipping</option>
                             </select>
                         </div>
                         <!-- Work Email (Auto-generated) -->
@@ -3758,8 +3761,7 @@
 
         // ============= AUTH0 INTEGRATION FUNCTIONS =============
 
-        // Cache for roles and workspaces
-        let auth0Roles = [];
+        // Cache for workspaces
         let auth0Workspaces = [];
 
         // Auto-generate email based on name and role
@@ -3793,29 +3795,9 @@
             emailInput.value = `${emailBase}${suffix}@colorecommerce.us`;
         };
 
-        // Load Auth0 roles and workspaces for Add Employee form
+        // Load workspaces for Add Employee form (roles are static)
         window.loadAuth0FormData = async function() {
-            const roleSelect = document.getElementById('newEmpAuth0Role');
             const workspaceSelect = document.getElementById('newEmpWorkspace');
-
-            // Load roles if not cached
-            if (auth0Roles.length === 0) {
-                try {
-                    const response = await fetch(`${API_BASE}/api/admin/auth0/roles`, {
-                        headers: { 'X-API-Key': 'dev-api-key-123' }
-                    });
-                    const data = await response.json();
-                    if (data.success && data.roles) {
-                        auth0Roles = data.roles;
-                    }
-                } catch (e) {
-                    console.error('Error loading Auth0 roles:', e);
-                }
-            }
-
-            // Populate roles dropdown
-            roleSelect.innerHTML = '<option value="">Select Role...</option>' +
-                auth0Roles.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
 
             // Load workspaces if not cached
             if (auth0Workspaces.length === 0) {
