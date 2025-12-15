@@ -3721,16 +3721,18 @@
                     const portalDot = pinMissing ? `<span style="display: inline-block; width: 6px; height: 6px; background: #f59e0b; border-radius: 50%; margin-left: 4px; vertical-align: middle;" title="PIN needs to be set"></span>` : '';
                     const portalDisplay = `<button onclick="viewPortalCredentials(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.pin_plain || '').replace(/'/g, "\\'")}', '${(emp.personal_email || '').replace(/'/g, "\\'")}')" style="padding: 4px 10px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;">View</button>${portalDot}`;
 
-                    // PodFactory credentials display (Email + Password) - View if has work email, Setup if missing
-                    const hasWorkEmail = emp.email && emp.email.includes('@colorecommerce');
+                    // PodFactory credentials display (Email from mapping table + Password)
+                    const hasPodFactoryEmail = emp.podfactory_email && emp.podfactory_email.length > 0;
                     let podFactoryDisplay;
-                    if (hasWorkEmail) {
+                    if (hasPodFactoryEmail) {
+                        // Get first email if multiple are mapped
+                        const firstPfEmail = emp.podfactory_email.split(',')[0].trim();
                         const passMissing = !emp.auth0_password;
                         const podDot = passMissing ? `<span style="display: inline-block; width: 6px; height: 6px; background: #f59e0b; border-radius: 50%; margin-left: 4px; vertical-align: middle;" title="Password not stored"></span>` : '';
-                        podFactoryDisplay = `<button onclick="viewPodFactoryCredentials(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.email || '').replace(/'/g, "\\'")}', '${(emp.auth0_password || '').replace(/'/g, "\\'")}')" style="padding: 4px 10px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;">View</button>${podDot}`;
+                        podFactoryDisplay = `<button onclick="viewPodFactoryCredentials(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${firstPfEmail.replace(/'/g, "\\'")}', '${(emp.auth0_password || '').replace(/'/g, "\\'")}')" style="padding: 4px 10px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;">View</button>${podDot}`;
                     } else {
-                        // No work email - show Setup button to create one
-                        podFactoryDisplay = `<button onclick="setupPodFactoryAccount(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')" style="padding: 4px 10px; background: #22c55e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;" title="Create work email & Auth0 account">Setup</button>`;
+                        // No PodFactory mapping exists
+                        podFactoryDisplay = `<span style="color: #808080; font-size: 11px;">-</span>`;
                     }
 
                     // Send Welcome button availability
@@ -5359,37 +5361,6 @@
                 } catch (error) {
                     showNotification('Error resetting password', 'error');
                     console.error('Reset password error:', error);
-                }
-            };
-
-            // Setup PodFactory account (generate work email + create Auth0 account)
-            window.setupPodFactoryAccount = async function(employeeId, employeeName) {
-                // Show loading
-                showNotification('Setting up PodFactory account...', 'info');
-
-                try {
-                    const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/setup-podfactory`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY }
-                    });
-                    const data = await response.json();
-
-                    if (data.success) {
-                        showNotification(`PodFactory account created for ${employeeName}`, 'success');
-                        // Reload employee list
-                        loadEmployees();
-                        // Show new credentials
-                        if (data.email && data.password) {
-                            setTimeout(() => {
-                                viewPodFactoryCredentials(employeeId, employeeName, data.email, data.password);
-                            }, 500);
-                        }
-                    } else {
-                        showNotification(data.message || 'Failed to setup account', 'error');
-                    }
-                } catch (error) {
-                    showNotification('Error setting up PodFactory account', 'error');
-                    console.error('Setup PodFactory error:', error);
                 }
             };
 
