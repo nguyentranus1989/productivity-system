@@ -3741,11 +3741,11 @@
                             <td style="padding: 12px;">${personalEmailDisplay}</td>
                             <td style="padding: 12px;"><span class="badge ${emp.is_active ? 'badge-success' : 'badge-danger'}" style="background: ${emp.is_active ? '#22c55e' : '#ef4444'}; padding: 4px 12px; border-radius: 12px;">${emp.is_active ? 'Active' : 'Inactive'}</span></td>
                             <td style="padding: 12px;">${pinDisplay}</td>
-                            <td style="padding: 12px; position: relative;">
-                                <button onclick="toggleDropdown(${emp.id})" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            <td style="padding: 12px;">
+                                <button id="btn-${emp.id}" onclick="toggleDropdown(${emp.id}, event)" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
                                     Actions ▼
                                 </button>
-                                <div id="dropdown-${emp.id}" style="display: none; position: absolute; right: 0; top: 100%; background: #2a2a2a; min-width: 150px; box-shadow: 0px 8px 16px rgba(0,0,0,0.2); z-index: 1000; border-radius: 5px; margin-top: 5px;">
+                                <div id="dropdown-${emp.id}" style="display: none; position: fixed; background: #2a2a2a; min-width: 180px; box-shadow: 0px 8px 16px rgba(0,0,0,0.4); z-index: 10001; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
                                     <a href="#" onclick="editPersonalEmail(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.personal_email || '').replace(/'/g, "\\'")}'); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">📧 Edit Email</a>
                                     <a href="#" onclick="openSetPinModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.personal_email || '').replace(/'/g, "\\'")}'); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">🔑 PIN</a>
                                     ${canSendWelcome ? `<a href="#" onclick="sendWelcomeEmail(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: #22c55e; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">📤 Send Welcome</a>` : ''}
@@ -3760,13 +3760,25 @@
             };
 
             // Add this function right after displayEmployeeTable
-            window.toggleDropdown = function(id) {
+            window.toggleDropdown = function(id, event) {
+                event.stopPropagation();
                 const dropdown = document.getElementById(`dropdown-${id}`);
+                const btn = document.getElementById(`btn-${id}`);
+
                 // Close all other dropdowns first
                 document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
                     if (d.id !== `dropdown-${id}`) d.style.display = 'none';
                 });
-                dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+
+                if (dropdown.style.display === 'none') {
+                    // Position dropdown below button
+                    const rect = btn.getBoundingClientRect();
+                    dropdown.style.top = (rect.bottom + 5) + 'px';
+                    dropdown.style.left = Math.max(10, rect.right - 180) + 'px'; // Align right edge
+                    dropdown.style.display = 'block';
+                } else {
+                    dropdown.style.display = 'none';
+                }
             };
 
             // Add this event listener to close dropdowns when clicking outside
