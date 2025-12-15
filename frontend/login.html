@@ -752,7 +752,7 @@
                 if (data.success) {
                     if (remember) {
                         localStorage.setItem('shopfloorToken', data.token);
-                        localStorage.setItem('shopfloorExpiry', Date.now() + (180 * 24 * 60 * 60 * 1000));
+                        localStorage.setItem('shopfloorExpiry', Date.now() + (365 * 100 * 24 * 60 * 60 * 1000)); // 100 years = forever
                     } else {
                         sessionStorage.setItem('shopfloorToken', data.token);
                     }

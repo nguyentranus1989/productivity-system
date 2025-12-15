@@ -1,8 +1,19 @@
 // auth-check.js - Authentication Protection Script
 // Add this to all protected pages to enforce login
+// Use ?display=true for floor display mode (no logout, no expiry check)
 
 (function() {
     'use strict';
+
+    // Check for Display Mode (floor display - never logs out)
+    const urlParams = new URLSearchParams(window.location.search);
+    const isDisplayMode = urlParams.get('display') === 'true';
+    window.isDisplayMode = isDisplayMode;
+
+    if (isDisplayMode) {
+        console.log('Display Mode enabled - session will never expire');
+    }
+
     // Define logout function (needed even in dev mode)
     window.logout = function() {
         sessionStorage.removeItem('adminToken');
@@ -25,7 +36,7 @@
     }
     // Configuration
     const LOGIN_PAGE = '/login.html';
-    const SHOP_FLOOR_PIN_EXPIRY = 180 * 24 * 60 * 60 * 1000; // 180 days
+    const SHOP_FLOOR_PIN_EXPIRY = 365 * 100 * 24 * 60 * 60 * 1000; // 100 years = forever (until exit button clicked)
     
     // Get current page
     const currentPage = window.location.pathname.toLowerCase();
@@ -262,8 +273,9 @@
     }
     
     // Also check on page visibility change (in case token expires while page is open)
+    // Skip this check in Display Mode to prevent auto-logout on floor displays
     document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) {
+        if (!document.hidden && !isDisplayMode) {
             const userRole = getUserRole();
             if (!userRole && currentPage !== LOGIN_PAGE) {
                 redirectToLogin();
