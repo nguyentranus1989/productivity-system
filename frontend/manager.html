@@ -755,25 +755,55 @@
 
             <!-- Add Employee Tab -->
             <div id="empTabAdd" class="emp-tab-content" style="display: none;">
-                <h3 style="margin-bottom: 20px;">Add New Employee</h3>
-                <form id="addEmployeeForm" onsubmit="return addEmployee(event)" style="max-width: 600px;">
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Full Name *</label>
-                        <input type="text" id="newEmpName" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                <h3 style="margin-bottom: 20px;">
+                    <i class="fas fa-user-plus" style="color: #22c55e; margin-right: 10px;"></i>
+                    Add New Employee
+                </h3>
+                <p style="color: #808080; margin-bottom: 20px;">Creates employee record and Auth0 account for PodFactory access.</p>
+
+                <form id="addEmployeeForm" onsubmit="return addEmployee(event)" style="max-width: 700px;">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                        <!-- Name -->
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Full Name *</label>
+                            <input type="text" id="newEmpName" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                        </div>
+                        <!-- Work Email -->
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Work Email * <span style="color: #808080; font-size: 0.85em;">(for Auth0 login)</span></label>
+                            <input type="email" id="newEmpEmail" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                        </div>
+                        <!-- Personal Email -->
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Personal Email <span style="color: #808080; font-size: 0.85em;">(for welcome email)</span></label>
+                            <input type="email" id="newEmpPersonalEmail" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                        </div>
+                        <!-- Phone -->
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Phone Number</label>
+                            <input type="tel" id="newEmpPhone" placeholder="555-123-4567" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                        </div>
+                        <!-- Auth0 Role -->
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">PodFactory Role * <span style="color: #808080; font-size: 0.85em;">(Auth0)</span></label>
+                            <select id="newEmpAuth0Role" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                                <option value="">Loading roles...</option>
+                            </select>
+                        </div>
+                        <!-- Workspace -->
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Workspace *</label>
+                            <select id="newEmpWorkspace" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                                <option value="">Loading...</option>
+                            </select>
+                        </div>
                     </div>
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Email *</label>
-                        <input type="email" id="newEmpEmail" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+
+                    <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <button type="submit" class="btn-action btn-primary" id="addEmployeeBtn">
+                            <i class="fas fa-user-plus"></i> Create Employee + Auth0 Account
+                        </button>
                     </div>
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Connecteam User ID</label>
-                        <input type="text" id="newEmpConnecteamId" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
-                    </div>
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">PodFactory Email(s) (comma-separated)</label>
-                        <input type="text" id="newEmpPodFactoryEmails" placeholder="email1@podfactory.com, email2@podfactory.com" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
-                    </div>
-                    <button type="submit" class="btn-action btn-primary">Add Employee</button>
                 </form>
             </div>
             <!-- Archived Employees Tab -->
@@ -3660,7 +3690,8 @@
                                     <a href="#" onclick="openSetPinModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.personal_email || '').replace(/'/g, "\\'")}'); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">🔑 PIN</a>
                                     ${canSendWelcome ? `<a href="#" onclick="sendWelcomeEmail(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: #22c55e; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">📤 Send Welcome</a>` : ''}
                                     <a href="#" onclick="mapEmployee(${emp.id}); return false;" style="color: white; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">🔗 Map</a>
-                                    <a href="#" onclick="archiveEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: #ef4444; padding: 10px 15px; text-decoration: none; display: block;">🗑️ Archive</a>
+                                    <a href="#" onclick="archiveEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: #ef4444; padding: 10px 15px; text-decoration: none; display: block; border-bottom: 1px solid rgba(255,255,255,0.1);">🗑️ Archive</a>
+                                    <a href="#" onclick="deleteEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}'); return false;" style="color: #dc2626; padding: 10px 15px; text-decoration: none; display: block;">❌ Delete Permanently</a>
                                 </div>
                             </td>
                         </tr>
@@ -3715,6 +3746,191 @@
                 loadArchivedEmployees();
             } else if (tab === 'attention') {
                 loadNeedsAttention();
+            } else if (tab === 'add') {
+                loadAuth0FormData();
+            }
+        };
+
+        // ============= AUTH0 INTEGRATION FUNCTIONS =============
+
+        // Cache for roles and workspaces
+        let auth0Roles = [];
+        let auth0Workspaces = [];
+
+        // Load Auth0 roles and workspaces for Add Employee form
+        window.loadAuth0FormData = async function() {
+            const roleSelect = document.getElementById('newEmpAuth0Role');
+            const workspaceSelect = document.getElementById('newEmpWorkspace');
+
+            // Load roles if not cached
+            if (auth0Roles.length === 0) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin/auth0/roles`, {
+                        headers: { 'X-API-Key': 'dev-api-key-123' }
+                    });
+                    const data = await response.json();
+                    if (data.success && data.roles) {
+                        auth0Roles = data.roles;
+                    }
+                } catch (e) {
+                    console.error('Error loading Auth0 roles:', e);
+                }
+            }
+
+            // Populate roles dropdown
+            roleSelect.innerHTML = '<option value="">Select Role...</option>' +
+                auth0Roles.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+
+            // Load workspaces if not cached
+            if (auth0Workspaces.length === 0) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin/auth0/workspaces`, {
+                        headers: { 'X-API-Key': 'dev-api-key-123' }
+                    });
+                    const data = await response.json();
+                    if (data.success && data.workspaces) {
+                        auth0Workspaces = data.workspaces;
+                    }
+                } catch (e) {
+                    console.error('Error loading workspaces:', e);
+                }
+            }
+
+            // Populate workspaces dropdown
+            workspaceSelect.innerHTML = auth0Workspaces.map(w =>
+                `<option value="${w.code}">${w.name} (${w.code})</option>`
+            ).join('');
+        };
+
+        // Add new employee with Auth0 account
+        window.addEmployee = async function(event) {
+            event.preventDefault();
+
+            const btn = document.getElementById('addEmployeeBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            btn.disabled = true;
+
+            try {
+                const payload = {
+                    name: document.getElementById('newEmpName').value.trim(),
+                    email: document.getElementById('newEmpEmail').value.trim(),
+                    personal_email: document.getElementById('newEmpPersonalEmail').value.trim() || null,
+                    phone_number: document.getElementById('newEmpPhone').value.trim() || null,
+                    role_id: document.getElementById('newEmpAuth0Role').value || null,
+                    workspace: document.getElementById('newEmpWorkspace').value || 'MS'
+                };
+
+                const response = await fetch(`${API_BASE}/api/admin/employees/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'dev-api-key-123'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Show credential slip with password
+                    showCredentialSlip(payload.name, payload.email, data.password);
+
+                    // Reset form
+                    document.getElementById('addEmployeeForm').reset();
+
+                    // Refresh employee list
+                    await loadEmployeeManagementData();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error creating employee:', error);
+                alert('Error creating employee. Please try again.');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+
+            return false;
+        };
+
+        // Show credential slip modal with password
+        window.showCredentialSlip = function(name, email, password) {
+            const modal = document.createElement('div');
+            modal.innerHTML = `
+                <div id="credentialModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 10000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+                    <div style="background: #1e1e1e; border: 2px solid #22c55e; border-radius: 16px; padding: 30px; max-width: 450px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
+                        <div style="color: #22c55e; font-size: 50px; margin-bottom: 15px;">✓</div>
+                        <h2 style="color: #e0e0e0; margin: 0 0 5px 0;">Employee Created!</h2>
+                        <p style="color: #808080; margin: 0 0 20px 0;">Auth0 account ready for PodFactory</p>
+
+                        <div style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                            <div style="color: #808080; font-size: 12px; margin-bottom: 5px;">Employee</div>
+                            <div style="color: #e0e0e0; font-size: 16px; font-weight: 600; margin-bottom: 15px;">${name}</div>
+
+                            <div style="color: #808080; font-size: 12px; margin-bottom: 5px;">Login Email</div>
+                            <div style="color: #22c55e; font-family: monospace; font-size: 14px; margin-bottom: 15px;">${email}</div>
+
+                            <div style="color: #808080; font-size: 12px; margin-bottom: 5px;">Temporary Password</div>
+                            <div style="color: #fbbf24; font-family: monospace; font-size: 24px; font-weight: bold; letter-spacing: 2px; background: rgba(251,191,36,0.15); padding: 10px; border-radius: 8px; user-select: all;">${password}</div>
+                        </div>
+
+                        <p style="color: #ef4444; font-size: 12px; margin-bottom: 20px;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Save this password now! It won't be shown again.
+                        </p>
+
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button onclick="copyCredentials('${email}', '${password}')" style="padding: 12px 20px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                <i class="fas fa-copy"></i> Copy Credentials
+                            </button>
+                            <button onclick="document.getElementById('credentialModal').remove()" style="padding: 12px 20px; background: #3f3f46; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        };
+
+        // Copy credentials to clipboard
+        window.copyCredentials = function(email, password) {
+            const text = `PodFactory Login\nEmail: ${email}\nPassword: ${password}`;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Credentials copied to clipboard!');
+            });
+        };
+
+        // Delete employee and Auth0 account
+        window.deleteEmployee = async function(employeeId, employeeName) {
+            if (!confirm(`⚠️ PERMANENTLY DELETE "${employeeName}"?\n\nThis will:\n- Delete employee record\n- Delete Auth0 account\n- Remove all data\n\nThis action cannot be undone!`)) {
+                return;
+            }
+
+            // Double confirm
+            if (!confirm(`Are you absolutely sure you want to delete "${employeeName}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/delete`, {
+                    method: 'DELETE',
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`Employee "${employeeName}" deleted successfully.\nAuth0 account: ${data.auth0_deleted ? 'Deleted' : 'Not found'}`);
+                    await loadEmployeeManagementData();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error deleting employee:', error);
+                alert('Error deleting employee. Please try again.');
             }
         };
 

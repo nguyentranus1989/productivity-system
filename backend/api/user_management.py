@@ -12,6 +12,7 @@ from datetime import datetime
 from database.db_manager import get_db
 from api.auth import require_api_key
 from services.email_service import EmailService
+from integrations.auth0_manager import Auth0Manager
 
 
 def send_email_async(employee_id, employee_name, pin, personal_email):
@@ -56,12 +57,15 @@ def list_employees_with_auth():
                 e.personal_email,
                 e.phone_number,
                 rc.role_name as role,
+                e.role_id as local_role_id,
                 e.is_active,
                 CASE WHEN ea.pin IS NOT NULL THEN 1 ELSE 0 END as has_pin,
                 ea.pin_plain,
                 ea.last_login,
                 ea.pin_set_at,
-                e.welcome_sent_at
+                e.welcome_sent_at,
+                e.auth0_user_id,
+                e.workspace
             FROM employees e
             LEFT JOIN role_configs rc ON e.role_id = rc.id
             LEFT JOIN employee_auth ea ON e.id = ea.employee_id
@@ -431,6 +435,141 @@ def send_welcome_notification(employee_id):
             'success': result['success'],
             'message': result['message'],
             'employee_id': employee_id
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ==================== Auth0 Integration Endpoints ====================
+
+@user_management_bp.route('/api/admin/auth0/roles', methods=['GET'])
+@require_api_key
+def get_auth0_roles():
+    """Get available Auth0 roles for dropdown"""
+    try:
+        result = Auth0Manager.get_roles()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e), 'roles': []}), 500
+
+
+@user_management_bp.route('/api/admin/auth0/workspaces', methods=['GET'])
+@require_api_key
+def get_auth0_workspaces():
+    """Get available workspaces for dropdown"""
+    try:
+        workspaces = Auth0Manager.get_workspaces()
+        return jsonify({'success': True, 'workspaces': workspaces})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e), 'workspaces': []}), 500
+
+
+@user_management_bp.route('/api/admin/employees/create', methods=['POST'])
+@require_api_key
+def create_employee_with_auth0():
+    """Create new employee with Auth0 account"""
+    try:
+        data = request.json or {}
+
+        # Required fields
+        name = data.get('name', '').strip()
+        email = data.get('email', '').strip()
+
+        if not name or not email:
+            return jsonify({'success': False, 'message': 'Name and email are required'}), 400
+
+        # Optional fields
+        role_id = data.get('role_id')  # Auth0 role ID
+        workspace = data.get('workspace', 'MS')  # Default Mississippi
+        personal_email = data.get('personal_email', '').strip() or None
+        phone_number = data.get('phone_number', '').strip() or None
+        local_role_id = data.get('local_role_id')  # Local role_configs.id
+
+        # Check if email already exists
+        existing = get_db().execute_one(
+            "SELECT id FROM employees WHERE email = %s", (email,)
+        )
+        if existing:
+            return jsonify({'success': False, 'message': 'Employee with this email already exists'}), 409
+
+        # Create Auth0 account first
+        auth0_result = Auth0Manager.create_user({
+            'name': name,
+            'email': email,
+            'role_id': role_id,
+            'workspace': workspace
+        })
+
+        if not auth0_result['success']:
+            return jsonify({
+                'success': False,
+                'message': f"Auth0 account creation failed: {auth0_result['message']}"
+            }), 500
+
+        # Create local employee record
+        try:
+            get_db().execute_query("""
+                INSERT INTO employees (name, email, personal_email, phone_number, role_id, is_active, auth0_user_id, workspace, created_at)
+                VALUES (%s, %s, %s, %s, %s, 1, %s, %s, NOW())
+            """, (name, email, personal_email, phone_number, local_role_id, auth0_result['user_id'], workspace))
+
+            # Get the new employee ID
+            new_employee = get_db().execute_one(
+                "SELECT id FROM employees WHERE email = %s", (email,)
+            )
+            employee_id = new_employee['id'] if new_employee else None
+
+            return jsonify({
+                'success': True,
+                'employee_id': employee_id,
+                'auth0_user_id': auth0_result['user_id'],
+                'password': auth0_result['password'],  # Show once for admin to share
+                'message': 'Employee created with Auth0 account'
+            })
+
+        except Exception as db_error:
+            # Rollback: Delete Auth0 user if local insert fails
+            Auth0Manager.delete_user(auth0_result['user_id'])
+            raise db_error
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@user_management_bp.route('/api/admin/employees/<int:employee_id>/delete', methods=['DELETE'])
+@require_api_key
+def delete_employee_with_auth0(employee_id):
+    """Delete employee and their Auth0 account"""
+    try:
+        # Get employee with Auth0 info
+        employee = get_db().execute_one("""
+            SELECT id, name, auth0_user_id FROM employees WHERE id = %s
+        """, (employee_id,))
+
+        if not employee:
+            return jsonify({'success': False, 'message': 'Employee not found'}), 404
+
+        auth0_result = {'success': True, 'message': 'No Auth0 account'}
+
+        # Delete Auth0 account if exists
+        if employee.get('auth0_user_id'):
+            auth0_result = Auth0Manager.delete_user(employee['auth0_user_id'])
+
+        # Delete local records (auth first, then employee)
+        get_db().execute_query(
+            "DELETE FROM employee_auth WHERE employee_id = %s", (employee_id,)
+        )
+        get_db().execute_query(
+            "DELETE FROM employees WHERE id = %s", (employee_id,)
+        )
+
+        return jsonify({
+            'success': True,
+            'employee_id': employee_id,
+            'employee_name': employee['name'],
+            'auth0_deleted': auth0_result['success'],
+            'message': 'Employee deleted successfully'
         })
 
     except Exception as e:

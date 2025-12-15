@@ -63,6 +63,11 @@ class Config:
     SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
     SENDGRID_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', 'noreply@podgasus.com')
 
+    # Auth0 settings
+    AUTH0_DOMAIN = os.getenv('AUTH0_DOMAIN')
+    AUTH0_CLIENT_ID = os.getenv('AUTH0_CLIENT_ID')
+    AUTH0_CLIENT_SECRET = os.getenv('AUTH0_CLIENT_SECRET')
+
     # Legacy SMTP settings (kept for reference)
     SMTP_HOST = os.getenv('SMTP_HOST')
     SMTP_PORT = int(os.getenv('SMTP_PORT', 587)) if os.getenv('SMTP_PORT') else 587
