@@ -481,9 +481,9 @@ def create_employee_with_auth0():
 
         # Optional fields
         role_id = data.get('role_id')  # Auth0 role ID
-        workspace = data.get('workspace', 'MS')  # Default Mississippi
-        personal_email = data.get('personal_email', '').strip() or None
-        phone_number = data.get('phone_number', '').strip() or None
+        workspace = data.get('workspace') or 'MS'  # Default Mississippi
+        personal_email = (data.get('personal_email') or '').strip() or None
+        phone_number = (data.get('phone_number') or '').strip() or None
         local_role_id = data.get('local_role_id')  # Local role_configs.id
 
         # Check if email already exists
