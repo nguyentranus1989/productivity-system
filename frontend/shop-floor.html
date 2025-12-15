@@ -1138,14 +1138,18 @@
 
         /* Mobile phone styles */
         @media (max-width: 600px) {
+            body {
+                padding-bottom: 80px; /* Space for iOS Safari bar */
+            }
+
             .header {
                 padding: 12px 16px;
-                gap: 12px;
+                gap: 10px;
             }
 
             .header-title h1 {
-                font-size: 1.2rem;
-                letter-spacing: 2px;
+                font-size: 1.1rem;
+                letter-spacing: 1px;
             }
 
             .main-container {
@@ -1154,15 +1158,15 @@
             }
 
             .battle-card {
-                padding: 16px;
+                padding: 14px;
             }
 
             .battle-card .player-name {
-                font-size: 1.1rem;
+                font-size: 1rem;
             }
 
             .battle-card .player-score {
-                font-size: 2.5rem;
+                font-size: 2.2rem;
             }
 
             .player-breakdown {
@@ -1173,34 +1177,44 @@
                 font-size: 0.75rem;
             }
 
-            .rankings-card {
-                padding: 16px;
+            .vs-divider {
+                padding: 10px 0;
             }
 
-            .player-card {
-                padding: 12px;
-            }
-
-            .player-card .player-name {
-                font-size: 0.95rem;
-            }
-
-            .player-card .player-score {
+            .vs-text {
                 font-size: 1.5rem;
             }
 
-            .player-card .player-breakdown {
-                font-size: 0.75rem;
+            .rankings-card {
+                padding: 14px;
             }
 
+            .player-card {
+                padding: 10px;
+            }
+
+            .player-card .player-name {
+                font-size: 0.9rem;
+            }
+
+            .player-card .player-score {
+                font-size: 1.4rem;
+            }
+
+            .player-card .player-breakdown {
+                font-size: 0.7rem;
+            }
+
+            /* Move buttons higher on mobile to avoid iOS Safari bar */
             .exit-btn, .settings-btn {
-                width: 40px;
-                height: 40px;
-                font-size: 16px;
+                width: 44px;
+                height: 44px;
+                font-size: 18px;
+                bottom: 90px;
             }
 
             .exit-btn {
-                right: 64px;
+                right: 70px;
             }
 
             .settings-btn {
