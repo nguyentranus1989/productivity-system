@@ -520,11 +520,29 @@ def create_employee_with_auth0():
             )
             employee_id = new_employee['id'] if new_employee else None
 
+            # Generate PIN for employee portal
+            pin = generate_random_pin(4)
+            pin_hash = hash_pin(pin)
+
+            # Create employee_auth record
+            get_db().execute_query("""
+                INSERT INTO employee_auth (employee_id, pin, pin_plain, pin_set_at)
+                VALUES (%s, %s, %s, NOW())
+            """, (employee_id, pin_hash, pin))
+
+            # Send welcome email with ID + PIN if personal email provided
+            email_sent = False
+            if personal_email:
+                send_email_async(employee_id, name, pin, personal_email)
+                email_sent = True
+
             return jsonify({
                 'success': True,
                 'employee_id': employee_id,
+                'pin': pin,  # For print slip
                 'auth0_user_id': auth0_result['user_id'],
                 'password': auth0_result['password'],  # Show once for admin to share
+                'email_sent': email_sent,
                 'message': 'Employee created with Auth0 account'
             })
 
