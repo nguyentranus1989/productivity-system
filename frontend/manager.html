@@ -766,29 +766,24 @@
                         <!-- Name -->
                         <div>
                             <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Full Name *</label>
-                            <input type="text" id="newEmpName" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
-                        </div>
-                        <!-- Work Email -->
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Work Email * <span style="color: #808080; font-size: 0.85em;">(for Auth0 login)</span></label>
-                            <input type="email" id="newEmpEmail" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
-                        </div>
-                        <!-- Personal Email -->
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Personal Email <span style="color: #808080; font-size: 0.85em;">(for welcome email)</span></label>
-                            <input type="email" id="newEmpPersonalEmail" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
-                        </div>
-                        <!-- Phone -->
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Phone Number</label>
-                            <input type="tel" id="newEmpPhone" placeholder="555-123-4567" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                            <input type="text" id="newEmpName" required oninput="updateAutoEmail()" placeholder="John Smith" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
                         </div>
                         <!-- Auth0 Role -->
                         <div>
-                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">PodFactory Role * <span style="color: #808080; font-size: 0.85em;">(Auth0)</span></label>
-                            <select id="newEmpAuth0Role" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">PodFactory Role *</label>
+                            <select id="newEmpAuth0Role" required onchange="updateAutoEmail()" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
                                 <option value="">Loading roles...</option>
                             </select>
+                        </div>
+                        <!-- Work Email (Auto-generated) -->
+                        <div style="grid-column: span 2;">
+                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">
+                                Work Email * <span style="color: #808080; font-size: 0.85em;">(auto-generated, editable)</span>
+                            </label>
+                            <input type="email" id="newEmpEmail" required style="width: 100%; padding: 10px; background: rgba(34,197,94,0.1); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; font-family: monospace;">
+                            <div id="emailHint" style="color: #808080; font-size: 0.8em; margin-top: 5px;">
+                                Heat Pressing → firstname.lastname@ | Other roles → firstname.lastnameshp@
+                            </div>
                         </div>
                         <!-- Workspace -->
                         <div>
@@ -796,6 +791,11 @@
                             <select id="newEmpWorkspace" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
                                 <option value="">Loading...</option>
                             </select>
+                        </div>
+                        <!-- Personal Email -->
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Personal Email <span style="color: #808080; font-size: 0.85em;">(for welcome email)</span></label>
+                            <input type="email" id="newEmpPersonalEmail" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
                         </div>
                     </div>
 
@@ -3756,6 +3756,37 @@
         // Cache for roles and workspaces
         let auth0Roles = [];
         let auth0Workspaces = [];
+
+        // Auto-generate email based on name and role
+        window.updateAutoEmail = function() {
+            const nameInput = document.getElementById('newEmpName');
+            const roleSelect = document.getElementById('newEmpAuth0Role');
+            const emailInput = document.getElementById('newEmpEmail');
+
+            const name = nameInput.value.trim();
+            const selectedOption = roleSelect.options[roleSelect.selectedIndex];
+            const roleName = selectedOption ? selectedOption.text : '';
+
+            if (!name) {
+                emailInput.value = '';
+                return;
+            }
+
+            // Parse name: "John Smith" -> "john.smith"
+            const nameParts = name.toLowerCase().split(/\s+/);
+            let emailBase = nameParts.join('.');
+
+            // Remove special characters
+            emailBase = emailBase.replace(/[^a-z.]/g, '');
+
+            // Determine suffix based on role
+            // Heat Pressing = no suffix, everything else = shp
+            const isHeatPressing = roleName.toLowerCase().includes('heat pressing');
+            const suffix = isHeatPressing ? '' : 'shp';
+
+            // Generate email
+            emailInput.value = `${emailBase}${suffix}@colorecommerce.us`;
+        };
 
         // Load Auth0 roles and workspaces for Add Employee form
         window.loadAuth0FormData = async function() {
