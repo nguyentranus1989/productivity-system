@@ -534,7 +534,7 @@
                     </div>
                     <div class="checkbox-group">
                         <input type="checkbox" class="checkbox-input" id="rememberMe">
-                        <label class="checkbox-label" for="rememberMe">Remember me</label>
+                        <label class="checkbox-label" for="rememberMe">Remember me for 30 days</label>
                     </div>
                     <button type="submit" class="btn-login" id="loginBtn">
                         SIGN IN
@@ -595,18 +595,46 @@
     </div>
 
     <script>
-        // Check if already logged in
+        // Check if already logged in (with expiry validation)
         window.onload = function() {
             const adminToken = localStorage.getItem('adminToken');
+            const adminExpiry = localStorage.getItem('adminTokenExpiry');
             const employeeToken = localStorage.getItem('employeeToken');
+            const employeeExpiry = localStorage.getItem('employeeTokenExpiry');
             const shopfloorToken = localStorage.getItem('shopfloorToken');
+            const shopfloorExpiry = localStorage.getItem('shopfloorExpiry');
 
-            if (adminToken) {
+            const now = Date.now();
+
+            // Check admin token and expiry
+            if (adminToken && adminExpiry && now < parseInt(adminExpiry)) {
                 window.location.href = '/manager.html';
-            } else if (employeeToken) {
+                return;
+            } else if (adminToken) {
+                // Token expired, clear it
+                localStorage.removeItem('adminToken');
+                localStorage.removeItem('adminTokenExpiry');
+                localStorage.removeItem('adminUser');
+            }
+
+            // Check employee token and expiry
+            if (employeeToken && employeeExpiry && now < parseInt(employeeExpiry)) {
                 window.location.href = '/employee.html';
-            } else if (shopfloorToken) {
+                return;
+            } else if (employeeToken) {
+                // Token expired, clear it
+                localStorage.removeItem('employeeToken');
+                localStorage.removeItem('employeeTokenExpiry');
+                localStorage.removeItem('employeeData');
+            }
+
+            // Check shopfloor token and expiry
+            if (shopfloorToken && shopfloorExpiry && now < parseInt(shopfloorExpiry)) {
                 window.location.href = '/shop-floor.html';
+                return;
+            } else if (shopfloorToken) {
+                localStorage.removeItem('shopfloorToken');
+                localStorage.removeItem('shopfloorExpiry');
             }
         };
 
@@ -646,19 +674,24 @@
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ username, password, remember_me: remember })
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
+                    // Always use localStorage when remember_me, sessionStorage otherwise
                     const storage = remember ? localStorage : sessionStorage;
+                    // Calculate expiry timestamp from server response
+                    const expiryMs = data.expires_at ? new Date(data.expires_at).getTime() : (Date.now() + 24*60*60*1000);
 
                     if (data.user_type === 'admin') {
                         storage.setItem('adminToken', data.token);
+                        storage.setItem('adminTokenExpiry', expiryMs.toString());
                         storage.setItem('adminUser', JSON.stringify(data.user));
                     } else if (data.user_type === 'employee') {
                         storage.setItem('employeeToken', data.token);
+                        storage.setItem('employeeTokenExpiry', expiryMs.toString());
                         storage.setItem('employeeData', JSON.stringify({
                             token: data.token,
                             employee_id: data.user.id,

@@ -61,12 +61,15 @@ def unified_login():
     For admins: username is their admin username
     For employees: username is their employee ID (number)
 
+    Optional: remember_me=true extends token to 30 days (default: 24 hours)
+
     Returns user_type: 'admin' or 'employee' for frontend routing
     """
     try:
         data = request.get_json()
         username = str(data.get('username', '')).strip()
         password = str(data.get('password', '')).strip()
+        remember_me = data.get('remember_me', False)
 
         if not username or not password:
             return jsonify({
@@ -75,12 +78,12 @@ def unified_login():
             }), 400
 
         # Try admin login first (using separate connection for isolation)
-        admin_result = try_admin_login(username, password)
+        admin_result = try_admin_login(username, password, remember_me)
         if admin_result['success']:
             return jsonify(admin_result)
 
         # If admin failed, try employee login
-        employee_result = try_employee_login(username, password)
+        employee_result = try_employee_login(username, password, remember_me)
         if employee_result['success']:
             return jsonify(employee_result)
 
@@ -97,7 +100,7 @@ def unified_login():
         }), 500
 
 
-def try_admin_login(username, password):
+def try_admin_login(username, password, remember_me=False):
     """Attempt admin authentication"""
     try:
         conn = get_admin_db()
@@ -140,8 +143,10 @@ def try_admin_login(username, password):
             return {'success': False}
 
         # Success - reset failed attempts and generate token
+        # 30 days if remember_me, otherwise 24 hours
         token = secrets.token_hex(32)
-        expires = datetime.now() + timedelta(hours=24)
+        token_duration = timedelta(days=30) if remember_me else timedelta(hours=24)
+        expires = datetime.now() + token_duration
 
         cursor.execute("""
             UPDATE admin_users
@@ -160,6 +165,7 @@ def try_admin_login(username, password):
             'success': True,
             'user_type': 'admin',
             'token': token,
+            'expires_at': expires.isoformat(),
             'user': {
                 'id': admin['id'],
                 'username': admin['username'],
@@ -172,7 +178,7 @@ def try_admin_login(username, password):
         return {'success': False}
 
 
-def try_employee_login(employee_id, pin):
+def try_employee_login(employee_id, pin, remember_me=False):
     """Attempt employee authentication"""
     try:
         # Validate employee_id is numeric
@@ -193,9 +199,10 @@ def try_employee_login(employee_id, pin):
         if not result or not verify_employee_pin(pin, result['pin']):
             return {'success': False}
 
-        # Generate token
+        # Generate token - 30 days if remember_me, otherwise 24 hours
         token = secrets.token_urlsafe(32)
-        expires = datetime.now() + timedelta(days=1)
+        token_duration = timedelta(days=30) if remember_me else timedelta(days=1)
+        expires = datetime.now() + token_duration
 
         # Update token
         db.execute_update("""
@@ -208,6 +215,7 @@ def try_employee_login(employee_id, pin):
             'success': True,
             'user_type': 'employee',
             'token': token,
+            'expires_at': expires.isoformat(),
             'user': {
                 'id': result['id'],
                 'name': result['name']

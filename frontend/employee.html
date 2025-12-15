@@ -1972,7 +1972,16 @@
         }
 
         function getToken() {
-            return localStorage.getItem('employeeToken') || sessionStorage.getItem('employeeToken');
+            const token = localStorage.getItem('employeeToken') || sessionStorage.getItem('employeeToken');
+            const expiry = localStorage.getItem('employeeTokenExpiry') || sessionStorage.getItem('employeeTokenExpiry');
+
+            // Check if token is expired
+            if (token && expiry && Date.now() > parseInt(expiry)) {
+                // Clear expired credentials
+                logout();
+                return null;
+            }
+            return token;
         }
 
         function getEmployeeName() {
@@ -1993,8 +2002,10 @@
         // Logout function
         function logout() {
             localStorage.removeItem('employeeToken');
+            localStorage.removeItem('employeeTokenExpiry');
             localStorage.removeItem('employeeId');
             localStorage.removeItem('employeeName');
+            localStorage.removeItem('employeeData');
             sessionStorage.clear();
             window.location.href = '/login.html';
         }
