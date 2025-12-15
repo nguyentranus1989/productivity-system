@@ -44,6 +44,30 @@ def generate_random_pin(length=4):
     """Generate random numeric PIN"""
     return ''.join(secrets.choice(string.digits) for _ in range(length))
 
+def generate_work_email(name, role_name=None):
+    """
+    Generate work email based on name and role.
+    Heat Pressing role: firstname.lastinit@colorecommerce.com
+    Other roles: firstname.lastinitshp@colorecommerce.com
+    """
+    import re
+    # Clean name: lowercase, remove special chars
+    clean_name = re.sub(r'[^a-zA-Z\s]', '', name.lower()).strip()
+    parts = clean_name.split()
+
+    if len(parts) >= 2:
+        first = parts[0]
+        last_init = parts[-1][0]
+        base = f"{first}.{last_init}"
+    else:
+        base = parts[0] if parts else 'employee'
+
+    # Add 'shp' suffix for non-Heat Pressing roles
+    is_heat_press = role_name and 'heat' in role_name.lower()
+    suffix = '' if is_heat_press else 'shp'
+
+    return f"{base}{suffix}@colorecommerce.com"
+
 @user_management_bp.route('/api/admin/employees', methods=['GET'])
 @require_api_key
 def list_employees_with_auth():
@@ -235,6 +259,83 @@ def reset_auth0_password(employee_id):
             'email': employee['email'],
             'password': result['password'],
             'message': 'Auth0 password reset successfully'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@user_management_bp.route('/api/admin/employees/<int:employee_id>/setup-podfactory', methods=['POST'])
+@require_api_key
+def setup_podfactory_account(employee_id):
+    """
+    Generate work email and create Auth0 account for existing employee.
+    Used for employees who were created before Auth0 integration.
+    """
+    try:
+        # Get employee info with role
+        employee = get_db().execute_one("""
+            SELECT e.id, e.name, e.email, e.auth0_user_id, rc.role_name
+            FROM employees e
+            LEFT JOIN role_configs rc ON e.role_id = rc.id
+            WHERE e.id = %s
+        """, (employee_id,))
+
+        if not employee:
+            return jsonify({'success': False, 'message': 'Employee not found'}), 404
+
+        # Check if already has @colorecommerce email
+        current_email = employee.get('email', '')
+        if current_email and '@colorecommerce' in current_email:
+            return jsonify({'success': False, 'message': 'Employee already has work email'}), 400
+
+        # Generate work email
+        work_email = generate_work_email(employee['name'], employee.get('role_name'))
+
+        # Check if email already exists
+        existing = get_db().execute_one(
+            "SELECT id FROM employees WHERE email = %s AND id != %s", (work_email, employee_id)
+        )
+        if existing:
+            # Add number suffix if email exists
+            import re
+            base = work_email.replace('@colorecommerce.com', '')
+            counter = 2
+            while True:
+                work_email = f"{base}{counter}@colorecommerce.com"
+                existing = get_db().execute_one(
+                    "SELECT id FROM employees WHERE email = %s AND id != %s", (work_email, employee_id)
+                )
+                if not existing:
+                    break
+                counter += 1
+
+        # Create Auth0 account
+        auth0_result = Auth0Manager.create_user({
+            'name': employee['name'],
+            'email': work_email,
+            'workspace': 'MS'
+        })
+
+        if not auth0_result['success']:
+            return jsonify({
+                'success': False,
+                'message': f"Auth0 account creation failed: {auth0_result['message']}"
+            }), 500
+
+        # Update employee record with new email and Auth0 info
+        get_db().execute_query("""
+            UPDATE employees
+            SET email = %s, auth0_user_id = %s, auth0_password = %s
+            WHERE id = %s
+        """, (work_email, auth0_result['user_id'], auth0_result['password'], employee_id))
+
+        return jsonify({
+            'success': True,
+            'employee_id': employee_id,
+            'employee_name': employee['name'],
+            'email': work_email,
+            'password': auth0_result['password'],
+            'message': 'PodFactory account created'
         })
 
     except Exception as e:
