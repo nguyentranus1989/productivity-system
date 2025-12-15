@@ -1,8 +1,19 @@
 # Codebase Summary
 
-*Last Updated: 2025-12-10*
+*Last Updated: 2025-12-14*
 
-## Recent Changes (v2.2.1)
+## Recent Changes (v2.2.2)
+- **Auth0 Integration**: Employee account management
+  - Auto-create Auth0 accounts when adding employees
+  - Reset Auth0 password with `auth0_password` stored for admin reference
+  - Welcome email with Employee ID + PIN sent on creation
+- **Credential Management UI**: New Portal/PodFactory columns in employee table
+  - Portal: Employee ID + PIN with View/Reset
+  - PodFactory: Work email from `employee_podfactory_mapping_v2` + Auth0 password
+  - Orange dot indicator when credentials missing
+- **Styled Modals**: Replaced all native browser popups with themed modals
+
+## Previous (v2.2.1)
 - **Negative Hours Protection**: Multi-layer defense
   - `GREATEST(0,...)` wrappers on 5 TIMESTAMPDIFF locations
   - Validation in `_parse_shift()` and `_sync_clock_time()`
@@ -38,6 +49,7 @@
 | system_control.py | System admin controls | - |
 | team_metrics.py | Team performance | - |
 | trends.py | Historical trends | - |
+| user_management.py | Employee CRUD, PIN, Auth0 | - |
 | validators.py | Input validation | - |
 
 ### Calculation Engine (`backend/calculations/`)
@@ -59,6 +71,7 @@
 | File | Purpose |
 |------|---------|
 | connecteam_sync.py | Connecteam API sync |
+| auth0_manager.py | Auth0 user management (create, delete, reset password) |
 
 ### Database (`backend/database/`)
 | File | Purpose |
@@ -100,6 +113,45 @@
 - `connecteam_shifts` - Time clock data
 - `achievements` - Gamification badges
 - `daily_scores` - Calculated productivity scores
+- `employee_podfactory_mapping_v2` - Maps employees to PodFactory work emails
+- `employee_auth` - Employee PIN authentication for portal
+
+### Employee Email Architecture
+
+**IMPORTANT**: The system uses separate email fields for different purposes:
+
+| Field | Table | Purpose | Example |
+|-------|-------|---------|---------|
+| `email` | `employees` | Contact/personal email | `john.smith@gmail.com` |
+| `personal_email` | `employees` | Notification email | `johnsmith@yahoo.com` |
+| `podfactory_email` | `employee_podfactory_mapping_v2` | Work email for PodFactory | `john.smithshp@colorecommerce.us` |
+
+**Work Email Mapping Flow:**
+1. Employees use work emails (@colorecommerce.us) in PodFactory daily
+2. PodFactory sync pulls activities with `user_email` from `pod-report-stag.report_actions`
+3. `employee_podfactory_mapping_v2` maps PodFactory emails to local employee IDs
+4. One employee can have multiple PodFactory emails mapped (e.g., name variations)
+
+**Key Tables:**
+```sql
+-- employee_podfactory_mapping_v2
+employee_id       INT           -- FK to employees.id
+podfactory_email  VARCHAR       -- @colorecommerce.us work email
+podfactory_name   VARCHAR       -- Display name from PodFactory
+similarity_score  FLOAT         -- Auto-mapping confidence
+confidence_level  VARCHAR       -- HIGH, provisional, MANUAL
+is_verified       TINYINT       -- Admin verified (0/1)
+```
+
+**DO NOT:**
+- Generate random work emails - they already exist in PodFactory
+- Treat `employees.email` as the work email
+- Replace `employees.email` with work email
+
+**Auth0 Integration:**
+- `auth0_user_id` in `employees` - Links to Auth0 account
+- `auth0_password` in `employees` - Stored password for admin reference
+- Work emails in PodFactory != Auth0 login emails (legacy accounts may differ)
 
 ## Configuration
 
