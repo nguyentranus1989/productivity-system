@@ -1,8 +1,23 @@
 # Codebase Summary
 
-*Last Updated: 2025-12-14*
+*Last Updated: 2025-12-15*
 
-## Recent Changes (v2.2.2)
+## Recent Changes (v2.2.3)
+- **Per-Role Auth0 Credentials**: Each PodFactory email = separate Auth0 account
+  - Added `auth0_user_id`, `auth0_password` columns to `employee_podfactory_mapping_v2`
+  - Supports multiple roles per employee (e.g., Shipping, QC each with own login)
+  - Custom password option when creating/resetting Auth0 accounts
+- **New API Endpoints**:
+  - `GET /api/admin/employees/<id>/podfactory-credentials` - all role credentials
+  - `POST /api/admin/podfactory-mappings/<id>/setup-auth0` - create Auth0 per email
+  - `POST /api/admin/podfactory-mappings/<id>/reset-auth0-password` - reset per email
+- **Frontend Updates**:
+  - PodFactory "View (N)" button shows count of role emails
+  - Modal lists all emails with Setup/Reset/Copy buttons per row
+  - Setup/Reset modals have checkbox for custom password input
+- **Bug Fix**: PodFactory column was showing "-" - fixed adminMap merge to include `podfactory_email`
+
+## Previous (v2.2.2)
 - **Auth0 Integration**: Employee account management
   - Auto-create Auth0 accounts when adding employees
   - Reset Auth0 password with `auth0_password` stored for admin reference
@@ -122,36 +137,40 @@
 
 | Field | Table | Purpose | Example |
 |-------|-------|---------|---------|
-| `email` | `employees` | Contact/personal email | `john.smith@gmail.com` |
-| `personal_email` | `employees` | Notification email | `johnsmith@yahoo.com` |
-| `podfactory_email` | `employee_podfactory_mapping_v2` | Work email for PodFactory | `john.smithshp@colorecommerce.us` |
+| `email` | `employees` | Primary work email (legacy) | `john.smithshp@colorecommerce.us` |
+| `personal_email` | `employees` | Personal email for notifications | `johnsmith@gmail.com` |
+| `podfactory_email` | `employee_podfactory_mapping_v2` | Role-specific work email | `john.smithshp@colorecommerce.us` |
 
-**Work Email Mapping Flow:**
-1. Employees use work emails (@colorecommerce.us) in PodFactory daily
-2. PodFactory sync pulls activities with `user_email` from `pod-report-stag.report_actions`
-3. `employee_podfactory_mapping_v2` maps PodFactory emails to local employee IDs
-4. One employee can have multiple PodFactory emails mapped (e.g., name variations)
+**Per-Role Auth0 Architecture (v2.2.3):**
+- Each employee can have 1-3 **roles** in PodFactory (e.g., Shipping, QC, Admin)
+- Each **role** has its own **work email** (@colorecommerce.us)
+- Each **work email** = separate **Auth0 account** with its own password
+- This allows tracking performance per role when employee logs in
+
+```
+Employee: Abraham Ramirez
+├── Role: Shipping → abraham_ramirezship@colorecommerce.us → Auth0 Account A
+├── Role: QC      → abraham_ramirez@colorecommerce.us     → Auth0 Account B
+└── Role: Generic → abraham@colorecommerce.us             → Auth0 Account C
+```
 
 **Key Tables:**
 ```sql
--- employee_podfactory_mapping_v2
+-- employee_podfactory_mapping_v2 (Auth0 credentials per role email)
 employee_id       INT           -- FK to employees.id
 podfactory_email  VARCHAR       -- @colorecommerce.us work email
 podfactory_name   VARCHAR       -- Display name from PodFactory
+auth0_user_id     VARCHAR(128)  -- Auth0 account ID for this email
+auth0_password    VARCHAR(64)   -- Stored password for admin reference
 similarity_score  FLOAT         -- Auto-mapping confidence
-confidence_level  VARCHAR       -- HIGH, provisional, MANUAL
+confidence_level  VARCHAR       -- HIGH, MEDIUM, LOW, MANUAL
 is_verified       TINYINT       -- Admin verified (0/1)
 ```
 
 **DO NOT:**
 - Generate random work emails - they already exist in PodFactory
-- Treat `employees.email` as the work email
-- Replace `employees.email` with work email
-
-**Auth0 Integration:**
-- `auth0_user_id` in `employees` - Links to Auth0 account
-- `auth0_password` in `employees` - Stored password for admin reference
-- Work emails in PodFactory != Auth0 login emails (legacy accounts may differ)
+- Assume one Auth0 account per employee - each role email needs its own
+- Store Auth0 credentials in `employees` table - use mapping table instead
 
 ## Configuration
 
