@@ -1744,6 +1744,58 @@
             document.getElementById('confirmCancel').onclick = () => { modal.remove(); if(onCancel) onCancel(); };
         }
 
+        // Styled alert dialog (replaces browser alert)
+        function alertDialog(title, message) {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.id = 'alertDialogModal';
+                const isError = title.toLowerCase().includes('error');
+                const isSuccess = title.toLowerCase().includes('success');
+                const titleColor = isError ? '#ef4444' : isSuccess ? '#22c55e' : '#667eea';
+                modal.innerHTML = `
+                    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 99998; display: flex; align-items: center; justify-content: center;">
+                        <div style="background: #1e1e1e; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; width: 420px; max-width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                            <h3 style="color: ${titleColor}; margin: 0 0 15px 0; font-size: 1.3em;">${title}</h3>
+                            <p style="color: #a0a0a0; margin: 0 0 25px 0; line-height: 1.6;">${message}</p>
+                            <div style="display: flex; justify-content: flex-end;">
+                                <button id="alertOk" style="padding: 10px 24px; background: ${titleColor}; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">OK</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                document.getElementById('alertOk').onclick = () => { modal.remove(); resolve(); };
+            });
+        }
+
+        // Styled prompt dialog (replaces browser prompt)
+        function promptDialog(title, message, defaultValue = '') {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.id = 'promptDialogModal';
+                modal.innerHTML = `
+                    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 99998; display: flex; align-items: center; justify-content: center;">
+                        <div style="background: #1e1e1e; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; width: 420px; max-width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                            <h3 style="color: #667eea; margin: 0 0 15px 0; font-size: 1.3em;">${title}</h3>
+                            <p style="color: #a0a0a0; margin: 0 0 15px 0; line-height: 1.6;">${message}</p>
+                            <input type="text" id="promptInput" value="${defaultValue}" style="width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #e0e0e0; font-size: 1em; box-sizing: border-box; margin-bottom: 20px;">
+                            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                                <button id="promptCancel" style="padding: 10px 24px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-weight: 500;">Cancel</button>
+                                <button id="promptOk" style="padding: 10px 24px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">OK</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                const input = document.getElementById('promptInput');
+                input.focus();
+                input.select();
+                document.getElementById('promptOk').onclick = () => { modal.remove(); resolve(input.value); };
+                document.getElementById('promptCancel').onclick = () => { modal.remove(); resolve(null); };
+                input.onkeydown = (e) => { if (e.key === 'Enter') { modal.remove(); resolve(input.value); } };
+            });
+        }
+
         // Loading modal for async operations
         let loadingProgress = 0;
         let loadingInterval = null;
@@ -3047,7 +3099,7 @@
 
         // Edit department target rate
         async function editDepartmentTarget(deptName, currentRate) {
-            const newRate = prompt(`Edit target rate for ${deptName}:\n(items per minute per person)`, currentRate);
+            const newRate = await promptDialog('Edit Target Rate', `Target rate for ${deptName}:<br>(items per minute per person)`, currentRate);
 
             if (newRate === null) return; // Cancelled
 
@@ -3860,11 +3912,11 @@
                     // Refresh employee list
                     await loadEmployeeManagementData();
                 } else {
-                    alert('Error: ' + data.message);
+                    showNotification('Error: ' + data.message, 'error');
                 }
             } catch (error) {
                 console.error('Error creating employee:', error);
-                alert('Error creating employee. Please try again.');
+                showNotification('Error creating employee. Please try again.', 'error');
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -3917,7 +3969,7 @@
         window.copyCredentials = function(email, password) {
             const text = `PodFactory Login\nEmail: ${email}\nPassword: ${password}`;
             navigator.clipboard.writeText(text).then(() => {
-                alert('Credentials copied to clipboard!');
+                showNotification('Credentials copied to clipboard!', 'success');
             });
         };
 
