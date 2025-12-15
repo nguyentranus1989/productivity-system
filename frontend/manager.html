@@ -797,6 +797,11 @@
                             <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Personal Email <span style="color: #808080; font-size: 0.85em;">(for welcome email)</span></label>
                             <input type="email" id="newEmpPersonalEmail" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
                         </div>
+                        <!-- Phone (Optional) -->
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; color: #e0e0e0;">Phone <span style="color: #808080; font-size: 0.85em;">(optional)</span></label>
+                            <input type="tel" id="newEmpPhone" placeholder="555-123-4567" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
+                        </div>
                     </div>
 
                     <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
@@ -3847,6 +3852,7 @@
                     name: document.getElementById('newEmpName').value.trim(),
                     email: document.getElementById('newEmpEmail').value.trim(),
                     personal_email: document.getElementById('newEmpPersonalEmail')?.value?.trim() || null,
+                    phone_number: document.getElementById('newEmpPhone')?.value?.trim() || null,
                     role_id: document.getElementById('newEmpAuth0Role').value || null,
                     workspace: document.getElementById('newEmpWorkspace').value || 'MS'
                 };
