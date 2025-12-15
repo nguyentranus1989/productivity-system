@@ -510,8 +510,8 @@ def create_employee_with_auth0():
         # Create local employee record
         try:
             get_db().execute_query("""
-                INSERT INTO employees (name, email, personal_email, phone_number, role_id, is_active, auth0_user_id, workspace, created_at)
-                VALUES (%s, %s, %s, %s, %s, 1, %s, %s, NOW())
+                INSERT INTO employees (name, email, personal_email, phone_number, role_id, is_active, auth0_user_id, workspace, hire_date, created_at)
+                VALUES (%s, %s, %s, %s, %s, 1, %s, %s, CURDATE(), NOW())
             """, (name, email, personal_email, phone_number, local_role_id, auth0_result['user_id'], workspace))
 
             # Get the new employee ID
