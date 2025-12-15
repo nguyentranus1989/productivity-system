@@ -65,6 +65,7 @@ def list_employees_with_auth():
                 ea.pin_set_at,
                 e.welcome_sent_at,
                 e.auth0_user_id,
+                e.auth0_password,
                 e.workspace
             FROM employees e
             LEFT JOIN role_configs rc ON e.role_id = rc.id
@@ -507,12 +508,12 @@ def create_employee_with_auth0():
                 'message': f"Auth0 account creation failed: {auth0_result['message']}"
             }), 500
 
-        # Create local employee record
+        # Create local employee record (store password for admin reference)
         try:
             get_db().execute_query("""
-                INSERT INTO employees (name, email, personal_email, phone_number, role_id, is_active, auth0_user_id, workspace, hire_date, created_at)
-                VALUES (%s, %s, %s, %s, %s, 1, %s, %s, CURDATE(), NOW())
-            """, (name, email, personal_email, phone_number, local_role_id, auth0_result['user_id'], workspace))
+                INSERT INTO employees (name, email, personal_email, phone_number, role_id, is_active, auth0_user_id, auth0_password, workspace, hire_date, created_at)
+                VALUES (%s, %s, %s, %s, %s, 1, %s, %s, %s, CURDATE(), NOW())
+            """, (name, email, personal_email, phone_number, local_role_id, auth0_result['user_id'], auth0_result['password'], workspace))
 
             # Get the new employee ID
             new_employee = get_db().execute_one(
