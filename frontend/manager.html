@@ -3646,14 +3646,16 @@
                     console.log('Response received:', response);
 
                     if (response && response.employees) {
-                        // Create lookup map by employee ID for PIN and personal_email
+                        // Create lookup map by employee ID for PIN, personal_email, podfactory_email, auth0_password
                         const adminMap = {};
                         if (pinResponse && pinResponse.employees) {
                             pinResponse.employees.forEach(emp => {
                                 adminMap[emp.id] = {
                                     has_pin: emp.has_pin,
                                     pin_plain: emp.pin_plain,
-                                    personal_email: emp.personal_email
+                                    personal_email: emp.personal_email,
+                                    podfactory_email: emp.podfactory_email,
+                                    auth0_password: emp.auth0_password
                                 };
                             });
                         }
@@ -3665,7 +3667,9 @@
                                 ...emp,
                                 has_pin: adminMap[emp.id]?.has_pin || 0,
                                 pin_plain: adminMap[emp.id]?.pin_plain || null,
-                                personal_email: adminMap[emp.id]?.personal_email || null
+                                personal_email: adminMap[emp.id]?.personal_email || null,
+                                podfactory_email: adminMap[emp.id]?.podfactory_email || null,
+                                auth0_password: adminMap[emp.id]?.auth0_password || null
                             }));
                         console.log('Active employees found:', activeEmployees.length);
 
