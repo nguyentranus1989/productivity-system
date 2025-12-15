@@ -3725,17 +3725,13 @@
                     const portalDot = pinMissing ? `<span style="display: inline-block; width: 6px; height: 6px; background: #f59e0b; border-radius: 50%; margin-left: 4px; vertical-align: middle;" title="PIN needs to be set"></span>` : '';
                     const portalDisplay = `<button onclick="viewPortalCredentials(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.pin_plain || '').replace(/'/g, "\\'")}', '${(emp.personal_email || '').replace(/'/g, "\\'")}')" style="padding: 4px 10px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;">View</button>${portalDot}`;
 
-                    // PodFactory credentials display (Email from mapping table + Password)
+                    // PodFactory credentials display - now fetches all role emails from API
                     const hasPodFactoryEmail = emp.podfactory_email && emp.podfactory_email.length > 0;
+                    const emailCount = hasPodFactoryEmail ? emp.podfactory_email.split(',').length : 0;
                     let podFactoryDisplay;
                     if (hasPodFactoryEmail) {
-                        // Get first email if multiple are mapped
-                        const firstPfEmail = emp.podfactory_email.split(',')[0].trim();
-                        const passMissing = !emp.auth0_password;
-                        const podDot = passMissing ? `<span style="display: inline-block; width: 6px; height: 6px; background: #f59e0b; border-radius: 50%; margin-left: 4px; vertical-align: middle;" title="Password not stored"></span>` : '';
-                        podFactoryDisplay = `<button onclick="viewPodFactoryCredentials(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${firstPfEmail.replace(/'/g, "\\'")}', '${(emp.auth0_password || '').replace(/'/g, "\\'")}')" style="padding: 4px 10px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;">View</button>${podDot}`;
+                        podFactoryDisplay = `<button onclick="viewPodFactoryCredentials(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')" style="padding: 4px 10px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;">View (${emailCount})</button>`;
                     } else {
-                        // No PodFactory mapping exists
                         podFactoryDisplay = `<span style="color: #808080; font-size: 11px;">-</span>`;
                     }
 
@@ -5277,48 +5273,78 @@
                 modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
             };
 
-            // View PodFactory Credentials (Email + Password) - with reset option if password missing
-            window.viewPodFactoryCredentials = function(employeeId, employeeName, email, password) {
-                const hasPassword = password && password.length > 0;
-                const passwordDisplay = hasPassword
-                    ? `<div style="color: #fbbf24; font-size: 18px; font-weight: bold; font-family: monospace; letter-spacing: 1px;">${password}</div>`
-                    : `<div style="color: #808080; font-size: 14px; margin-bottom: 8px;">Not stored</div>
-                       <button onclick="resetAuth0Password(${employeeId}, '${employeeName.replace(/'/g, "\\'")}')" style="padding: 6px 12px; background: #f59e0b; color: #1e1e1e; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;">
-                           <i class="fas fa-sync-alt"></i> Reset Password
-                       </button>`;
+            // View PodFactory Credentials - shows all role emails with passwords
+            window.viewPodFactoryCredentials = async function(employeeId, employeeName) {
+                // Show loading modal
+                const loadingModal = document.createElement('div');
+                loadingModal.id = 'viewPodFactoryModal';
+                loadingModal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+                loadingModal.innerHTML = `<div style="color: #fbbf24; font-size: 14px;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>`;
+                document.body.appendChild(loadingModal);
 
-                const copyButton = hasPassword
-                    ? `<button onclick="copyPodFactoryCredentials('${email.replace(/'/g, "\\'")}', '${password.replace(/'/g, "\\'")}')" style="flex: 1; padding: 10px; background: #f59e0b; color: #1e1e1e; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
-                           <i class="fas fa-copy"></i> Copy
-                       </button>`
-                    : '';
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/podfactory-credentials`, {
+                        headers: { 'X-API-Key': API_KEY }
+                    });
+                    const data = await response.json();
+                    loadingModal.remove();
 
-                const modal = document.createElement('div');
-                modal.id = 'viewPodFactoryModal';
-                modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 10000; display: flex; align-items: center; justify-content: center;';
-                modal.innerHTML = `
-                    <div style="background: #1e1e1e; padding: 25px; border-radius: 12px; width: 420px; max-width: 90%; border: 1px solid rgba(251,191,36,0.3);">
-                        <h3 style="color: #fbbf24; margin: 0 0 20px 0; font-size: 15px;">
-                            <i class="fas fa-industry"></i> PodFactory Login - ${employeeName}
-                        </h3>
-                        <div style="background: rgba(251,191,36,0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                            <div style="color: #808080; font-size: 11px; margin-bottom: 5px;">Work Email</div>
-                            <div style="color: #fcd34d; font-size: 14px; font-family: monospace; word-break: break-all;">${email}</div>
-                        </div>
-                        <div style="background: rgba(251,191,36,0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                            <div style="color: #808080; font-size: 11px; margin-bottom: 5px;">Password</div>
-                            ${passwordDisplay}
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            ${copyButton}
-                            <button onclick="document.getElementById('viewPodFactoryModal').remove();" style="flex: 1; padding: 10px; background: #3f3f46; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                    if (!data.success) {
+                        showNotification(data.message || 'Failed to load credentials', 'error');
+                        return;
+                    }
+
+                    const credentials = data.credentials || [];
+                    const credentialsHtml = credentials.length === 0
+                        ? `<div style="color: #808080; text-align: center; padding: 20px;">No PodFactory emails mapped</div>`
+                        : credentials.map(cred => {
+                            const hasAuth0 = cred.auth0_user_id;
+                            const hasPassword = cred.auth0_password;
+                            let actionButton = '';
+                            if (!hasAuth0) {
+                                actionButton = `<button onclick="setupPodFactoryAuth0(${cred.id}, '${employeeName.replace(/'/g, "\\'")}')" style="padding: 4px 8px; background: #22c55e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;"><i class="fas fa-plus"></i> Setup</button>`;
+                            } else if (!hasPassword) {
+                                actionButton = `<button onclick="resetPodFactoryAuth0Password(${cred.id}, '${employeeName.replace(/'/g, "\\'")}')" style="padding: 4px 8px; background: #f59e0b; color: #1e1e1e; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;"><i class="fas fa-sync-alt"></i> Reset</button>`;
+                            } else {
+                                actionButton = `<button onclick="copyPodFactoryCredentials('${cred.podfactory_email.replace(/'/g, "\\'")}', '${cred.auth0_password.replace(/'/g, "\\'")}')" style="padding: 4px 8px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;"><i class="fas fa-copy"></i> Copy</button>
+                                                <button onclick="resetPodFactoryAuth0Password(${cred.id}, '${employeeName.replace(/'/g, "\\'")}')" style="padding: 4px 8px; background: #3f3f46; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;"><i class="fas fa-sync-alt"></i></button>`;
+                            }
+                            return `
+                                <div style="background: rgba(251,191,36,0.1); padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                        <div style="color: #fcd34d; font-size: 12px; font-family: monospace; word-break: break-all; flex: 1;">${cred.podfactory_email}</div>
+                                        <div style="display: flex; gap: 4px; margin-left: 8px;">${actionButton}</div>
+                                    </div>
+                                    <div style="color: ${hasPassword ? '#22c55e' : '#808080'}; font-size: 14px; font-family: monospace; font-weight: ${hasPassword ? 'bold' : 'normal'};">
+                                        ${hasPassword ? cred.auth0_password : (hasAuth0 ? 'Password not stored' : 'No Auth0 account')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+
+                    const modal = document.createElement('div');
+                    modal.id = 'viewPodFactoryModal';
+                    modal.dataset.employeeId = employeeId;
+                    modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+                    modal.innerHTML = `
+                        <div style="background: #1e1e1e; padding: 25px; border-radius: 12px; width: 500px; max-width: 90%; max-height: 80vh; overflow-y: auto; border: 1px solid rgba(251,191,36,0.3);">
+                            <h3 style="color: #fbbf24; margin: 0 0 20px 0; font-size: 15px;">
+                                <i class="fas fa-industry"></i> PodFactory Logins - ${employeeName}
+                            </h3>
+                            <div style="color: #808080; font-size: 11px; margin-bottom: 15px;">${credentials.length} role email(s)</div>
+                            ${credentialsHtml}
+                            <button onclick="document.getElementById('viewPodFactoryModal').remove();" style="width: 100%; padding: 10px; background: #3f3f46; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 10px;">
                                 Close
                             </button>
                         </div>
-                    </div>
-                `;
-                document.body.appendChild(modal);
-                modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+                    `;
+                    document.body.appendChild(modal);
+                    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+                } catch (error) {
+                    loadingModal.remove();
+                    showNotification('Error loading credentials', 'error');
+                    console.error('Load credentials error:', error);
+                }
             };
 
             // Copy Portal Credentials
@@ -5333,31 +5359,56 @@
                 navigator.clipboard.writeText(text).then(() => showNotification('PodFactory credentials copied!', 'success'));
             };
 
-            // Reset Auth0 password for employee
-            window.resetAuth0Password = async function(employeeId, employeeName) {
-                // Close the current modal
+            // Setup Auth0 account for a PodFactory email mapping
+            window.setupPodFactoryAuth0 = async function(mappingId, employeeName) {
                 const modal = document.getElementById('viewPodFactoryModal');
+                const employeeId = modal ? modal.dataset.employeeId : null;
                 if (modal) modal.remove();
 
-                // Show loading
-                showNotification('Resetting password...', 'info');
+                showNotification('Creating Auth0 account...', 'info');
 
                 try {
-                    const response = await fetch(`${API_BASE}/api/admin/employees/${employeeId}/reset-auth0-password`, {
+                    const response = await fetch(`${API_BASE}/api/admin/podfactory-mappings/${mappingId}/setup-auth0`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY }
                     });
                     const data = await response.json();
 
                     if (data.success) {
-                        showNotification(`Password reset for ${employeeName}`, 'success');
-                        // Reload employee list to get new password
-                        loadEmployees();
-                        // Show new credentials
-                        if (data.password && data.email) {
-                            setTimeout(() => {
-                                viewPodFactoryCredentials(employeeId, employeeName, data.email, data.password);
-                            }, 500);
+                        showNotification(`Auth0 account created: ${data.email}`, 'success');
+                        // Reopen modal to show updated credentials
+                        if (employeeId) {
+                            setTimeout(() => viewPodFactoryCredentials(employeeId, employeeName), 300);
+                        }
+                    } else {
+                        showNotification(data.message || 'Failed to create Auth0 account', 'error');
+                    }
+                } catch (error) {
+                    showNotification('Error creating Auth0 account', 'error');
+                    console.error('Setup Auth0 error:', error);
+                }
+            };
+
+            // Reset Auth0 password for a PodFactory email mapping
+            window.resetPodFactoryAuth0Password = async function(mappingId, employeeName) {
+                const modal = document.getElementById('viewPodFactoryModal');
+                const employeeId = modal ? modal.dataset.employeeId : null;
+                if (modal) modal.remove();
+
+                showNotification('Resetting password...', 'info');
+
+                try {
+                    const response = await fetch(`${API_BASE}/api/admin/podfactory-mappings/${mappingId}/reset-auth0-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY }
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showNotification(`Password reset: ${data.email}`, 'success');
+                        // Reopen modal to show updated credentials
+                        if (employeeId) {
+                            setTimeout(() => viewPodFactoryCredentials(employeeId, employeeName), 300);
                         }
                     } else {
                         showNotification(data.message || 'Failed to reset password', 'error');

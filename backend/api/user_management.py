@@ -243,6 +243,156 @@ def reset_auth0_password(employee_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@user_management_bp.route('/api/admin/employees/<int:employee_id>/podfactory-credentials', methods=['GET'])
+@require_api_key
+def get_podfactory_credentials(employee_id):
+    """Get all PodFactory email credentials for an employee"""
+    try:
+        # Verify employee exists
+        employee = get_db().execute_one(
+            "SELECT id, name FROM employees WHERE id = %s", (employee_id,))
+        if not employee:
+            return jsonify({'success': False, 'message': 'Employee not found'}), 404
+
+        # Get all verified PodFactory mappings with Auth0 credentials
+        mappings = get_db().execute_query("""
+            SELECT id, podfactory_email, podfactory_name, auth0_user_id, auth0_password
+            FROM employee_podfactory_mapping_v2
+            WHERE employee_id = %s AND is_verified = 1
+            ORDER BY podfactory_email
+        """, (employee_id,))
+
+        return jsonify({
+            'success': True,
+            'employee_id': employee_id,
+            'employee_name': employee['name'],
+            'credentials': mappings or []
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@user_management_bp.route('/api/admin/podfactory-mappings/<int:mapping_id>/setup-auth0', methods=['POST'])
+@require_api_key
+def setup_podfactory_auth0(mapping_id):
+    """Create Auth0 account for a specific PodFactory email"""
+    try:
+        # Get mapping with employee info
+        mapping = get_db().execute_one("""
+            SELECT m.id, m.podfactory_email, m.auth0_user_id, e.id as employee_id, e.name, e.workspace
+            FROM employee_podfactory_mapping_v2 m
+            JOIN employees e ON m.employee_id = e.id
+            WHERE m.id = %s
+        """, (mapping_id,))
+
+        if not mapping:
+            return jsonify({'success': False, 'message': 'Mapping not found'}), 404
+
+        if mapping.get('auth0_user_id'):
+            return jsonify({'success': False, 'message': 'Auth0 account already exists for this email'}), 400
+
+        # Create Auth0 account
+        auth0_result = Auth0Manager.create_user({
+            'employee_id': mapping['employee_id'],
+            'name': mapping['name'],
+            'email': mapping['podfactory_email'],
+            'workspace': mapping.get('workspace', 'MS')
+        })
+
+        if not auth0_result['success']:
+            # Check if user exists in Auth0 but not linked
+            if 'already exists' in auth0_result['message']:
+                # Try to find and link existing Auth0 user
+                import requests
+                from integrations.auth0_manager import _token_manager
+                from config import Config
+                token = _token_manager.get_access_token()
+                response = requests.get(
+                    f"https://{Config.AUTH0_DOMAIN}/api/v2/users-by-email",
+                    params={'email': mapping['podfactory_email']},
+                    headers={'Authorization': f'Bearer {token}'},
+                    timeout=10
+                )
+                if response.status_code == 200 and response.json():
+                    existing_user = response.json()[0]
+                    auth0_user_id = existing_user['user_id']
+                    # Reset password to get known password
+                    reset_result = Auth0Manager.reset_password(auth0_user_id)
+                    if reset_result['success']:
+                        get_db().execute_query("""
+                            UPDATE employee_podfactory_mapping_v2
+                            SET auth0_user_id = %s, auth0_password = %s
+                            WHERE id = %s
+                        """, (auth0_user_id, reset_result['password'], mapping_id))
+                        return jsonify({
+                            'success': True,
+                            'mapping_id': mapping_id,
+                            'email': mapping['podfactory_email'],
+                            'password': reset_result['password'],
+                            'message': 'Linked existing Auth0 account and reset password'
+                        })
+            return jsonify({'success': False, 'message': auth0_result['message']}), 400
+
+        # Store Auth0 info in mapping table
+        get_db().execute_query("""
+            UPDATE employee_podfactory_mapping_v2
+            SET auth0_user_id = %s, auth0_password = %s
+            WHERE id = %s
+        """, (auth0_result['user_id'], auth0_result['password'], mapping_id))
+
+        return jsonify({
+            'success': True,
+            'mapping_id': mapping_id,
+            'email': mapping['podfactory_email'],
+            'password': auth0_result['password'],
+            'message': 'Auth0 account created'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@user_management_bp.route('/api/admin/podfactory-mappings/<int:mapping_id>/reset-auth0-password', methods=['POST'])
+@require_api_key
+def reset_podfactory_auth0_password(mapping_id):
+    """Reset Auth0 password for a specific PodFactory email"""
+    try:
+        # Get mapping
+        mapping = get_db().execute_one("""
+            SELECT id, podfactory_email, auth0_user_id
+            FROM employee_podfactory_mapping_v2
+            WHERE id = %s
+        """, (mapping_id,))
+
+        if not mapping:
+            return jsonify({'success': False, 'message': 'Mapping not found'}), 404
+
+        if not mapping.get('auth0_user_id'):
+            return jsonify({'success': False, 'message': 'No Auth0 account for this email'}), 400
+
+        # Reset password
+        result = Auth0Manager.reset_password(mapping['auth0_user_id'])
+
+        if not result['success']:
+            return jsonify({'success': False, 'message': result['message']}), 400
+
+        # Store new password
+        get_db().execute_query("""
+            UPDATE employee_podfactory_mapping_v2
+            SET auth0_password = %s
+            WHERE id = %s
+        """, (result['password'], mapping_id))
+
+        return jsonify({
+            'success': True,
+            'mapping_id': mapping_id,
+            'email': mapping['podfactory_email'],
+            'password': result['password'],
+            'message': 'Password reset successfully'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @user_management_bp.route('/api/admin/employees/<int:employee_id>/toggle-active', methods=['POST'])
 @require_api_key
 def toggle_employee_active(employee_id):
