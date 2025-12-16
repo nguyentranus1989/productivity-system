@@ -82,6 +82,10 @@ def unified_login():
         if admin_result['success']:
             return jsonify(admin_result)
 
+        # If admin login has a specific message (locked, etc), return it
+        if admin_result.get('message'):
+            return jsonify(admin_result), 401
+
         # If admin failed, try employee login
         employee_result = try_employee_login(username, password, remember_me)
         if employee_result['success']:
@@ -121,13 +125,18 @@ def try_admin_login(username, password, remember_me=False):
 
         # Check if locked
         if admin['locked_until'] and admin['locked_until'] > datetime.now():
+            remaining = admin['locked_until'] - datetime.now()
+            mins = int(remaining.total_seconds() // 60) + 1
             cursor.close()
             conn.close()
-            return {'success': False, 'message': 'Account locked. Try again later.'}
+            return {'success': False, 'message': f'Account locked. Try again in {mins} minute(s).'}
 
         # Verify password
         if not verify_admin_password(password, admin['password_hash']):
             # Increment failed attempts
+            new_attempts = (admin['failed_attempts'] or 0) + 1
+            will_lock = new_attempts >= 5
+
             cursor.execute("""
                 UPDATE admin_users
                 SET failed_attempts = failed_attempts + 1,
@@ -140,6 +149,13 @@ def try_admin_login(username, password, remember_me=False):
             conn.commit()
             cursor.close()
             conn.close()
+
+            # Return warning about remaining attempts
+            if will_lock:
+                return {'success': False, 'message': 'Account locked for 15 minutes due to too many failed attempts.'}
+            elif new_attempts >= 3:
+                remaining = 5 - new_attempts
+                return {'success': False, 'message': f'Invalid credentials. {remaining} attempt(s) remaining before lockout.'}
             return {'success': False}
 
         # Success - reset failed attempts and generate token
