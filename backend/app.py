@@ -19,6 +19,7 @@ from logging.handlers import RotatingFileHandler
 from apscheduler.schedulers.background import BackgroundScheduler
 from api.system_control import system_control_bp
 from utils.timezone_helpers import TimezoneHelper
+from auto_reconciliation import AutoFixReconciliation
 
 # Import configuration
 from config import config
@@ -81,7 +82,19 @@ def init_schedulers(app):
             name='Sync Connecteam employees',
             replace_existing=True
         )
-        
+
+        # Reconcile last 7 days at 3 AM (catches retroactive shift additions)
+        reconciler = AutoFixReconciliation()
+        background_scheduler.add_job(
+            func=reconciler.auto_reconcile,
+            trigger="cron",
+            hour=3,
+            minute=0,
+            id='daily_reconciliation',
+            name='Reconcile last 7 days with Connecteam',
+            replace_existing=True
+        )
+
         app.logger.info("Connecteam auto-sync enabled")
 
     # Add daily cost summary calculation job (runs at 6:15 PM CT, after daily score finalization)
