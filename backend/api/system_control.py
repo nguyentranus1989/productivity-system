@@ -357,6 +357,43 @@ def force_sync():
             'error': str(e)
         }), 500
 
+
+@system_control_bp.route('/api/system/reconcile', methods=['POST'])
+@require_admin_auth
+def run_reconciliation():
+    """Run Connecteam reconciliation to catch retroactive shift additions"""
+    from auto_reconciliation import AutoFixReconciliation
+
+    days_back = request.json.get('days_back', 14) if request.json else 14
+
+    if not isinstance(days_back, int) or days_back < 1 or days_back > 60:
+        return jsonify({
+            'success': False,
+            'error': 'days_back must be between 1 and 60'
+        }), 400
+
+    try:
+        reconciler = AutoFixReconciliation()
+        # Run reconciliation (this may take 30-60 seconds for 14 days)
+        reconciler.auto_reconcile(days_back=days_back)
+
+        # Get the saved status
+        status = AutoFixReconciliation.get_last_run_status()
+
+        return jsonify({
+            'success': True,
+            'message': f'Reconciliation completed for last {days_back} days',
+            'stats': status
+        })
+
+    except Exception as e:
+        logger.error(f"Reconciliation error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @system_control_bp.route('/api/system/test-connection', methods=['GET'])
 @require_admin_auth
 def test_database_connection():

@@ -1153,7 +1153,36 @@
                         </div>
                     </div>
                 </div>
-                
+
+                <!-- Reconciliation Status -->
+                <div style="
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 10px;
+                    padding: 20px;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <h3 style="margin: 0 0 10px 0; color: #60a5fa;">14-Day Reconciliation</h3>
+                            <div style="color: #808080; font-size: 0.9em;">
+                                <div id="reconciliation-status">Last run: --</div>
+                                <div id="reconciliation-stats">Days checked: -- | Fixed: --</div>
+                                <div>Schedule: Daily at 3:00 AM CT</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="runReconciliation()" style="
+                                padding: 8px 16px;
+                                background: #60a5fa;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                            ">🔄 Run Now</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Database Control -->
                 <div style="
                     background: rgba(255,255,255,0.03);
@@ -2315,6 +2344,67 @@
             });
         }
 
+        // Run 14-day reconciliation manually
+        function runReconciliation() {
+            showConfirmModal('Run Reconciliation', 'Run 14-day reconciliation now? This checks the last 14 days for missing shifts.', async () => {
+                showLoadingModal('Running reconciliation (may take 30-60 seconds)...');
+                try {
+                    const response = await fetch(`${API_BASE}/api/system/reconcile`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': 'dev-api-key-123'
+                        },
+                        body: JSON.stringify({ days_back: 14 })
+                    });
+
+                    const data = await response.json();
+                    hideLoadingModal();
+
+                    if (data.success) {
+                        const stats = data.stats || {};
+                        showNotification(`Reconciliation complete! Days checked: ${stats.days_checked || 0}, Fixed: ${stats.days_fixed || 0}`, 'success');
+                        updateReconciliationStatus();
+                    } else {
+                        showNotification(`Reconciliation failed: ${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    hideLoadingModal();
+                    showNotification(`Error: ${error.message}`, 'error');
+                }
+            });
+        }
+
+        // Update reconciliation status display
+        async function updateReconciliationStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/connecteam/status`, {
+                    headers: { 'X-API-Key': 'dev-api-key-123' }
+                });
+                const data = await response.json();
+
+                if (data.reconciliation) {
+                    const recon = data.reconciliation;
+                    const statusEl = document.getElementById('reconciliation-status');
+                    const statsEl = document.getElementById('reconciliation-stats');
+
+                    if (recon.last_run) {
+                        const lastRun = new Date(recon.last_run);
+                        const now = new Date();
+                        const hoursAgo = Math.round((now - lastRun) / (1000 * 60 * 60));
+                        const statusIcon = recon.success ? '✅' : '❌';
+                        statusEl.textContent = `Last run: ${statusIcon} ${hoursAgo}h ago (${lastRun.toLocaleString()})`;
+                        statsEl.textContent = `Days checked: ${recon.days_checked || '--'} | Fixed: ${recon.days_fixed || '--'} | Imported: ${recon.total_imported || 0}`;
+                    } else {
+                        statusEl.textContent = 'Last run: Never';
+                        statsEl.textContent = 'Days checked: -- | Fixed: --';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to update reconciliation status:', error);
+            }
+        }
+
         // Test database connection
         async function testDatabaseConnection() {
             showLoadingModal('Testing database connection...');
@@ -2790,6 +2880,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Initial health check
             updateSystemHealth();
+            updateReconciliationStatus();
 
             // Update health status every 60 seconds (only when tab visible)
             setInterval(() => {

@@ -13,18 +13,27 @@ from datetime import datetime, timedelta
 import pytz
 import logging
 import mysql.connector
+import json
 from typing import Dict, List, Set
+
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class AutoFixReconciliation:
+    REDIS_KEY = 'reconciliation:last_run'
+
     def __init__(self):
         self.client = ConnecteamClient(
             api_key="9255ce96-70eb-4982-82ef-fc35a7651428",
             clock_id=7425182
         )
-        
+
         self.db_config = {
             'host': 'db-mysql-sgp1-61022-do-user-16860331-0.h.db.ondigitalocean.com',
             'port': 25060,
@@ -32,9 +41,58 @@ class AutoFixReconciliation:
             'password': 'AVNS_OWqdUdZ2Nw_YCkGI5Eu',
             'database': 'productivity_tracker'
         }
-        
+
         self.utc_tz = pytz.UTC
         self.central_tz = pytz.timezone('America/Chicago')
+
+        # Initialize Redis connection for status tracking
+        self.redis_client = None
+        if REDIS_AVAILABLE:
+            try:
+                self.redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+                self.redis_client.ping()
+            except Exception as e:
+                logger.warning(f"Redis not available for status tracking: {e}")
+                self.redis_client = None
+
+    def _save_status(self, stats: Dict, days_back: int, success: bool, error: str = None):
+        """Save reconciliation run status to Redis"""
+        if not self.redis_client:
+            return
+
+        try:
+            status = {
+                'last_run': datetime.now(self.central_tz).isoformat(),
+                'days_back': days_back,
+                'success': success,
+                'days_checked': stats.get('days_checked', 0),
+                'days_fixed': stats.get('days_fixed', 0),
+                'total_deleted': stats.get('total_deleted', 0),
+                'total_imported': stats.get('total_imported', 0),
+                'error': error
+            }
+            # Store for 14 days (enough to see last run even if it fails)
+            self.redis_client.setex(self.REDIS_KEY, 60 * 60 * 24 * 14, json.dumps(status))
+            logger.info(f"Reconciliation status saved to Redis")
+        except Exception as e:
+            logger.warning(f"Failed to save status to Redis: {e}")
+
+    @classmethod
+    def get_last_run_status(cls) -> Dict:
+        """Get the last reconciliation run status from Redis"""
+        if not REDIS_AVAILABLE:
+            return {'available': False, 'reason': 'Redis not installed'}
+
+        try:
+            r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+            data = r.get(cls.REDIS_KEY)
+            if data:
+                status = json.loads(data)
+                status['available'] = True
+                return status
+            return {'available': True, 'last_run': None, 'reason': 'Never run'}
+        except Exception as e:
+            return {'available': False, 'reason': str(e)}
         
     def get_db_connection(self):
         """Get database connection"""
@@ -360,9 +418,14 @@ class AutoFixReconciliation:
             logger.info(f"  Total entries deleted: {stats['total_deleted']}")
             logger.info(f"  Total entries imported: {stats['total_imported']}")
             logger.info("=" * 60)
-            
+
+            # Save successful status to Redis
+            self._save_status(stats, days_back, success=True)
+
         except Exception as e:
             logger.error(f"Error during reconciliation: {e}")
+            # Save failed status to Redis
+            self._save_status(stats, days_back, success=False, error=str(e))
             conn.rollback()
             raise
         finally:

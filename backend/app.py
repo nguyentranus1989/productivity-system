@@ -83,15 +83,15 @@ def init_schedulers(app):
             replace_existing=True
         )
 
-        # Reconcile last 7 days at 3 AM (catches retroactive shift additions)
+        # Reconcile last 14 days at 3 AM (catches retroactive shift additions)
         reconciler = AutoFixReconciliation()
         background_scheduler.add_job(
-            func=reconciler.auto_reconcile,
+            func=lambda: reconciler.auto_reconcile(days_back=14),
             trigger="cron",
             hour=3,
             minute=0,
             id='daily_reconciliation',
-            name='Reconcile last 7 days with Connecteam',
+            name='Reconcile last 14 days with Connecteam',
             replace_existing=True
         )
 
@@ -277,12 +277,30 @@ def scheduler_status():
 
 @app.route('/api/connecteam/status', methods=['GET'])
 def connecteam_status():
-    """Get Connecteam integration status"""
-    return jsonify({
+    """Get Connecteam integration status including sync and reconciliation info"""
+    from integrations.connecteam_sync import ConnecteamSync
+
+    status = {
         'enabled': getattr(config, 'ENABLE_AUTO_SYNC', False),
         'sync_interval': getattr(config, 'SYNC_INTERVAL', 300),
         'clock_id': config.CONNECTEAM_CLOCK_ID
-    })
+    }
+
+    # Add sync status if enabled
+    if status['enabled']:
+        try:
+            sync = ConnecteamSync(config.CONNECTEAM_API_KEY, config.CONNECTEAM_CLOCK_ID)
+            status['sync'] = sync.get_sync_status()
+        except Exception as e:
+            status['sync'] = {'error': str(e)}
+
+    # Add reconciliation status
+    try:
+        status['reconciliation'] = AutoFixReconciliation.get_last_run_status()
+    except Exception as e:
+        status['reconciliation'] = {'error': str(e)}
+
+    return jsonify(status)
 
 # ============= STATION ASSIGNMENT ROUTES =============
 @app.route('/api/station-performance', methods=['GET'])
