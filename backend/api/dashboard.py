@@ -3807,7 +3807,10 @@ def get_cost_analysis():
             start_date = request.args.get('start_date', datetime.now().strftime('%Y-%m-%d'))
             end_date = request.args.get('end_date', start_date)
 
-        today_str = datetime.now().strftime('%Y-%m-%d')
+        # Use Central Time for "today" comparison (server runs in UTC)
+        import pytz
+        ct_tz = pytz.timezone('America/Chicago')
+        today_str = datetime.now(ct_tz).strftime('%Y-%m-%d')
         is_date_range = (start_date != end_date)
         is_past_only = (end_date < today_str)
 
@@ -3842,6 +3845,41 @@ def get_cost_analysis():
             start = datetime.strptime(start_date, '%Y-%m-%d')
             end = datetime.strptime(end_date, '%Y-%m-%d')
             days_in_range = (end - start).days + 1
+
+            # For SINGLE DAY: Fetch clock_times for tooltip display
+            if not is_date_range:
+                employee_ids = [emp['id'] for emp in employee_costs if emp.get('id')]
+                if employee_ids:
+                    clock_times_query = """
+                    SELECT
+                        ct.employee_id,
+                        CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago') as clock_in_ct,
+                        CONVERT_TZ(ct.clock_out, '+00:00', 'America/Chicago') as clock_out_ct,
+                        GREATEST(0, TIMESTAMPDIFF(MINUTE, ct.clock_in, COALESCE(ct.clock_out, UTC_TIMESTAMP()))) as minutes
+                    FROM clock_times ct
+                    WHERE ct.employee_id IN ({})
+                    AND DATE(CONVERT_TZ(ct.clock_in, '+00:00', 'America/Chicago')) = %s
+                    ORDER BY ct.clock_in
+                    """.format(','.join(['%s'] * len(employee_ids)))
+
+                    clock_times_params = employee_ids + [start_date]
+                    clock_times_results = db_manager.execute_query(clock_times_query, clock_times_params)
+
+                    # Build lookup by employee_id
+                    clock_times_by_employee = {}
+                    for row in clock_times_results:
+                        emp_id = row['employee_id']
+                        if emp_id not in clock_times_by_employee:
+                            clock_times_by_employee[emp_id] = []
+                        clock_times_by_employee[emp_id].append({
+                            'clock_in': row['clock_in_ct'].strftime('%I:%M %p') if row['clock_in_ct'] else None,
+                            'clock_out': row['clock_out_ct'].strftime('%I:%M %p') if row['clock_out_ct'] else 'Active',
+                            'minutes': row['minutes']
+                        })
+
+                    # Assign to each employee
+                    for emp in employee_costs:
+                        emp['clock_times'] = clock_times_by_employee.get(emp['id'], [])
 
             return jsonify({
                 'success': True,

@@ -6230,9 +6230,9 @@
                     await alertDialog('Invalid Date Range', 'Start date must be before end date');
                     return;
                 }
-                
+
                 console.log('Applying date filter:', startDate, 'to', endDate);
-                
+
                 // Update the dashboard title to show date range
                 const titleElement = document.querySelector('.dashboard-title p');
                 if (startDate === endDate) {
@@ -6240,25 +6240,32 @@
                 } else {
                     titleElement.textContent = `Data from ${new Date(startDate + 'T12:00:00').toLocaleDateString()} to ${new Date(endDate + 'T12:00:00').toLocaleDateString()}`;
                 }
-                
+
                 // Store the date range
                 dashboardData.startDate = startDate;
                 dashboardData.endDate = endDate;
-                
+
                 // Check which section is currently active and reload its data
                 const costSection = document.getElementById('cost-section');
                 const bottleneckSection = document.getElementById('bottleneck-section');
                 const dashboardSection = document.getElementById('dashboard-section');
-                
-                if (costSection && costSection.classList.contains('active')) {
-                    console.log('Cost Analysis tab is active, reloading cost data...');
-                    loadCostAnalysisData();  // This will now use the selected date
-                } else if (bottleneckSection && bottleneckSection.classList.contains('active')) {
-                    console.log('Bottleneck tab is active, reloading bottleneck data...');
-                    loadBottleneckData();
-                } else if (dashboardSection && dashboardSection.classList.contains('active')) {
-                    console.log('Dashboard tab is active, reloading dashboard data...');
-                    loadDashboardDataForDateRange(startDate, endDate);
+
+                // Show loading spinner
+                showTabLoading('Applying filter...');
+
+                try {
+                    if (costSection && costSection.classList.contains('active')) {
+                        console.log('Cost Analysis tab is active, reloading cost data...');
+                        await loadCostAnalysisData();
+                    } else if (bottleneckSection && bottleneckSection.classList.contains('active')) {
+                        console.log('Bottleneck tab is active, reloading bottleneck data...');
+                        await loadBottleneckData();
+                    } else if (dashboardSection && dashboardSection.classList.contains('active')) {
+                        console.log('Dashboard tab is active, reloading dashboard data...');
+                        await loadDashboardDataForDateRange(startDate, endDate);
+                    }
+                } finally {
+                    hideTabLoading();
                 }
             };
             // Tab loading helpers
