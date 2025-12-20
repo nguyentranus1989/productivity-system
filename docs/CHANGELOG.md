@@ -2,6 +2,26 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.4.2] - 2025-12-19
+
+### Fixed - Cost Analysis UX Improvements
+
+#### Bug Fixes
+- **Apply Button Loading**: Added loading spinner when clicking Apply button during date filter - prevents confusion during data fetch
+- **Central Time Detection**: Fixed "today" detection using Central Time instead of server UTC - was incorrectly treating today as historical
+- **Clock Times for Historical Dates**: Yellow clock icon now appears for single-day historical views (pre-calculated path was missing clock_times data)
+
+#### Technical Details
+| Issue | Root Cause | Fix |
+|-------|------------|-----|
+| No loading indicator on Apply | `applyDateFilter()` didn't show spinner | Added `showTabLoading()` with try/finally |
+| Today treated as historical | `datetime.now()` returns UTC on server | Use `datetime.now(pytz.timezone('America/Chicago'))` |
+| No yellow clock icon for past dates | Pre-calculated path didn't fetch clock_times | Added clock_times query for single-day historical |
+
+#### Files Modified
+- `frontend/manager.html` - Added loading spinner to applyDateFilter()
+- `backend/api/dashboard.py` - Central Time detection + clock_times for pre-calculated path
+
 ## [2.4.1] - 2025-12-13
 
 ### Fixed - Employee Portal Schedule Display
