@@ -13,12 +13,6 @@
     <link rel="stylesheet" href="css/manager-industrial.css?v=20251214d" id="theme-css">
 </head>
 <body>
-    <!-- Tab Loading Overlay -->
-    <div id="tabLoadingOverlay" class="tab-loading-overlay">
-        <div class="tab-loading-spinner"></div>
-        <div class="tab-loading-text">Loading...</div>
-    </div>
-
     <!-- Mobile Menu Toggle Button (only visible on mobile) -->
     <button class="mobile-menu-toggle" onclick="toggleSidebar()" >☰</button>
     <!-- Mobile Menu Toggle Button (only visible on mobile) -->
@@ -81,6 +75,12 @@
 
     <!-- Main Content -->
     <div class="main-content">
+        <!-- Tab Loading Overlay - inside main-content so sidebar stays clickable -->
+        <div id="tabLoadingOverlay" class="tab-loading-overlay">
+            <div class="tab-loading-spinner"></div>
+            <div class="tab-loading-text">Loading...</div>
+        </div>
+
         <!-- Header -->
         <div class="dashboard-header">
             <div class="dashboard-title">
