@@ -523,26 +523,35 @@ class ConnecteamSync:
                                 f"(clock_in within 5min of last clock_out)")
                     return True
             else:
-                # Active shift exists, update clock_out if available
+                # Active shift exists - but does this clock_out belong to THIS shift?
+                # BUG FIX: Verify clock_out is AFTER the existing clock_in before updating
+                # Otherwise we may apply an older shift's clock_out to a newer active shift
                 if shift.clock_out:
-                    self.db.execute_query(
-                        """
-                        UPDATE clock_times
-                        SET clock_out = %s,
-                            is_active = FALSE,
-                            total_minutes = TIMESTAMPDIFF(MINUTE, clock_in, %s),
-                            updated_at = NOW()
-                        WHERE employee_id = %s
-                        AND DATE(CONVERT_TZ(clock_in, '+00:00', 'America/Chicago')) = DATE(CONVERT_TZ(NOW(), '+00:00', 'America/Chicago'))
-                        AND clock_out IS NULL
-                        LIMIT 1
-                        """,
-                        (shift.clock_out, shift.clock_out, employee_id)
-                    )
-                    logger.info(f"Updated clock_out for employee {employee_id}")
+                    existing_clock_in = latest_record['clock_in']
+                    if shift.clock_out > existing_clock_in:
+                        # clock_out is AFTER existing clock_in - valid update
+                        self.db.execute_query(
+                            """
+                            UPDATE clock_times
+                            SET clock_out = %s,
+                                is_active = FALSE,
+                                total_minutes = TIMESTAMPDIFF(MINUTE, clock_in, %s),
+                                updated_at = NOW()
+                            WHERE id = %s
+                            """,
+                            (shift.clock_out, shift.clock_out, latest_record['id'])
+                        )
+                        logger.info(f"Updated clock_out for employee {employee_id}")
+                        return True
+                    else:
+                        # clock_out is BEFORE existing clock_in - this is an OLDER completed shift!
+                        # Don't update the active shift - fall through to create new record
+                        logger.info(f"Employee {employee_id}: Incoming shift (clock_out={shift.clock_out}) "
+                                   f"is older than active shift (clock_in={existing_clock_in}). Creating separate record.")
+                        # Fall through to INSERT below
                 else:
                     logger.info(f"Employee {employee_id} still working")
-                return True
+                    return True
         
         # Create new record only if truly needed
         try:
