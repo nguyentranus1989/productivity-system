@@ -3,6 +3,7 @@ load_dotenv()
 
 import os
 import logging
+import pytz
 from api.gamification import gamification_bp
 from api.team_metrics import team_metrics_bp
 from api.connecteam import connecteam_bp
@@ -72,24 +73,26 @@ def init_schedulers(app):
             replace_existing=True
         )
         
-        # Sync employees daily at 2 AM
+        # Sync employees daily at 2 AM CT
         background_scheduler.add_job(
             func=connecteam_sync.sync_employees,
             trigger="cron",
             hour=2,
             minute=0,
+            timezone=pytz.timezone('America/Chicago'),
             id='connecteam_employee_sync',
             name='Sync Connecteam employees',
             replace_existing=True
         )
 
-        # Reconcile last 14 days at 3 AM (catches retroactive shift additions)
+        # Reconcile last 14 days at 3 AM CT (catches retroactive shift additions)
         reconciler = AutoFixReconciliation()
         background_scheduler.add_job(
             func=lambda: reconciler.auto_reconcile(days_back=14),
             trigger="cron",
             hour=3,
             minute=0,
+            timezone=pytz.timezone('America/Chicago'),
             id='daily_reconciliation',
             name='Reconcile last 14 days with Connecteam',
             replace_existing=True
@@ -97,7 +100,7 @@ def init_schedulers(app):
 
         app.logger.info("Connecteam auto-sync enabled")
 
-    # Add daily cost summary calculation job (runs at 6:15 PM CT, after daily score finalization)
+    # Add daily cost summary calculation job (runs at 11:30 PM CT, captures full day before midnight)
     from api.system_control import calculate_daily_cost_summary
     from datetime import datetime
 
@@ -114,13 +117,14 @@ def init_schedulers(app):
     background_scheduler.add_job(
         func=run_daily_cost_summary,
         trigger="cron",
-        hour=18,
-        minute=15,
+        hour=23,
+        minute=30,
+        timezone=pytz.timezone('America/Chicago'),  # Explicit CT timezone
         id='daily_cost_summary',
         name='Calculate daily cost summary',
         replace_existing=True
     )
-    app.logger.info("Daily cost summary job scheduled for 6:15 PM CT")
+    app.logger.info("Daily cost summary job scheduled for 11:30 PM CT")
 
     background_scheduler.start()
     app.logger.info("Background scheduler started")
