@@ -184,12 +184,12 @@ class ConnecteamSync:
     # Replace the sync_todays_shifts method in connecteam_sync.py:
 
     def sync_todays_shifts(self) -> Dict[str, int]:
-        """Sync today's shifts and update clock times"""
+        """Sync today's shifts and update clock times - BATCH INSERT OPTIMIZED"""
         today = self.get_central_date()
         current_time = self.get_central_datetime()
-        
+
         logger.info(f"Syncing shifts for {today} at {current_time.strftime('%I:%M:%S %p')} CT")
-        
+
         stats = {
             'total_shifts': 0,
             'active_shifts': 0,
@@ -199,89 +199,141 @@ class ConnecteamSync:
             'duplicates_cleaned': 0,
             'errors': 0
         }
-        
+
         try:
             # ALWAYS clean up duplicates first
             stats['duplicates_cleaned'] = self.cleanup_todays_duplicates()
-            
+
             # Get today's shifts from Connecteam
             shifts = self.client.get_todays_shifts()
             stats['total_shifts'] = len(shifts)
-            
-            # Process each shift
-            processed_employees = set()
-            
+
+            if not shifts:
+                logger.info(f"No shifts to sync for {today}")
+                return stats
+
+            # 1. Batch-fetch ALL employees in ONE query (like v2)
+            employee_lookup = self._fetch_employee_lookup()
+            logger.info(f"Loaded {len(employee_lookup)} employee mappings")
+
+            # 2. Build batch INSERT data
+            insert_values = []
+            params = []
+            active_shifts_data = []  # Track active shifts for cache updates
+
             for shift in shifts:
                 try:
-                    # Skip if we already processed this employee today
-                    # if shift.user_id in processed_employees:
-                    #     logger.debug(f"Already processed {shift.employee_name} today, checking for updates only")
-                    
-                    # Get employee ID from database
-                    employee = self._get_employee_by_connecteam_id(shift.user_id)
+                    # O(1) lookup instead of DB query per shift
+                    employee = employee_lookup.get(str(shift.user_id))
                     if not employee:
                         logger.warning(f"Employee not found for Connecteam user {shift.user_id}")
+                        stats['errors'] += 1
                         continue
-                    
+
                     # Convert shift times to Central Time for logging
                     clock_in_utc = shift.clock_in  # Already UTC from Connecteam
                     clock_out_utc = shift.clock_out  # Already UTC from Connecteam if shift.clock_out else None
                     clock_in_central = self.convert_to_central(clock_in_utc)
                     clock_out_central = self.convert_to_central(clock_out_utc) if clock_out_utc else None
-                    
+
                     logger.debug(f"Processing shift for {shift.employee_name}: "
                             f"In: {clock_in_central.strftime('%I:%M %p')} CT, "
                             f"Out: {clock_out_central.strftime('%I:%M %p') if clock_out_central else 'Active'}")
-                    
-                    # Sync clock time (stores in UTC)
-                    record_updated = self._sync_clock_time(employee['id'], shift)
-                    
-                    if record_updated:
-                        stats['clock_records_updated'] += 1
-                    else:
-                        stats['clock_records_created'] += 1
-                    
+
+                    # Collect parameters for this shift
+                    insert_values.append("(%s, %s, %s, %s, %s, 'connecteam', NOW(), NOW())")
+                    params.extend([
+                        employee['id'],
+                        shift.clock_in,
+                        shift.clock_out,
+                        shift.total_minutes,
+                        shift.is_active
+                    ])
+
+                    # Track active/completed shifts
                     if shift.is_active:
                         stats['active_shifts'] += 1
-                        # Update cache with live data
-                        self._update_live_cache(employee['id'], shift)
+                        # Store for cache updates (needs individual handling)
+                        active_shifts_data.append((employee['id'], shift))
                     else:
                         stats['completed_shifts'] += 1
-                    
-                    processed_employees.add(shift.user_id)
-                    
+
                 except Exception as e:
-                    logger.error(f"Error syncing shift for {shift.employee_name}: {e}")
+                    logger.error(f"Error preparing shift for batch: {e}")
                     stats['errors'] += 1
-            
+
+            if not insert_values:
+                logger.info(f"No valid shifts to insert for {today}")
+                return stats
+
+            # 3. Execute ONE bulk INSERT with ON DUPLICATE KEY UPDATE (MySQL 8+ syntax)
+            bulk_query = f"""
+                INSERT INTO clock_times
+                    (employee_id, clock_in, clock_out, total_minutes, is_active, source, created_at, updated_at)
+                VALUES {', '.join(insert_values)}
+                AS new_vals
+                ON DUPLICATE KEY UPDATE
+                    clock_out = new_vals.clock_out,
+                    total_minutes = new_vals.total_minutes,
+                    is_active = new_vals.is_active,
+                    updated_at = NOW()
+            """
+
+            affected_rows = self.db.execute_update(bulk_query, tuple(params))
+            logger.info(f"Bulk insert completed, affected_rows={affected_rows}")
+
+            # 4. Parse affected_rows to estimate created vs updated
+            # MySQL returns: 1 = inserted, 2 = updated, 0 = unchanged
+            valid_shifts = len(insert_values)
+
+            if affected_rows >= valid_shifts * 2:
+                # Most/all were updates (affected_rows = 2 per update)
+                stats['clock_records_updated'] = valid_shifts
+                stats['clock_records_created'] = 0
+            elif affected_rows <= valid_shifts:
+                # Most/all were inserts (affected_rows = 1 per insert)
+                stats['clock_records_created'] = affected_rows
+                stats['clock_records_updated'] = 0
+            else:
+                # Mixed: estimate based on affected_rows
+                stats['clock_records_created'] = max(0, 2 * valid_shifts - affected_rows)
+                stats['clock_records_updated'] = valid_shifts - stats['clock_records_created']
+
+            # 5. Update cache for active shifts (individual handling required)
+            for employee_id, shift in active_shifts_data:
+                try:
+                    self._update_live_cache(employee_id, shift)
+                except Exception as e:
+                    logger.error(f"Error updating cache for employee {employee_id}: {e}")
+
             # Final cleanup check
             final_cleanup = self.cleanup_todays_duplicates()
             if final_cleanup > 0:
                 stats['duplicates_cleaned'] += final_cleanup
                 logger.warning(f"Had to clean {final_cleanup} more duplicates after sync")
-            
-            # Update who's working today cache
-            self._update_working_today_cache(shifts)
-            
+
+            # Update who's working today cache (pass lookup to avoid N queries)
+            self._update_working_today_cache(shifts, employee_lookup)
+
             # Log sync to database
             self.db.execute_query("""
                 INSERT INTO connecteam_sync_log (sync_type, records_synced, status, details, synced_at)
                 VALUES ('shifts', %s, 'success', %s, NOW())
             """, (stats['total_shifts'], json.dumps(stats)))
-            
+
             logger.info(f"Shift sync complete: {stats}")
             return stats
-            
+
         except Exception as e:
             logger.error(f"Error in shift sync: {e}")
             stats['errors'] = stats['total_shifts']
-            
+
             # Log failed sync
             self.db.execute_query("""
                 INSERT INTO connecteam_sync_log (sync_type, records_synced, status, details, synced_at)
                 VALUES ('shifts', 0, 'error', %s, NOW())
             """, (str(e),))
-            
+
             return stats
     
     def _get_employee_by_connecteam_id(self, connecteam_user_id: str) -> Optional[Dict]:
@@ -295,6 +347,24 @@ class ConnecteamSync:
         return self.db.fetch_one(query, (connecteam_user_id,))
 
     # ========== NEW BATCH SYNC METHODS (v2) ==========
+
+    def _fetch_employee_lookup(self) -> Dict[str, Dict]:
+        """Fetch all employee mappings by connecteam_user_id in ONE query.
+
+        Returns:
+            Dict[connecteam_user_id] -> employee dict
+        """
+        query = """
+        SELECT e.*
+        FROM employees e
+        WHERE e.connecteam_user_id IS NOT NULL
+        """
+        employees = self.db.fetch_all(query)
+
+        lookup = {}
+        for emp in employees:
+            lookup[str(emp['connecteam_user_id'])] = emp
+        return lookup
 
     def _fetch_existing_clock_times_for_date(self, sync_date: datetime.date) -> Dict[tuple, Dict]:
         """Fetch all clock_times for a date as lookup dict.
@@ -360,9 +430,9 @@ class ConnecteamSync:
             raise
 
     def sync_shifts_for_date_v2(self, sync_date: datetime.date) -> Dict[str, int]:
-        """Sync shifts for a specific date - BATCH OPTIMIZED version.
+        """Sync shifts for a specific date - BATCH INSERT OPTIMIZED version.
 
-        Uses single query to fetch existing records, then O(1) lookups.
+        Uses single bulk INSERT with ON DUPLICATE KEY UPDATE to process all shifts in ONE query.
         """
         logger.info(f"[v2] Syncing shifts for {sync_date}")
 
@@ -370,34 +440,93 @@ class ConnecteamSync:
             'total_shifts': 0,
             'created': 0,
             'updated': 0,
-            'unchanged': 0,
+            'skipped': 0,
             'errors': 0
         }
 
         try:
-            # 1. Fetch ALL existing records in ONE query
-            existing_lookup = self._fetch_existing_clock_times_for_date(sync_date)
-            logger.info(f"Loaded {len(existing_lookup)} existing clock records for {sync_date}")
+            # 1. Batch-fetch ALL employees in ONE query
+            employee_lookup = self._fetch_employee_lookup()
+            logger.info(f"Loaded {len(employee_lookup)} employee mappings")
 
             # 2. Get shifts from Connecteam
             shifts = self.client.get_shifts_for_date(sync_date)
             stats['total_shifts'] = len(shifts)
             logger.info(f"Got {len(shifts)} shifts from Connecteam")
 
-            # 3. Process each shift (NO DB queries in loop!)
+            if not shifts:
+                logger.info(f"No shifts to sync for {sync_date}")
+                return stats
+
+            # 3. Build batch INSERT data
+            insert_values = []
+            params = []
+
             for shift in shifts:
                 try:
-                    employee = self._get_employee_by_connecteam_id(shift.user_id)
+                    # O(1) lookup instead of DB query
+                    employee = employee_lookup.get(str(shift.user_id))
                     if not employee:
                         logger.warning(f"Employee not found for Connecteam user {shift.user_id}")
+                        stats['skipped'] += 1
                         continue
 
-                    result = self._sync_clock_time_v2(employee['id'], shift, existing_lookup)
-                    stats[result] += 1
+                    # Collect parameters for this shift
+                    insert_values.append("(%s, %s, %s, %s, %s, 'connecteam', NOW(), NOW())")
+                    params.extend([
+                        employee['id'],
+                        shift.clock_in,
+                        shift.clock_out,
+                        shift.total_minutes,
+                        shift.is_active
+                    ])
 
                 except Exception as e:
-                    logger.error(f"Error syncing shift: {e}")
+                    logger.error(f"Error preparing shift for batch: {e}")
                     stats['errors'] += 1
+
+            if not insert_values:
+                logger.info(f"No valid shifts to insert for {sync_date}")
+                return stats
+
+            # 4. Execute ONE bulk INSERT with ON DUPLICATE KEY UPDATE
+            # MySQL 8+ requires alias syntax instead of deprecated VALUES()
+            bulk_query = f"""
+                INSERT INTO clock_times
+                    (employee_id, clock_in, clock_out, total_minutes, is_active, source, created_at, updated_at)
+                VALUES {', '.join(insert_values)}
+                AS new_vals
+                ON DUPLICATE KEY UPDATE
+                    clock_out = new_vals.clock_out,
+                    total_minutes = new_vals.total_minutes,
+                    is_active = new_vals.is_active,
+                    updated_at = NOW()
+            """
+
+            affected_rows = self.db.execute_update(bulk_query, tuple(params))
+            logger.info(f"Bulk insert completed, affected_rows={affected_rows}")
+
+            # 5. Parse affected_rows to determine created vs updated
+            # MySQL returns: 1 = inserted, 2 = updated, 0 = unchanged
+            # Total affected_rows is sum of all row changes
+            # Estimate breakdown (precise tracking requires individual inserts)
+            valid_shifts = len(insert_values)
+
+            if affected_rows >= valid_shifts * 2:
+                # Most/all were updates (affected_rows = 2 per update)
+                stats['updated'] = valid_shifts
+                stats['created'] = 0
+            elif affected_rows <= valid_shifts:
+                # Most/all were inserts (affected_rows = 1 per insert)
+                stats['created'] = affected_rows
+                stats['updated'] = 0
+            else:
+                # Mixed: estimate based on affected_rows
+                # If all updated: affected_rows = 2 * N
+                # If all created: affected_rows = 1 * N
+                # Linear interpolation: updated = (affected_rows - N) / N * N
+                stats['created'] = max(0, 2 * valid_shifts - affected_rows)
+                stats['updated'] = valid_shifts - stats['created']
 
             logger.info(f"[v2] Sync complete: {stats}")
             return stats
@@ -611,20 +740,11 @@ class ConnecteamSync:
         
         try:
             # Execute the query and get row count
-            clock_time_id = self.db.execute_update(cleanup_query, (today,))
-            
-            # Handle different return types
-            if isinstance(result, int):
-                rows_deleted = result
-            elif hasattr(result, '__iter__'):
-                # If it returns a list or similar, assume no rows deleted
-                rows_deleted = 0
-            else:
-                rows_deleted = 0
-            
+            rows_deleted = self.db.execute_update(cleanup_query, (today,)) or 0
+
             if rows_deleted > 0:
                 logger.warning(f"Cleaned up {rows_deleted} duplicate clock records for {today}")
-            
+
             return rows_deleted
             
         except Exception as e:
@@ -791,14 +911,18 @@ class ConnecteamSync:
         
         self.cache.set(cache_key, json.dumps(cache_data), ttl=300)  # 5 minute TTL
     
-    def _update_working_today_cache(self, shifts: List[ConnecteamShift]):
+    def _update_working_today_cache(self, shifts: List[ConnecteamShift], employee_lookup: Dict[str, Dict] = None):
         """Update cache with who's working today"""
         working_today = []
         currently_working = []
         current_time = self.get_central_datetime()
-        
+
+        # Use provided lookup or fetch once
+        if employee_lookup is None:
+            employee_lookup = self._fetch_employee_lookup()
+
         for shift in shifts:
-            employee = self._get_employee_by_connecteam_id(shift.user_id)
+            employee = employee_lookup.get(str(shift.user_id))
             if not employee:
                 continue
             

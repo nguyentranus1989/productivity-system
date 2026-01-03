@@ -1232,7 +1232,7 @@
                             <h3 style="margin: 0 0 10px 0; color: #06b6d4;">Data Maintenance</h3>
                             <div style="color: #808080; font-size: 0.9em;">
                                 <div>Recalculate derived data when values become stale</div>
-                                <div>Tables: daily_scores, clock_times, employee_status</div>
+                                <div>Tables: daily_scores, clock_times, daily_cost_summary, employee_status</div>
                             </div>
                         </div>
                         <div style="display: flex; gap: 10px;">
@@ -1370,6 +1370,7 @@
                             <li>daily_scores.active_minutes (from activity_logs)</li>
                             <li>daily_scores.items_processed (from activity_logs)</li>
                             <li>daily_scores.efficiency_rate (derived)</li>
+                            <li>daily_cost_summary (cost analysis)</li>
                             <li>employee_current_status (live status)</li>
                         </ul>
                     </div>
@@ -1414,7 +1415,7 @@
                         </div>
                         <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.85em; color: #808080;">
                             <span>Elapsed: <span id="recalc-elapsed" style="color: #e0e0e0;">0s</span></span>
-                            <span>Stage <span id="recalc-stage-num">0</span>/6</span>
+                            <span>Stage <span id="recalc-stage-num">0</span>/7</span>
                         </div>
                     </div>
 
@@ -1455,7 +1456,14 @@
                             </div>
                             <span class="stage-time" style="font-size: 0.85em;"></span>
                         </div>
-                        <div class="recalc-stage" data-stage="6" data-id="employee_current_status" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; color: #808080;">
+                        <div class="recalc-stage" data-stage="6" data-id="daily_cost_summary" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; color: #808080;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span class="stage-icon">○</span>
+                                <span>daily_cost_summary</span>
+                            </div>
+                            <span class="stage-time" style="font-size: 0.85em;"></span>
+                        </div>
+                        <div class="recalc-stage" data-stage="7" data-id="employee_current_status" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; color: #808080;">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span class="stage-icon">○</span>
                                 <span>employee_current_status</span>

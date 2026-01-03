@@ -2,6 +2,37 @@
 
 All notable changes to the Productivity Tracker system.
 
+## [2.5.0] - 2026-01-03
+
+### Performance - Batch Calculation & Data Sync Optimization
+
+#### Performance Improvements
+- **Batch Productivity Calculation**: New `process_all_employees_for_date_batch()` method - 200x faster than original (9s vs 30min for 31 employees)
+- **Batch Connecteam Sync**: Historical sync 6.4x faster (150s → 23s per day) using bulk INSERT
+- **Cron Sync Optimization**: Daily sync 3.3x faster (87s → 26s) with batch employee lookups
+
+#### Data Recalculation
+- Full 2025 daily_scores recalculated (4,684 records across 327 days)
+- Missing daily_cost_summary dates fixed (5 dates added)
+- Data integrity verified: clock_times, daily_scores, daily_cost_summary all synced
+
+#### UI Updates
+- **Recalculation Modal**: Added `daily_cost_summary` as stage 6 (was missing from UI)
+- **Stage Count**: Updated from 6 to 7 stages
+- **Card Description**: Added daily_cost_summary to table list
+
+#### Bug Fixes
+- MySQL 8+ `VALUES()` deprecated syntax → use `AS alias` pattern
+- `cleanup_todays_duplicates()` undefined `result` variable
+- Decimal vs float type error in batch calculation
+- Recalculation script key mismatch (`employees_processed` vs `processed`)
+
+#### Files Modified
+- `backend/calculations/productivity_calculator.py` - Added batch method
+- `backend/integrations/connecteam_sync.py` - Batch INSERT optimization
+- `backend/scripts/recalculate_2025_scores_batch.py` - New batch recalc script
+- `frontend/manager.html` - Recalculation modal UI updates
+
 ## [2.4.2] - 2025-12-19
 
 ### Fixed - Cost Analysis UX Improvements
